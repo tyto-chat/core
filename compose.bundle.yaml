@@ -1,0 +1,22 @@
+# Single-stack bundle (web client served from this stack's Caddy):
+#   docker compose -f compose.yaml -f compose.bundle.yaml up -d
+# Requires APP_DOMAIN in .env; CORS_ALLOW_ORIGIN must allow https://<APP_DOMAIN>.
+
+services:
+  web-files:
+    image: ghcr.io/tyto-chat/tyto-client:${TYTO_VERSION:-latest}
+    restart: "no"
+    entrypoint: ["sh", "-c", "rm -rf /files/* && cp -a /srv/. /files/ && rm -f /files/config.js"]
+    volumes:
+      - app_web:/files
+
+  app:
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN in .env for the bundled web client}
+    volumes:
+      - app_web:/srv/app
+    depends_on:
+      web-files: { condition: service_completed_successfully }
+
+volumes:
+  app_web:

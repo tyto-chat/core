@@ -1,0 +1,669 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^PHPDoc tag @var with type array\{imports\?\: list\<array\{resource\: string, type\?\: string\|null, ignore_errors\?\: bool\}\|string\>, parameters\?\: array\<string, array\<array\<mixed\>\|bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|UnitEnum\|null\>\|bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|UnitEnum\|null\>, services\?\: array\{_defaults\?\: array\{public\?\: bool, tags\?\: mixed, resource_tags\?\: mixed, autowire\?\: bool, autoconfigure\?\: bool, bind\?\: array\<string, mixed\>\}, _instanceof\?\: array\{shared\?\: bool, lazy\?\: bool\|string, public\?\: bool, properties\?\: array\<string, mixed\>, configurator\?\: array\{string\|Symfony\\Component\\DependencyInjection\\Loader\\Configurator\\ReferenceConfigurator, string\}\|Closure\|string\|Symfony\\Component\\DependencyInjection\\Loader\\Configurator\\ExpressionConfigurator\|Symfony\\Component\\DependencyInjection\\Loader\\Configurator\\ReferenceConfigurator, calls\?\: list\<array\<0\|1\|2\|string, array\<int\<0, max\>\|string, mixed\>\|bool\|string\>\>, tags\?\: mixed, resource_tags\?\: mixed, \.\.\.\}\}, framework\?\: array\{secret\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, http_method_override\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, allowed_http_method_override\?\: list\<string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\>\|null, trust_x_sendfile_type_header\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, ide\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, test\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, default_locale\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, set_locale_from_accept_language\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, \.\.\.\}, doctrine\?\: array\{dbal\?\: array\{default_connection\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, types\?\: array\<string, array\{class\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null\}\|string\>, driver_schemes\?\: array\<string, bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null\>, connections\?\: array\<string, array\{url\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, dbname\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, host\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, port\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, user\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, password\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, dbname_suffix\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, application_name\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, \.\.\.\}\>\}, orm\?\: array\{default_entity_manager\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, enable_native_lazy_objects\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, controller_resolver\?\: array\{enabled\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, auto_mapping\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, evict_cache\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\}\|bool, entity_managers\?\: array\<string, array\{query_cache_driver\?\: array\{type\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, id\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, pool\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null\}\|string, metadata_cache_driver\?\: array\{type\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, id\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, pool\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null\}\|string, result_cache_driver\?\: array\{type\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, id\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, pool\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null\}\|string, entity_listeners\?\: array\{entities\?\: array\<string, array\{listeners\?\: array\<string, array\{events\?\: list\<array\{type\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, method\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null\}\>\}\>\}\>\}, connection\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, class_metadata_factory_name\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, default_repository_class\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, auto_mapping\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, \.\.\.\}\>, resolve_target_entities\?\: array\<string, bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null\>\}\}, doctrine_migrations\?\: array\{enable_service_migrations\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, migrations_paths\?\: array\<string, bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null\>, services\?\: array\<string, bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null\>, factories\?\: array\<string, bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null\>, storage\?\: array\{table_storage\?\: array\{table_name\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, version_column_name\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, version_column_length\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, executed_at_column_name\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, execution_time_column_name\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null\}\}, migrations\?\: list\<bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null\>, connection\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, em\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, \.\.\.\}, twig\?\: array\{form_themes\?\: list\<bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null\>, globals\?\: array\<string, array\{id\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, type\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, value\?\: mixed\}\>, autoescape_service\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, autoescape_service_method\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, base_template_class\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, cache\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, charset\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, debug\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, \.\.\.\}, twig_extra\?\: array\{cache\?\: array\{enabled\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\}\|bool, html\?\: array\{enabled\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\}\|bool, markdown\?\: array\{enabled\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\}\|bool, intl\?\: array\{enabled\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\}\|bool, cssinliner\?\: array\{enabled\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\}\|bool, inky\?\: array\{enabled\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\}\|bool, string\?\: array\{enabled\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\}\|bool, commonmark\?\: array\{renderer\?\: array\{block_separator\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, inner_separator\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null, soft_break\?\: bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null\}, html_input\?\: ''allow''\|''escape''\|''strip''\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, allow_unsafe_links\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, max_nesting_level\?\: int\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, max_delimiters_per_line\?\: int\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, slug_normalizer\?\: array\{instance\?\: mixed, max_length\?\: int\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, unique\?\: mixed\}, commonmark\?\: array\{enable_em\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, enable_strong\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, use_asterisk\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, use_underscore\?\: bool\|Symfony\\Component\\Config\\Loader\\ParamConfigurator, unordered_list_markers\?\: list\<bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|null\>\}\}\}, \.\.\.\} is not subtype of type array\{imports\?\: list\<array\{resource\: string, type\?\: string\|null, ignore_errors\?\: bool\}\|string\>, parameters\?\: array\<string, array\<array\<mixed\>\|bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|UnitEnum\|null\>\|bool\|float\|int\|string\|Symfony\\Component\\Config\\Loader\\ParamConfigurator\|UnitEnum\|null\>, services\?\: array\{_defaults\?\: array\{public\?\: bool, tags\?\: mixed, resource_tags\?\: mixed, autowire\?\: bool, autoconfigure\?\: bool, bind\?\: array\<string, mixed\>\}, _instanceof\?\: array\{shared\?\: bool, lazy\?\: bool\|string, public\?\: bool, properties\?\: array\<string, mixed\>, configurator\?\: array\{string\|Symfony\\Component\\DependencyInjection\\Loader\\Configurator\\ReferenceConfigurator, string\}\|Closure\|string\|Symfony\\Component\\DependencyInjection\\Loader\\Configurator\\ExpressionConfigurator\|Symfony\\Component\\DependencyInjection\\Loader\\Configurator\\ReferenceConfigurator, calls\?\: list\<array\<0\|1\|2\|string, array\<int\<0, max\>\|string, mixed\>\|bool\|string\>\>, tags\?\: mixed, resource_tags\?\: mixed, \.\.\.\}\}\}\.$#'
+			identifier: varTag.type
+			count: 1
+			path: config/reference.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, string\|false given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Command/CreateUserCommand.php
+
+
+		-
+			message: '#^Construct empty\(\) is not allowed\. Use more strict comparison\.$#'
+			identifier: empty.notAllowed
+			count: 1
+			path: src/Command/SeedDataCommand.php
+
+		-
+			message: '#^Parameter \#1 \$min \(1\) of function random_int expects lower number than parameter \#2 \$max \(int\<0, 5\>\)\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/SeedDataCommand.php
+
+		-
+			message: '#^Only booleans are allowed in an if condition, Gesdinet\\JWTRefreshTokenBundle\\Model\\RefreshTokenInterface\|null given\.$#'
+			identifier: if.condNotBoolean
+			count: 1
+			path: src/Controller/LogoutController.php
+
+		-
+			message: '#^Only booleans are allowed in an if condition, string\|null given\.$#'
+			identifier: if.condNotBoolean
+			count: 1
+			path: src/Controller/LogoutController.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\Channel\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Controller/VoiceController.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\User\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Controller/VoiceController.php
+
+		-
+			message: '#^Method App\\Serializer\\MultipartDecoder\:\:decode\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Serializer/MultipartDecoder.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, Symfony\\Component\\HttpFoundation\\Request\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Serializer/MultipartDecoder.php
+
+		-
+			message: '#^Property App\\Entity\\AdminAuditLog\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/AdminAuditLog.php
+
+		-
+			message: '#^Property App\\Entity\\ApiKey\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/ApiKey.php
+
+		-
+			message: '#^Property App\\Entity\\Appeal\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/Appeal.php
+
+		-
+			message: '#^Property App\\Entity\\Challenge\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/Challenge.php
+
+		-
+			message: '#^Property App\\Entity\\Channel\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/Channel.php
+
+		-
+			message: '#^Property App\\Entity\\ChannelMember\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/ChannelMember.php
+
+		-
+			message: '#^Property App\\Entity\\ChannelReadState\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/ChannelReadState.php
+
+		-
+			message: '#^Property App\\Entity\\ChannelSection\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/ChannelSection.php
+
+		-
+			message: '#^Property App\\Entity\\ChannelUserPreference\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/ChannelUserPreference.php
+
+		-
+			message: '#^Property App\\Entity\\Community\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/Community.php
+
+		-
+			message: '#^Property App\\Entity\\CommunityEmoji\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/CommunityEmoji.php
+
+		-
+			message: '#^Property App\\Entity\\CommunityInvite\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/CommunityInvite.php
+
+		-
+			message: '#^Property App\\Entity\\CommunityMember\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/CommunityMember.php
+
+		-
+			message: '#^Property App\\Entity\\CommunityPin\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/CommunityPin.php
+
+		-
+			message: '#^Property App\\Entity\\Conversation\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/Conversation.php
+
+		-
+			message: '#^Property App\\Entity\\ConversationMember\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/ConversationMember.php
+
+		-
+			message: '#^Property App\\Entity\\DataExportRequest\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/DataExportRequest.php
+
+		-
+			message: '#^Property App\\Entity\\GroupChannelPermission\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/GroupChannelPermission.php
+
+		-
+			message: '#^Property App\\Entity\\MediaObject\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/MediaObject.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\Channel\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Entity/Message.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\Conversation\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Entity/Message.php
+
+		-
+			message: '#^Short ternary operator is not allowed\. Use null coalesce operator if applicable or consider using long ternary\.$#'
+			identifier: ternary.shortNotAllowed
+			count: 2
+			path: src/Entity/Message.php
+
+		-
+			message: '#^Property App\\Entity\\MessageRevision\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/MessageRevision.php
+
+		-
+			message: '#^Property App\\Entity\\MessagePage\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/MessagePage.php
+
+		-
+			message: '#^Property App\\Entity\\ModerationAction\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/ModerationAction.php
+
+		-
+			message: '#^Property App\\Entity\\ModeratorNote\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/ModeratorNote.php
+
+		-
+			message: '#^Property App\\Entity\\Notification\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/Notification.php
+
+		-
+			message: '#^Property App\\Entity\\PresenceSample\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/PresenceSample.php
+
+		-
+			message: '#^Property App\\Entity\\Profile\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/Profile.php
+
+		-
+			message: '#^Property App\\Entity\\PushSubscription\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/PushSubscription.php
+
+		-
+			message: '#^Property App\\Entity\\Reaction\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/Reaction.php
+
+		-
+			message: '#^Property App\\Entity\\RecoveryCode\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/RecoveryCode.php
+
+		-
+			message: '#^Property App\\Entity\\Report\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/Report.php
+
+		-
+			message: '#^Property App\\Entity\\ResetPasswordRequest\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/ResetPasswordRequest.php
+
+		-
+			message: '#^Method App\\Entity\\User\:\:getUserIdentifier\(\) should return non\-empty\-string but returns string\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Entity/User.php
+
+		-
+			message: '#^Property App\\Entity\\User\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/User.php
+
+		-
+			message: '#^Property App\\Entity\\UserGroup\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/UserGroup.php
+
+		-
+			message: '#^Property App\\Entity\\UserGroup\:\:\$identifier \(string\|null\) is never assigned string so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/UserGroup.php
+
+		-
+			message: '#^Property App\\Entity\\UserGroupMember\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/UserGroupMember.php
+
+		-
+			message: '#^Property App\\Entity\\UserPreference\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/UserPreference.php
+
+		-
+			message: '#^Property App\\Entity\\Webhook\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/Webhook.php
+
+		-
+			message: '#^Property App\\Entity\\WebhookDelivery\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/WebhookDelivery.php
+
+		-
+			message: '#^Only booleans are allowed in an if condition, int\|false given\.$#'
+			identifier: if.condNotBoolean
+			count: 1
+			path: src/EventListener/AutoTimeoutListener.php
+
+		-
+			message: '#^Short ternary operator is not allowed\. Use null coalesce operator if applicable or consider using long ternary\.$#'
+			identifier: ternary.shortNotAllowed
+			count: 1
+			path: src/EventListener/RememberMeListener.php
+
+		-
+			message: '#^Construct empty\(\) is not allowed\. Use more strict comparison\.$#'
+			identifier: empty.notAllowed
+			count: 1
+			path: src/Repository/ReactionRepository.php
+
+		-
+			message: '#^Short ternary operator is not allowed\. Use null coalesce operator if applicable or consider using long ternary\.$#'
+			identifier: ternary.shortNotAllowed
+			count: 1
+			path: src/Repository/ReactionRepository.php
+
+		-
+			message: '#^Casting to int something that''s already int\.$#'
+			identifier: cast.useless
+			count: 1
+			path: src/Serializer/CommunityMemberNormalizer.php
+
+		-
+			message: '#^Parameter \#3 \$context \(array\<string, mixed\>\) of method App\\Serializer\\CommunityMemberNormalizer\:\:normalize\(\) should be contravariant with parameter \$context \(array\<mixed\>\) of method Symfony\\Component\\Serializer\\Normalizer\\NormalizerInterface\:\:normalize\(\)$#'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Serializer/CommunityMemberNormalizer.php
+
+		-
+			message: '#^Parameter \#3 \$context \(array\<string, mixed\>\) of method App\\Serializer\\CommunityMemberNormalizer\:\:supportsNormalization\(\) should be contravariant with parameter \$context \(array\<mixed\>\) of method Symfony\\Component\\Serializer\\Normalizer\\NormalizerInterface\:\:supportsNormalization\(\)$#'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Serializer/CommunityMemberNormalizer.php
+
+		-
+			message: '#^Construct empty\(\) is not allowed\. Use more strict comparison\.$#'
+			identifier: empty.notAllowed
+			count: 1
+			path: src/Serializer/CommunityNormalizer.php
+
+		-
+			message: '#^Parameter \#3 \$context \(array\<string, mixed\>\) of method App\\Serializer\\CommunityNormalizer\:\:normalize\(\) should be contravariant with parameter \$context \(array\<mixed\>\) of method Symfony\\Component\\Serializer\\Normalizer\\NormalizerInterface\:\:normalize\(\)$#'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Serializer/CommunityNormalizer.php
+
+		-
+			message: '#^Parameter \#3 \$context \(array\<string, mixed\>\) of method App\\Serializer\\CommunityNormalizer\:\:supportsNormalization\(\) should be contravariant with parameter \$context \(array\<mixed\>\) of method Symfony\\Component\\Serializer\\Normalizer\\NormalizerInterface\:\:supportsNormalization\(\)$#'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Serializer/CommunityNormalizer.php
+
+		-
+			message: '#^Parameter \#3 \$context \(array\<string, mixed\>\) of method App\\Serializer\\UserGroupNormalizer\:\:normalize\(\) should be contravariant with parameter \$context \(array\<mixed\>\) of method Symfony\\Component\\Serializer\\Normalizer\\NormalizerInterface\:\:normalize\(\)$#'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Serializer/UserGroupNormalizer.php
+
+		-
+			message: '#^Parameter \#3 \$context \(array\<string, mixed\>\) of method App\\Serializer\\UserGroupNormalizer\:\:supportsNormalization\(\) should be contravariant with parameter \$context \(array\<mixed\>\) of method Symfony\\Component\\Serializer\\Normalizer\\NormalizerInterface\:\:supportsNormalization\(\)$#'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Serializer/UserGroupNormalizer.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\Challenge\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Service/Challenge/ChallengeService.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\CommunityMember\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Service/Community/CommunityService.php
+
+		-
+			message: '#^Only booleans are allowed in an if condition, App\\Entity\\CommunityMember\|null given\.$#'
+			identifier: if.condNotBoolean
+			count: 1
+			path: src/Service/Community/CommunityService.php
+
+		-
+			message: '#^Parameter \#2 \$content of method Symfony\\Component\\Filesystem\\Filesystem\:\:dumpFile\(\) expects resource\|string, string\|false given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Service/MediaObject/MediaObjectService.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\MessagePage\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 2
+			path: src/Service/Message/MessageService.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\Message\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Service/Message/MessageService.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\Notification\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Service/Notification/NotificationService.php
+
+		-
+			message: '#^Only booleans are allowed in an if condition, App\\Entity\\Message\|null given\.$#'
+			identifier: if.condNotBoolean
+			count: 1
+			path: src/Service/Reaction/ReactionService.php
+
+		-
+			message: '#^Only booleans are allowed in an if condition, App\\Entity\\Reaction\|null given\.$#'
+			identifier: if.condNotBoolean
+			count: 1
+			path: src/Service/Reaction/ReactionService.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\MediaObject\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Service/Realtime/MercurePublisher.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, string\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Service/Realtime/MercurePublisher.php
+
+		-
+			message: '#^Only booleans are allowed in a ternary operator condition, string\|null given\.$#'
+			identifier: ternary.condNotBoolean
+			count: 1
+			path: src/Service/Realtime/MercurePublisher.php
+
+		-
+			message: '#^Parameter \#1 \$secret of class Symfony\\Component\\Mercure\\Jwt\\LcobucciFactory constructor expects non\-empty\-string, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Service/Realtime/MercureSubscriberTokenFactory.php
+
+		-
+			message: '#^Short ternary operator is not allowed\. Use null coalesce operator if applicable or consider using long ternary\.$#'
+			identifier: ternary.shortNotAllowed
+			count: 1
+			path: src/Service/ServerInfo/SystemInfoService.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\User\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Service/User/BotUserService.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\Profile\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Service/User/ProfileService.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\User\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Service/User/ResetPasswordRequestService.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\User\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Service/User/UserService.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\GroupChannelPermission\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Service/UserGroup/UserGroupService.php
+
+		-
+			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\UserGroupMember\|null given\.$#'
+			identifier: booleanNot.exprNotBoolean
+			count: 1
+			path: src/Service/UserGroup/UserGroupService.php
+
+		-
+			message: '#^Only booleans are allowed in an if condition, App\\Entity\\GroupChannelPermission\|null given\.$#'
+			identifier: if.condNotBoolean
+			count: 1
+			path: src/Service/UserGroup/UserGroupService.php
+
+		-
+			message: '#^Only booleans are allowed in an if condition, App\\Entity\\UserGroupMember\|null given\.$#'
+			identifier: if.condNotBoolean
+			count: 1
+			path: src/Service/UserGroup/UserGroupService.php
+
+		-
+			message: '#^Return type \(ApiPlatform\\State\\Pagination\\ArrayPaginator\) of method App\\State\\Message\\Provider\\MessageHistoryProvider\:\:provide\(\) should be covariant with return type \(App\\Entity\\MessageRevision\|iterable\<App\\Entity\\MessageRevision\>\|null\) of method ApiPlatform\\State\\ProviderInterface\<App\\Entity\\MessageRevision\>\:\:provide\(\)$#'
+			identifier: method.childReturnType
+			count: 1
+			path: src/State/Message/Provider/MessageHistoryProvider.php
+
+		-
+			message: '#^Return type \(ApiPlatform\\State\\Pagination\\ArrayPaginator\) of method App\\State\\MessagePage\\Provider\\ChannelMessagePagesProvider\:\:provide\(\) should be covariant with return type \(App\\Entity\\MessagePage\|iterable\<App\\Entity\\MessagePage\>\|null\) of method ApiPlatform\\State\\ProviderInterface\<App\\Entity\\MessagePage\>\:\:provide\(\)$#'
+			identifier: method.childReturnType
+			count: 1
+			path: src/State/MessagePage/Provider/ChannelMessagePagesProvider.php
+
+		-
+			message: '#^Return type \(ApiPlatform\\State\\Pagination\\ArrayPaginator\) of method App\\State\\MessagePage\\Provider\\ConversationMessagePagesProvider\:\:provide\(\) should be covariant with return type \(App\\Entity\\MessagePage\|iterable\<App\\Entity\\MessagePage\>\|null\) of method ApiPlatform\\State\\ProviderInterface\<App\\Entity\\MessagePage\>\:\:provide\(\)$#'
+			identifier: method.childReturnType
+			count: 1
+			path: src/State/MessagePage/Provider/ConversationMessagePagesProvider.php
+
+		-
+			message: '#^Method App\\State\\Moderation\\Provider\\ActiveModerationProvider\:\:provide\(\) should return list\<App\\Entity\\ModerationAction\> but returns array\<App\\Entity\\ModerationAction\>\.$#'
+			identifier: return.type
+			count: 1
+			path: src/State/Moderation/Provider/ActiveModerationProvider.php
+
+		-
+			message: '#^Method App\\State\\Moderation\\Provider\\ModerationLogProvider\:\:provide\(\) should return list\<App\\Entity\\ModerationAction\> but returns array\<App\\Entity\\ModerationAction\>\.$#'
+			identifier: return.type
+			count: 1
+			path: src/State/Moderation/Provider/ModerationLogProvider.php
+
+		-
+			message: '#^Short ternary operator is not allowed\. Use null coalesce operator if applicable or consider using long ternary\.$#'
+			identifier: ternary.shortNotAllowed
+			count: 1
+			path: src/State/Moderation/Provider/ModerationLogProvider.php
+
+		-
+			message: '#^Method App\\State\\Moderation\\Provider\\ModeratorNotesProvider\:\:provide\(\) should return list\<App\\Entity\\ModeratorNote\> but returns array\<App\\Entity\\ModeratorNote\>\.$#'
+			identifier: return.type
+			count: 1
+			path: src/State/Moderation/Provider/ModeratorNotesProvider.php
+
+		-
+			message: '#^Method App\\State\\Notification\\Provider\\NotificationProvider\:\:provide\(\) should return list\<App\\Entity\\Notification\> but returns array\<App\\Entity\\Notification\>\.$#'
+			identifier: return.type
+			count: 1
+			path: src/State/Notification/Provider/NotificationProvider.php
+
+		-
+			message: '#^Call to function array_filter\(\) requires parameter \#2 to be passed to avoid loose comparison semantics\.$#'
+			identifier: arrayFilter.strict
+			count: 2
+			path: src/Validator/Constraint/MediaUploadValidator.php
+
+		-
+			message: '#^Parameter \$maxHeight of class Symfony\\Component\\Validator\\Constraints\\Image constructor expects int\<1, max\>\|null, int given\.$#'
+			identifier: argument.type
+			count: 3
+			path: src/Validator/Constraint/MediaUploadValidator.php
+
+		-
+			message: '#^Parameter \$maxWidth of class Symfony\\Component\\Validator\\Constraints\\Image constructor expects int\<1, max\>\|null, int given\.$#'
+			identifier: argument.type
+			count: 3
+			path: src/Validator/Constraint/MediaUploadValidator.php
+
+		-
+			message: '#^Call to function base64_decode\(\) requires parameter \#2 to be set\.$#'
+			identifier: function.strict
+			count: 1
+			path: tests/Functional/Api/AttachmentTest.php
+
+		-
+			message: '#^Call to function base64_decode\(\) requires parameter \#2 to be set\.$#'
+			identifier: function.strict
+			count: 1
+			path: tests/Functional/Api/ChannelAccessTest.php
+
+		-
+			message: '#^Call to function base64_decode\(\) requires parameter \#2 to be set\.$#'
+			identifier: function.strict
+			count: 1
+			path: tests/Functional/Api/MediaObjectSignedUrlTest.php
+
+		-
+			message: '#^Call to an undefined method object\:\:getContent\(\)\.$#'
+			identifier: method.notFound
+			count: 5
+			path: tests/Functional/Api/AppealTest.php
+
+		-
+			message: '#^Call to an undefined method object\:\:getContent\(\)\.$#'
+			identifier: method.notFound
+			count: 4
+			path: tests/Functional/Api/ModerationTest.php
+
+		-
+			message: '#^Dynamic call to static method Zenstruck\\Foundry\\Factory\<App\\Entity\\Notification\>\:\:createMany\(\)\.$#'
+			identifier: staticMethod.dynamicCall
+			count: 2
+			path: tests/Functional/Api/NotificationTest.php
+
+		-
+			message: '#^Parameter \#1 \$user of method App\\Tests\\Factory\\MessageFactory\:\:byUser\(\) expects App\\Entity\\User, object given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Functional/Api/ReactionTest.php
+
+		-
+			message: '#^Parameter \#1 \$user of static method App\\Tests\\Factory\\ChannelMemberFactory\:\:createForUserAndChannel\(\) expects App\\Entity\\User, object given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Functional/Api/ReactionTest.php
+
+		-
+			message: '#^Parameter \#1 \$user of static method App\\Tests\\Factory\\CommunityMemberFactory\:\:createForUserAndCommunity\(\) expects App\\Entity\\User, object given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Functional/Api/ReactionTest.php
+
+		-
+			message: '#^Call to an undefined method object\:\:getContent\(\)\.$#'
+			identifier: method.notFound
+			count: 4
+			path: tests/Functional/Api/ReportTest.php
+
+		-
+			message: '#^Call to an undefined method object\:\:getContent\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Functional/Api/StatsTest.php
+
+		-
+			message: '#^Dynamic call to static method ApiPlatform\\Symfony\\Bundle\\Test\\ApiTestCase\:\:getClient\(\)\.$#'
+			identifier: staticMethod.dynamicCall
+			count: 2
+			path: tests/Functional/Api/StatsTest.php
+
+		-
+			message: '#^Call to an undefined method object\:\:getContent\(\)\.$#'
+			identifier: method.notFound
+			count: 9
+			path: tests/Functional/Api/UserGroupTest.php
+
+		-
+			message: '#^Call to function method_exists\(\) with ''Symfony\\\\Component\\\\Dotenv\\\\Dotenv'' and ''bootEnv'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/bootstrap.php
+

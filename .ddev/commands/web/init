@@ -1,0 +1,202 @@
+#!/bin/bash
+## Description: First-time project setup (deps, DB, JWT keys, admin user)
+## Usage: init
+
+set -e
+
+# Idempotent "set KEY=VALUE in FILE": update in place when present + changed,
+# append when absent, no-op when already correct. Replaces the repeated
+# grep/sed update-or-append blocks for rotating keys.
+upsert_env() {
+    local key="$1" val="$2" file="$3"
+    touch "$file"
+    if grep -qs "^${key}=" "$file"; then
+        local cur; cur=$(grep "^${key}=" "$file" | head -1 | cut -d= -f2-)
+        if [ "$cur" != "$val" ]; then
+            local esc; esc=$(printf '%s' "$val" | sed -e 's/[\\&|]/\\&/g')
+            sed -i "s|^${key}=.*|${key}=${esc}|" "$file"
+            echo "Updated ${key} in ${file}"
+        fi
+    else
+        printf '%s=%s\n' "$key" "$val" >> "$file"
+        echo "Added ${key} to ${file}"
+    fi
+}
+
+# Detect the non-standard HTTPS port suffix (empty on standard-port machines)
+PORT=$(echo "$DDEV_PRIMARY_URL" | sed 's|/$||' | grep -oE ':[0-9]+$' || true)
+[ "$PORT" = ":443" ] || [ "$PORT" = ":80" ] && PORT=""
+
+# Extract primary hostname from DDEV_PRIMARY_URL — DDEV_HOSTNAME includes all
+# additional_hostnames comma-separated, which would break generated env vars
+HOSTNAME=$(echo "$DDEV_PRIMARY_URL" | sed 's|/$||' | sed 's|https\?://||' | sed 's|:[0-9]*$||')
+
+# Generate .env.local with DDEV database credentials if it doesn't exist
+if [ ! -f .env.local ]; then
+    # Build serverVersion from DDEV_DATABASE (e.g. "mariadb:11.8" → "mariadb-11.8.0")
+    DB_TYPE=$(echo "$DDEV_DATABASE" | cut -d: -f1)
+    DB_VERSION=$(echo "$DDEV_DATABASE" | cut -d: -f2)
+    [[ "$DB_VERSION" =~ ^[0-9]+\.[0-9]+$ ]] && DB_VERSION="${DB_VERSION}.0"
+    cat > .env.local <<EOF
+DATABASE_URL=mysql://db:db@db:3306/db?serverVersion=${DB_TYPE}-${DB_VERSION}&charset=utf8mb4
+EOF
+    echo "Created .env.local"
+fi
+
+# Sync Mercure vars to .env.local from .ddev/.env
+# (keys are generated on the host by the pre-start hook)
+MERCURE_PUBLISHER_JWT_KEY=$(grep '^MERCURE_PUBLISHER_JWT_KEY=' .ddev/.env | cut -d= -f2-)
+if ! grep -qs "^MERCURE_JWT_SECRET=${MERCURE_PUBLISHER_JWT_KEY}" .env.local 2>/dev/null; then
+    if grep -qs '^MERCURE_JWT_SECRET=' .env.local 2>/dev/null; then
+        # Key exists but is stale — update it in place
+        sed -i "s|^MERCURE_JWT_SECRET=.*|MERCURE_JWT_SECRET=${MERCURE_PUBLISHER_JWT_KEY}|" .env.local
+        echo "Updated MERCURE_JWT_SECRET in .env.local"
+    else
+        # Key missing — append all Mercure vars
+        CLIENT_HOSTNAME=$(echo "${HOSTNAME}" | sed "s/${DDEV_SITENAME}/client/")
+        cat >> .env.local <<EOF
+MERCURE_JWT_SECRET=$MERCURE_PUBLISHER_JWT_KEY
+MERCURE_URL=http://mercure:3000/.well-known/mercure
+MERCURE_PUBLIC_URL=https://mercure.${HOSTNAME}${PORT}/.well-known/mercure
+SERVER_API_URL=https://${HOSTNAME}${PORT}
+CORS_ALLOW_ORIGIN='^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?\$|^https?://${CLIENT_HOSTNAME}(:[0-9]+)?\$'
+EOF
+        echo "Added Mercure vars to .env.local"
+    fi
+    echo "Run 'ddev restart' to apply Mercure keys."
+fi
+
+# Sync subscriber JWT key
+MERCURE_SUBSCRIBER_JWT_KEY=$(grep '^MERCURE_SUBSCRIBER_JWT_KEY=' .ddev/.env | cut -d= -f2-)
+if ! grep -qs "^MERCURE_SUBSCRIBER_JWT_KEY=${MERCURE_SUBSCRIBER_JWT_KEY}" .env.local 2>/dev/null; then
+    if grep -qs '^MERCURE_SUBSCRIBER_JWT_KEY=' .env.local 2>/dev/null; then
+        sed -i "s|^MERCURE_SUBSCRIBER_JWT_KEY=.*|MERCURE_SUBSCRIBER_JWT_KEY=${MERCURE_SUBSCRIBER_JWT_KEY}|" .env.local
+        echo "Updated MERCURE_SUBSCRIBER_JWT_KEY in .env.local"
+    else
+        echo "MERCURE_SUBSCRIBER_JWT_KEY=$MERCURE_SUBSCRIBER_JWT_KEY" >> .env.local
+        echo "Added MERCURE_SUBSCRIBER_JWT_KEY to .env.local"
+    fi
+fi
+
+# Sync LiveKit vars to .env.local from .ddev/.env
+LIVEKIT_API_KEY=$(grep '^LIVEKIT_API_KEY=' .ddev/.env | cut -d= -f2-)
+LIVEKIT_API_SECRET=$(grep '^LIVEKIT_API_SECRET=' .ddev/.env | cut -d= -f2-)
+if ! grep -qs "^LIVEKIT_API_KEY=${LIVEKIT_API_KEY}" .env.local 2>/dev/null; then
+    if grep -qs '^LIVEKIT_API_KEY=' .env.local 2>/dev/null; then
+        # Keys changed — update them in place
+        sed -i "s|^LIVEKIT_API_KEY=.*|LIVEKIT_API_KEY=${LIVEKIT_API_KEY}|" .env.local
+        sed -i "s|^LIVEKIT_API_SECRET=.*|LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}|" .env.local
+        echo "Updated LiveKit keys in .env.local"
+    else
+        # First time — append all LiveKit vars
+        cat >> .env.local <<EOF
+LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+LIVEKIT_PUBLIC_URL=https://livekit.${HOSTNAME}${PORT}
+LIVEKIT_INTERNAL_URL=http://ddev-${DDEV_SITENAME}-livekit:7880
+EOF
+        echo "Added LiveKit vars to .env.local"
+    fi
+fi
+
+# Sync Meilisearch master key to .env.local from .ddev/.env (generated on the
+# host by the pre-start hook). The compose file passes it to the Meili container
+# from .ddev/.env; Symfony reads it from .env.local — both must match or search
+# 401s. MEILI_URL is already defaulted in .env, so only the key needs syncing.
+MEILI_MASTER_KEY=$(grep '^MEILI_MASTER_KEY=' .ddev/.env | cut -d= -f2-)
+if [ -n "$MEILI_MASTER_KEY" ]; then
+    upsert_env MEILI_MASTER_KEY "$MEILI_MASTER_KEY" .env.local
+fi
+
+# Point dev mails at DDEV's Mailpit (web container, port 1025) unless a DSN is
+# already set. The committed .env defaults MAILER_DSN=null://null (production
+# configures SMTP via the admin panel) — without this override dev mails are
+# silently dropped. DB-configured SMTP still takes precedence when set.
+if ! grep -qs '^MAILER_DSN=' .env.local 2>/dev/null; then
+    upsert_env MAILER_DSN "smtp://127.0.0.1:1025" .env.local
+fi
+
+composer install --no-interaction
+php bin/console doctrine:migrations:migrate --no-interaction
+php bin/console lexik:jwt:generate-keypair --no-interaction --skip-if-exists
+
+# Generate media signing key if missing or empty
+if ! grep -qs '^APP_MEDIA_SIGNING_KEY=.\+' .env.local 2>/dev/null; then
+    upsert_env APP_MEDIA_SIGNING_KEY "$(openssl rand -hex 32)" .env.local
+fi
+
+# Generate JWT test keypair (paths and passphrase come from .env.test)
+JWT_TEST_PASSPHRASE=$(grep '^JWT_PASSPHRASE=' .env.test | cut -d= -f2-)
+JWT_TEST_PRIVATE=$(grep '^JWT_SECRET_KEY=' .env.test | cut -d= -f2- | sed 's|%kernel.project_dir%/||')
+JWT_TEST_PUBLIC=$(grep '^JWT_PUBLIC_KEY=' .env.test | cut -d= -f2- | sed 's|%kernel.project_dir%/||')
+if [ ! -f "${JWT_TEST_PRIVATE}" ]; then
+    openssl genpkey -out "${JWT_TEST_PRIVATE}" -aes256 -algorithm rsa -pkeyopt rsa_keygen_bits:4096 -pass pass:${JWT_TEST_PASSPHRASE} 2>/dev/null
+    openssl pkey -in "${JWT_TEST_PRIVATE}" -out "${JWT_TEST_PUBLIC}" -pubout -passin pass:${JWT_TEST_PASSPHRASE}
+    echo "Generated JWT test keypair"
+fi
+
+# Write .env.test.local with test-environment overrides
+if [ ! -f .env.test.local ]; then
+    CLIENT_HOSTNAME=$(echo "${HOSTNAME}" | sed "s/${DDEV_SITENAME}/client/")
+    TEST_HOSTNAME=$(echo "${HOSTNAME}" | sed "s/${DDEV_SITENAME}/${DDEV_SITENAME}-test/")
+    cat > .env.test.local <<EOF
+SERVER_API_URL=https://${TEST_HOSTNAME}${PORT}
+MERCURE_URL=http://mercure:3000/.well-known/mercure
+MERCURE_PUBLIC_URL=https://mercure.${HOSTNAME}${PORT}/.well-known/mercure
+MERCURE_JWT_SECRET=${MERCURE_PUBLISHER_JWT_KEY}
+MERCURE_SUBSCRIBER_JWT_KEY=${MERCURE_SUBSCRIBER_JWT_KEY}
+LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+LIVEKIT_PUBLIC_URL=https://livekit.${HOSTNAME}${PORT}
+LIVEKIT_INTERNAL_URL=http://ddev-${DDEV_SITENAME}-livekit:7880
+CORS_ALLOW_ORIGIN='^https?://(localhost|127\\.0\\.0\\.1)(:[0-9]+)?\$|^https?://${CLIENT_HOSTNAME}(:[0-9]+)?\$'
+EOF
+    echo "Created .env.test.local"
+fi
+
+# Sync rotating keys into .env.test.local (may differ after key rotation).
+# .env.test.local is created with all vars just above; these keep the secrets
+# current on re-runs. URL vars (LIVEKIT_PUBLIC_URL/INTERNAL_URL) are written by
+# the create block and don't rotate, so they're not re-synced here.
+upsert_env MERCURE_JWT_SECRET "${MERCURE_PUBLISHER_JWT_KEY}" .env.test.local
+upsert_env MERCURE_SUBSCRIBER_JWT_KEY "${MERCURE_SUBSCRIBER_JWT_KEY}" .env.test.local
+upsert_env LIVEKIT_API_KEY "${LIVEKIT_API_KEY}" .env.test.local
+upsert_env LIVEKIT_API_SECRET "${LIVEKIT_API_SECRET}" .env.test.local
+
+# Upgrade stale http:// → https:// in LIVEKIT_PUBLIC_URL (existing installations)
+if grep -qs '^LIVEKIT_PUBLIC_URL=http://' .env.local 2>/dev/null; then
+    sed -i 's|^LIVEKIT_PUBLIC_URL=http://|LIVEKIT_PUBLIC_URL=https://|' .env.local
+    echo "Upgraded LIVEKIT_PUBLIC_URL to https:// in .env.local"
+fi
+if grep -qs '^LIVEKIT_PUBLIC_URL=http://' .env.test.local 2>/dev/null; then
+    sed -i 's|^LIVEKIT_PUBLIC_URL=http://|LIVEKIT_PUBLIC_URL=https://|' .env.test.local
+    echo "Upgraded LIVEKIT_PUBLIC_URL to https:// in .env.test.local"
+fi
+
+# Create test database (db user lacks CREATE DATABASE privilege) and run migrations
+mysql -h db -uroot -proot -e "CREATE DATABASE IF NOT EXISTS db_test; GRANT ALL PRIVILEGES ON db_test.* TO 'db'@'%'; FLUSH PRIVILEGES;"
+php bin/console doctrine:migrations:migrate --env=test --no-interaction
+
+# Interactive; fails on duplicate email — don't abort init on re-runs.
+php bin/console tyto:user:create --admin \
+    || echo "Note: admin user not created (may already exist)."
+
+# Create the default bot unless the defaultBotId server setting is already set.
+# The command stores the new bot's id in the settings registry itself — no env
+# var involved (APP_DEFAULT_BOT_ID is gone; the app reads the DB setting).
+php bin/console tyto:user:create --bot "Tyto Bot" --skip-if-default-exists \
+    || echo "Warning: could not create bot user. Run manually: php bin/console tyto:user:create --bot \"Tyto Bot\""
+
+# Kick the messenger worker. On a fresh `ddev start` it spawn-fails (and supervisor
+# marks it FATAL) because vendor/autoload.php doesn't exist until the composer
+# install above — so it stays dead until a restart. Now that deps exist, (re)start
+# it here so no `ddev restart` is needed after init. `|| true`: never fail init.
+supervisorctl restart webextradaemons:messenger >/dev/null 2>&1 \
+    && echo "Started messenger worker" \
+    || echo "Note: messenger worker not started (run 'ddev restart' if needed)"
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo " Setup complete!"
+echo " → Run in client: ddev setup"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

@@ -1,0 +1,31 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\State\Admin\Processor;
+
+use ApiPlatform\Metadata\Operation;
+use ApiPlatform\State\ProcessorInterface;
+use App\Dto\Admin\AdminUserDetailDto;
+use App\Dto\Admin\CreateAdminUserDto;
+use App\Service\Admin\AdminUserServiceInterface;
+
+/**
+ * @implements ProcessorInterface<CreateAdminUserDto, AdminUserDetailDto>
+ */
+final readonly class CreateAdminUserProcessor implements ProcessorInterface
+{
+    public function __construct(
+        private AdminUserServiceInterface $adminUserService,
+    ) {
+    }
+
+    public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): AdminUserDetailDto
+    {
+        \assert($data instanceof CreateAdminUserDto);
+
+        $user = $this->adminUserService->provision($data->name, $data->email, $data->isBot, $data->communityIds);
+
+        return $this->adminUserService->detail($user);
+    }
+}

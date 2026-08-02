@@ -1,0 +1,32 @@
+readme:
+    title: 'Esportazione dati Tyto'
+    rule: '======================'
+    generated: 'Generato:   %generated%'
+    account: 'Account:    %email% (id %userId%)'
+    format: 'Formato:    file JSON dentro questo ZIP'
+
+    files_heading: 'File'
+    files_rule: '----'
+    file_profile: 'profile.json         — Profilo dell''account, lingua, preferenze di notifica'
+    file_messages: |
+        messages.json        — Ogni messaggio che hai scritto, incluse tutte le
+                               versioni precedenti alle modifiche. I messaggi
+                               eliminati in modo soft sono inclusi con isDeleted=true.
+    file_conversations: 'conversations.json   — Le tue conversazioni dirette e i nomi visualizzati degli altri partecipanti.'
+    file_attachments: |
+        attachments.json     — File caricati (solo metadati). Ogni voce include un
+                               `signedUrl` che puoi scaricare con qualsiasi client HTTP.
+                               Gli URL sono validi per %attachmentHours% ore dalla
+                               generazione dell'esportazione e limitati a
+                               %attachmentMaxDownloads% download ciascuno — trattali
+                               come segreti. Riesporta per rinnovare gli URL.
+    file_reactions: 'reactions.json       — Reazioni che hai messo ai messaggi di altre persone.'
+    file_moderation: 'moderation.json      — Azioni di moderazione eseguite contro il tuo account.'
+    file_notifications: 'notifications.json   — Notifiche che hai ricevuto.'
+
+    excluded_heading: 'Cosa NON è incluso'
+    excluded_rule: '------------------'
+    excluded_others_messages: '- I messaggi degli altri utenti (anche se ti hanno menzionato).'
+    excluded_mod_notes: '- Le note dei moderatori su di te (deroga art. 15(4): dati interni dell''operatore).'
+    excluded_mod_actions_actor: '- Le azioni di moderazione che hai emesso contro altri (dati di terzi).'
+    excluded_other: '- Elementi fissati, registri di controllo, contenuto binario degli allegati.'

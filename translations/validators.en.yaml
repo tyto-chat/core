@@ -1,0 +1,4 @@
+email_available.already_registered: 'This email address is already registered.'
+email_exists.not_registered: 'Email is not registered.'
+valid_challenge.invalid: 'Invalid or expired email challenge code.'
+valid_reset_password_request.invalid: 'Invalid or expired reset token.'

@@ -1,0 +1,4 @@
+email_available.already_registered: 'Questo indirizzo email è già registrato.'
+email_exists.not_registered: 'L''email non è registrata.'
+valid_challenge.invalid: 'Codice di verifica email non valido o scaduto.'
+valid_reset_password_request.invalid: 'Token di reimpostazione non valido o scaduto.'

@@ -1,0 +1,10 @@
+#!/bin/bash
+## Description: Reset and seed the test database (APP_ENV=test) for E2E tests
+## Usage: reset-test-db
+
+set -e
+
+APP_ENV=test php bin/console doctrine:database:drop --force --if-exists
+APP_ENV=test php bin/console doctrine:database:create
+APP_ENV=test php bin/console doctrine:migrations:migrate --no-interaction
+APP_ENV=test php bin/console doctrine:fixtures:load --no-interaction

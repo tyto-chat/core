@@ -1,0 +1,14 @@
+name: tyto-core
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tyto-core:dev
+  worker:
+    image: tyto-core:dev
+  scheduler:
+    image: tyto-core:dev
+  secrets-init:
+    image: tyto-core:dev

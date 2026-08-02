@@ -1,0 +1,30 @@
+challenge:
+    subject: '%code% è il tuo codice di verifica tyto.chat'
+    title: 'tyto.chat - verifica la tua email!'
+    intro: 'Per creare un account devi confermare che questa e-mail è davvero tua. Usa il codice qui sotto per creare il tuo account.'
+    code_validity: 'Questo codice è valido per %expiryInMinutes% minuti. Se non hai richiesto questo codice, puoi ignorare questa e-mail.'
+
+digest:
+    subject: 'Hai %count% nuova notifica - tyto.chat|Hai %count% nuove notifiche - tyto.chat'
+    title: 'tyto.chat - cosa ti sei perso'
+    greeting: 'Ciao %name%, ecco cosa è successo mentre eri via:'
+    footer: 'Ricevi questa email perché le notifiche email giornaliere sono attive. Puoi disattivarle nelle Preferenze.'
+    line:
+        mention: '%author% ti ha menzionato in #%channel%'
+        dm_message: '%author% ti ha inviato un messaggio'
+        group_added: 'Sei stato aggiunto a un gruppo'
+        group_ownership_transferred: 'Sei diventato il proprietario di un gruppo'
+        channel_access: 'Ti è stato dato accesso a #%channel%'
+        channel_moderator: 'Sei diventato moderatore di #%channel%'
+
+password_reset:
+    subject: 'Reimposta la tua password - tyto.chat'
+    title: 'tyto.chat - reimposta la tua password'
+    intro: 'È stato richiesto un codice per reimpostare la password del tuo account: lo trovi qui sotto.'
+    code_validity: 'Questo codice è valido per %expiryInMinutes% minuti. Se non hai richiesto questo codice, puoi ignorare questa e-mail.'
+
+invitation:
+    subject: 'Sei stato invitato su tyto.chat'
+    title: 'tyto.chat - sei stato invitato'
+    intro: 'È stato creato un account per te. Usa il codice qui sotto per impostare la tua password e iniziare.'
+    code_validity: 'Questo codice è valido per %expiryInHours% ore.'

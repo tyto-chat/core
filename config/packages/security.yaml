@@ -1,0 +1,76 @@
+security:
+    password_hashers:
+        Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
+
+    providers:
+        app_user_provider:
+            entity:
+                class: App\Entity\User
+                property: email
+
+    firewalls:
+        dev:
+            pattern: ^/(_profiler|_wdt|assets|build)/
+            security: false
+        refresh:
+            pattern: ^/token/refresh
+            stateless: true
+            provider: app_user_provider
+            refresh-jwt:
+                check_path: /token/refresh
+                invalidate_token_on_logout: false
+        api:
+            pattern: ^/api/
+            stateless: true
+            provider: app_user_provider
+            user_checker: App\Security\Authentication\AuthUserChecker
+            jwt: ~
+            custom_authenticators:
+                - App\Security\Authentication\ApiKeyAuthenticator
+        media:
+            pattern: ^/media/
+            stateless: true
+            provider: app_user_provider
+            user_checker: App\Security\Authentication\AuthUserChecker
+            jwt: ~
+        two_factor:
+            pattern: ^/auth/2fa
+            stateless: true
+            provider: app_user_provider
+            user_checker: App\Security\Authentication\AuthUserChecker
+            jwt: ~
+        main:
+            stateless: true
+            user_checker: App\Security\Authentication\AuthUserChecker
+            json_login:
+                check_path: /auth
+                username_path: email
+                password_path: password
+                success_handler: lexik_jwt_authentication.handler.authentication_success
+                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+
+    access_control:
+        - { path: ^/$, roles: PUBLIC_ACCESS }
+        # /api/admin/* — defence in depth, must precede the ^/api PUBLIC_ACCESS
+        # rule (access_control is first-match). Individual endpoints still
+        # re-check via AdminPanelVoter.
+        - { path: ^/api/v\d+/admin/, roles: ROLE_ADMIN }
+        - { path: ^/api/versions, roles: PUBLIC_ACCESS }
+        - { path: ^/api, roles: PUBLIC_ACCESS }
+        - { path: ^/api/v\d+/docs, roles: PUBLIC_ACCESS }
+        - { path: ^/api/v\d+/contexts, roles: PUBLIC_ACCESS }
+        - { path: ^/auth, roles: PUBLIC_ACCESS }
+        - { path: ^/token/refresh, roles: PUBLIC_ACCESS }
+        - { path: ^/logout, roles: PUBLIC_ACCESS }
+        - { path: ^/media/, roles: PUBLIC_ACCESS }
+        - { path: ^/export-media/, roles: PUBLIC_ACCESS }
+        - { path: ^/, roles: IS_AUTHENTICATED_FULLY }
+
+when@test:
+    security:
+        password_hashers:
+            Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
+                algorithm: auto
+                cost: 4 # Lowest possible value for bcrypt
+                time_cost: 3 # Lowest possible value for argon
+                memory_cost: 10 # Lowest possible value for argon

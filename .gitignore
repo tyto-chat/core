@@ -1,0 +1,45 @@
+###> ddev generated files ###
+/.ddev/livekit.yaml
+###< ddev generated files ###
+
+###> symfony/framework-bundle ###
+/.env.local
+/.env.local.php
+/.env.*.local
+/config/secrets/prod/prod.decrypt.private.php
+/public/bundles/
+/var/
+/vendor/
+###< symfony/framework-bundle ###
+
+###> phpunit/phpunit ###
+/phpunit.xml
+/.phpunit.cache/
+###< phpunit/phpunit ###
+###> phpstan/phpstan ###
+phpstan.neon
+###< phpstan/phpstan ###
+
+###> friendsofphp/php-cs-fixer ###
+/.php-cs-fixer.php
+/.php-cs-fixer.cache
+###< friendsofphp/php-cs-fixer ###
+
+/.idea/
+/.ddev/addon-metadata/
+/.ddev/db_snapshots/
+/.ddev/xhprof/
+/.ddev/web-entrypoint.d/
+/.ddev/.gitignore
+/.ddev/.env
+
+###> lexik/jwt-authentication-bundle ###
+/config/jwt/*.pem
+###< lexik/jwt-authentication-bundle ###
+
+# Belt-and-braces: this is a PHP project, but accidental `npm install` in
+# the wrong cwd has happened. Keep node artefacts out of version control.
+/node_modules/
+/package.json
+/package-lock.json
+test-results/

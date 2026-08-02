@@ -1,0 +1,168 @@
+name: tyto-core
+
+x-core-image: &core-image
+  image: ghcr.io/tyto-chat/tyto-core:${TYTO_VERSION:-latest}
+  restart: unless-stopped
+  # Committed .env is deliberately NOT env_file'd — it's the dev default set; operator config passes below as real env vars.
+  environment:
+    APP_ENV: prod
+    # *_OVERRIDE names so an empty value never shadows .env.local in `docker compose exec` CLI sessions.
+    DATABASE_URL_OVERRIDE: ${DATABASE_URL:-}
+    MARIADB_PASSWORD_OVERRIDE: ${MARIADB_PASSWORD:-}
+    REDIS_DSN: "tcp://redis:6379?timeout=2&read_write_timeout=2"
+    MEILI_URL: "http://meilisearch:7700"
+    MEILI_MASTER_KEY_OVERRIDE: ${MEILI_MASTER_KEY:-}
+    MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=0"
+    MERCURE_URL: "http://localhost:8890/.well-known/mercure"
+    MERCURE_PUBLIC_URL: "${DEFAULT_URI:-https://${SERVER_DOMAIN:-localhost}}/.well-known/mercure"
+    SECRETS_FILE: /secrets/app.env
+    SERVER_DOMAIN: ${SERVER_DOMAIN:-localhost}
+    BEHIND_PROXY: ${BEHIND_PROXY:-false}
+    CADDY_GLOBAL_OPTIONS: ${CADDY_GLOBAL_OPTIONS:-}
+    DEFAULT_URI: ${DEFAULT_URI:-https://${SERVER_DOMAIN:-localhost}}
+    SERVER_API_URL: ${SERVER_API_URL:-${DEFAULT_URI:-https://${SERVER_DOMAIN:-localhost}}}
+    CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:-}
+    MERCURE_CORS_ORIGINS: ${MERCURE_CORS_ORIGINS:-*}
+    # Fallback only — admin-panel SMTP (DB-stored) takes precedence.
+    MAILER_DSN: ${MAILER_DSN:-null://null}
+    # Derived from APP_SECRET when empty; pin to survive an APP_SECRET rotation.
+    APP_SMTP_KEY: ${APP_SMTP_KEY:-}
+    API_DOCS_ENABLED: ${API_DOCS_ENABLED:-true}
+    APP_FALLBACK_LOCALE: ${APP_FALLBACK_LOCALE:-en}
+    VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
+    LIVEKIT_API_KEY_OVERRIDE: ${LIVEKIT_API_KEY:-}
+    LIVEKIT_API_SECRET_OVERRIDE: ${LIVEKIT_API_SECRET:-}
+    # Voice signal is proxied on /rtc; set explicitly only for an external LiveKit.
+    LIVEKIT_PUBLIC_URL: ${LIVEKIT_PUBLIC_URL:-${DEFAULT_URI:-https://${SERVER_DOMAIN:-localhost}}}
+    LIVEKIT_INTERNAL_URL: ${LIVEKIT_INTERNAL_URL:-http://livekit:7880}
+    VOICE_ENABLED: ${VOICE_ENABLED:-true}
+    CACHE_DSN: ${CACHE_DSN:-redis://redis:6379}
+    # Caddy admin API, loopback-only; purges always run in-process in the app container.
+    CACHE_PURGE_URL: http://localhost:2019
+    CACHE_REDIS_URL: redis:6379
+    TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+    TRUSTED_HOSTS: ${TRUSTED_HOSTS:-}
+  volumes:
+    - secrets:/secrets
+    - media:/app/var/media
+    - exports:/app/var/exports
+    - jwt:/app/config/jwt
+  depends_on:
+    secrets-init: { condition: service_completed_successfully }
+    database: { condition: service_healthy }
+    redis: { condition: service_started }
+    meilisearch: { condition: service_started }
+
+services:
+  # One-shot secret generation; idempotent, .env values always win.
+  secrets-init:
+    image: ghcr.io/tyto-chat/tyto-core:${TYTO_VERSION:-latest}
+    restart: "no"
+    command: ["secrets-init"]
+    # Must use *_OVERRIDE names — bare empty names would be ignored and generated values would mismatch operator-pinned ones.
+    environment:
+      MARIADB_PASSWORD_OVERRIDE: ${MARIADB_PASSWORD:-}
+      MARIADB_ROOT_PASSWORD_OVERRIDE: ${MARIADB_ROOT_PASSWORD:-}
+      MEILI_MASTER_KEY_OVERRIDE: ${MEILI_MASTER_KEY:-}
+      LIVEKIT_API_KEY_OVERRIDE: ${LIVEKIT_API_KEY:-}
+      LIVEKIT_API_SECRET_OVERRIDE: ${LIVEKIT_API_SECRET:-}
+    volumes:
+      - secrets:/secrets
+
+  app:
+    <<: *core-image
+    command: ["app"]
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"   # HTTP/3
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:80/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+  worker:
+    <<: *core-image
+    command: ["worker"]
+    ports: []
+    healthcheck: { disable: true }
+    depends_on:
+      app: { condition: service_healthy }
+
+  scheduler:
+    <<: *core-image
+    command: ["scheduler"]
+    ports: []
+    healthcheck: { disable: true }
+    depends_on:
+      app: { condition: service_healthy }
+
+  database:
+    image: mariadb:11.8
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: tyto
+      MARIADB_USER: tyto
+      # _FILE values consumed only on first datadir init.
+      MARIADB_PASSWORD_FILE: /run/tyto-secrets/mariadb_password
+      MARIADB_ROOT_PASSWORD_FILE: /run/tyto-secrets/mariadb_root_password
+    volumes:
+      - database_data:/var/lib/mysql
+      - secrets:/run/tyto-secrets:ro
+    depends_on:
+      secrets-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Valkey; service name kept "redis" so REDIS_DSN / CACHE_DSN hostnames stay valid.
+  redis:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    volumes:
+      - redis_data:/data
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.13
+    restart: unless-stopped
+    # Meili needs the master key at startup and has no _FILE variant — source shared.env before exec.
+    entrypoint: ["/bin/sh", "-c"]
+    command: [". /run/tyto-secrets/shared.env && exec /bin/meilisearch"]
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-}
+      MEILI_ENV: production
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - meili_data:/meili_data
+      - secrets:/run/tyto-secrets:ro
+    depends_on:
+      secrets-init: { condition: service_completed_successfully }
+
+  livekit:
+    image: livekit/livekit-server:v1.9
+    restart: unless-stopped
+    # Config rendered by secrets-init from the repo livekit.yaml template.
+    command: ["--config", "/run/tyto-secrets/livekit.yaml"]
+    volumes:
+      - secrets:/run/tyto-secrets:ro
+    depends_on:
+      secrets-init: { condition: service_completed_successfully }
+    # Signal (7880) deliberately NOT published — it rides the app origin via the /rtc proxy.
+    ports:
+      - "7881:7881"
+      - "50000-50100:50000-50100/udp"
+
+volumes:
+  database_data:
+  redis_data:
+  meili_data:
+  secrets:
+  media:
+  exports:
+  jwt:

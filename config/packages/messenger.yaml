@@ -1,0 +1,43 @@
+framework:
+    messenger:
+        failure_transport: failed
+
+        transports:
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                retry_strategy:
+                    max_retries: 3
+                    multiplier: 2
+            failed: 'doctrine://default?queue_name=failed'
+            sync: 'sync://'
+            webhook:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: webhook
+                retry_strategy:
+                    max_retries: 3
+                    delay: 2000
+                    multiplier: 3
+
+        default_bus: messenger.bus.default
+
+        buses:
+            messenger.bus.default: []
+
+        routing:
+            Symfony\Component\Mailer\Messenger\SendEmailMessage: async
+
+            App\Async\ReconcileAudioParticipantsMessage: sync
+            App\Async\DispatchMessageNotificationsMessage: async
+            App\Async\IndexMessageDocumentMessage: async
+            App\Async\RemoveMessageDocumentMessage: async
+            App\Async\SendWebPushMessage: async
+            App\Async\DispatchWebhookMessage: webhook
+            App\Async\PruneWebhookDeliveriesMessage: async
+            App\Async\DisconnectVoiceParticipantMessage: async
+            App\Async\GenerateDataExportMessage: async
+            App\Async\SendEmailDigestsMessage: async
+            App\Async\PurgeExpiredAccountsMessage: async
+            App\Async\ExpireDataExportsMessage: async
+            App\Async\PurgeRetentionMessage: async
+            App\Async\PurgeArchivedChannelsMessage: async

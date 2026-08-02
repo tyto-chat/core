@@ -1,0 +1,30 @@
+challenge:
+    subject: '%code% is je verificatiecode voor tyto.chat'
+    title: 'tyto.chat - verifieer je e-mail!'
+    intro: 'Om een account aan te maken moet je bevestigen dat dit e-mailadres echt van jou is. Gebruik de onderstaande code om je account aan te maken.'
+    code_validity: 'Deze code is %expiryInMinutes% minuten geldig. Heb je deze code niet aangevraagd, dan kun je deze e-mail negeren.'
+
+digest:
+    subject: 'Je hebt %count% nieuwe melding - tyto.chat|Je hebt %count% nieuwe meldingen - tyto.chat'
+    title: 'tyto.chat - wat je hebt gemist'
+    greeting: 'Hoi %name%, dit is er gebeurd terwijl je weg was:'
+    footer: 'Je ontvangt dit omdat dagelijkse e-mailmeldingen zijn ingeschakeld. Je kunt ze uitzetten bij Voorkeuren.'
+    line:
+        mention: '%author% noemt je in #%channel%'
+        dm_message: '%author% stuurt je een bericht'
+        group_added: 'Je bent toegevoegd aan een groep'
+        group_ownership_transferred: 'Je bent eigenaar gemaakt van een groep'
+        channel_access: 'Je hebt toegang gekregen tot #%channel%'
+        channel_moderator: 'Je bent moderator gemaakt van #%channel%'
+
+password_reset:
+    subject: 'Stel je wachtwoord opnieuw in - tyto.chat'
+    title: 'tyto.chat - wachtwoord opnieuw instellen'
+    intro: 'Er is een code aangevraagd om het wachtwoord van je account opnieuw in te stellen; je vindt hem hieronder.'
+    code_validity: 'Deze code is %expiryInMinutes% minuten geldig. Heb je deze code niet aangevraagd, dan kun je deze e-mail negeren.'
+
+invitation:
+    subject: 'Je bent uitgenodigd voor tyto.chat'
+    title: 'tyto.chat - je bent uitgenodigd'
+    intro: 'Er is een account voor je aangemaakt. Gebruik de onderstaande code om je wachtwoord in te stellen en te beginnen.'
+    code_validity: 'Deze code is %expiryInHours% uur geldig.'

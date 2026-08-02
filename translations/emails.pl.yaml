@@ -1,0 +1,30 @@
+challenge:
+    subject: '%code% to Twój kod weryfikacyjny tyto.chat'
+    title: 'tyto.chat - zweryfikuj swój adres e-mail!'
+    intro: 'Aby utworzyć konto, musisz potwierdzić, że ten adres e-mail należy do Ciebie. Użyj poniższego kodu, aby założyć konto.'
+    code_validity: 'Ten kod jest ważny przez %expiryInMinutes% minut. Jeśli nie prosiłeś/-aś o ten kod, możesz zignorować tę wiadomość.'
+
+digest:
+    subject: 'Masz %count% nowe powiadomienie - tyto.chat|Masz %count% nowych powiadomień - tyto.chat'
+    title: 'tyto.chat - co Cię ominęło'
+    greeting: 'Cześć %name%, oto co wydarzyło się podczas Twojej nieobecności:'
+    footer: 'Otrzymujesz tę wiadomość, ponieważ włączono dzienne powiadomienia e-mail. Możesz je wyłączyć w Ustawieniach.'
+    line:
+        mention: '%author% wspomniał(a) Cię w #%channel%'
+        dm_message: '%author% wysłał(a) Ci wiadomość'
+        group_added: 'Zostałeś dodany do grupy'
+        group_ownership_transferred: 'Zostałeś właścicielem grupy'
+        channel_access: 'Otrzymałeś dostęp do #%channel%'
+        channel_moderator: 'Zostałeś moderatorem #%channel%'
+
+password_reset:
+    subject: 'Resetowanie hasła - tyto.chat'
+    title: 'tyto.chat - zresetuj swoje hasło'
+    intro: 'Zażądano kodu do resetowania hasła Twojego konta, który znajdziesz poniżej.'
+    code_validity: 'Ten kod jest ważny przez %expiryInMinutes% minut. Jeśli nie prosiłeś/-aś o ten kod, możesz zignorować tę wiadomość.'
+
+invitation:
+    subject: 'Zostałeś/-aś zaproszony/-a do tyto.chat'
+    title: 'tyto.chat - zaproszenie do platformy'
+    intro: 'Zostało dla Ciebie utworzone konto. Użyj poniższego kodu, aby ustawić hasło i zacząć korzystać z platformy.'
+    code_validity: 'Ten kod jest ważny przez %expiryInHours% godzin.'

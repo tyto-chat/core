@@ -1,0 +1,30 @@
+# Single-stack bundle: serves the web client (SPA files from the tyto-client
+# image, mounted at /srv/app) alongside the API. Activated by the entrypoint
+# only when APP_DOMAIN is set. Keep the site body in sync with the client
+# repo's docker/Caddyfile.
+{$APP_SITE_ADDRESS} {
+	log
+	root * /srv/app
+	encode zstd gzip
+
+	# /embed/* must stay frameable (third-party embed iframes) — never add
+	# frame-ancestors/X-Frame-Options covering this path.
+	@embed path /embed/*
+	rewrite @embed /embed.html
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	@app not path /embed/*
+	header @app {
+		X-Frame-Options "DENY"
+		Content-Security-Policy "{$CSP_POLICY:default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' https: wss:; frame-ancestors 'none'; form-action 'self'}"
+	}
+
+	try_files {path} /index.html
+	file_server
+}

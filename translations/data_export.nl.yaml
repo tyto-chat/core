@@ -1,0 +1,32 @@
+readme:
+    title: 'Tyto-gegevensexport'
+    rule: '================='
+    generated: 'Gegenereerd: %generated%'
+    account: 'Account:    %email% (id %userId%)'
+    format: 'Formaat:    JSON-bestanden in deze ZIP'
+
+    files_heading: 'Bestanden'
+    files_rule: '-----'
+    file_profile: 'profile.json         — Accountprofiel, taal, meldingsvoorkeuren'
+    file_messages: |
+        messages.json        — Elk bericht dat je hebt geschreven, inclusief alle eerdere
+                               bewerkte versies. Zacht verwijderde berichten zijn
+                               opgenomen met isDeleted=true.
+    file_conversations: 'conversations.json   — DM-lidmaatschappen en de weergavenamen van de andere deelnemers.'
+    file_attachments: |
+        attachments.json     — Bestandsuploads (alleen metadata). Elk item bevat een
+                               `signedUrl` die je met elke HTTP-client kunt ophalen. URLs
+                               zijn %attachmentHours% uur geldig vanaf het genereren van
+                               de export en beperkt tot %attachmentMaxDownloads% downloads
+                               per stuk — behandel ze als geheimen. Exporteer opnieuw om
+                               de URLs te vernieuwen.
+    file_reactions: 'reactions.json       — Reacties die je op berichten van anderen hebt gegeven.'
+    file_moderation: 'moderation.json      — Moderatieacties tegen je account.'
+    file_notifications: 'notifications.json   — Meldingen die je hebt ontvangen.'
+
+    excluded_heading: 'Wat NIET is opgenomen'
+    excluded_rule: '--------------------'
+    excluded_others_messages: '- Berichten van andere gebruikers (ook als ze jou noemden).'
+    excluded_mod_notes: '- Moderatornotities over jou (uitzondering artikel 15(4): interne beheerdersgegevens).'
+    excluded_mod_actions_actor: '- Moderatieacties die jij tegen anderen hebt genomen (gegevens van derden).'
+    excluded_other: '- Vastgezette items, auditlogs, bestandsinhoud van bijlagen.'

@@ -1,0 +1,23 @@
+{% trans from 'data_export' into locale %}readme.title{% endtrans %}
+{% trans from 'data_export' into locale %}readme.rule{% endtrans %}
+
+{% trans with {'%generated%': generated} from 'data_export' into locale %}readme.generated{% endtrans %}
+{% trans with {'%email%': email, '%userId%': userId} from 'data_export' into locale %}readme.account{% endtrans %}
+{% trans from 'data_export' into locale %}readme.format{% endtrans %}
+
+{% trans from 'data_export' into locale %}readme.files_heading{% endtrans %}
+{% trans from 'data_export' into locale %}readme.files_rule{% endtrans %}
+{% trans from 'data_export' into locale %}readme.file_profile{% endtrans %}
+{% trans from 'data_export' into locale %}readme.file_messages{% endtrans %}
+{% trans from 'data_export' into locale %}readme.file_conversations{% endtrans %}
+{% trans with {'%attachmentHours%': attachmentHours, '%attachmentMaxDownloads%': attachmentMaxDownloads} from 'data_export' into locale %}readme.file_attachments{% endtrans %}
+{% trans from 'data_export' into locale %}readme.file_reactions{% endtrans %}
+{% trans from 'data_export' into locale %}readme.file_moderation{% endtrans %}
+{% trans from 'data_export' into locale %}readme.file_notifications{% endtrans %}
+
+{% trans from 'data_export' into locale %}readme.excluded_heading{% endtrans %}
+{% trans from 'data_export' into locale %}readme.excluded_rule{% endtrans %}
+{% trans from 'data_export' into locale %}readme.excluded_others_messages{% endtrans %}
+{% trans from 'data_export' into locale %}readme.excluded_mod_notes{% endtrans %}
+{% trans from 'data_export' into locale %}readme.excluded_mod_actions_actor{% endtrans %}
+{% trans from 'data_export' into locale %}readme.excluded_other{% endtrans %}

@@ -1,0 +1,4 @@
+email_available.already_registered: 'Diese E-Mail-Adresse ist bereits registriert.'
+email_exists.not_registered: 'Diese E-Mail-Adresse ist nicht registriert.'
+valid_challenge.invalid: 'Ungültiger oder abgelaufener E-Mail-Bestätigungscode.'
+valid_reset_password_request.invalid: 'Ungültiger oder abgelaufener Zurücksetzungs-Token.'

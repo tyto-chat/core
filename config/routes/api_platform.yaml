@@ -1,0 +1,8 @@
+api_platform:
+    resource: .
+    type: api_platform
+    prefix: /api/{version}
+    requirements:
+        version: '%app.api_version_requirement%'
+    defaults:
+        version: '%app.api_version_canonical%'

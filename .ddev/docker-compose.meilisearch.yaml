@@ -1,0 +1,22 @@
+services:
+    meilisearch:
+        image: getmeili/meilisearch:v1.13
+        restart: unless-stopped
+        container_name: "ddev-${DDEV_SITENAME}-meilisearch"
+        labels:
+            com.ddev.site-name: ${DDEV_SITENAME}
+            com.ddev.approot: ${DDEV_APPROOT}
+        expose:
+            - "7700"
+        environment:
+            VIRTUAL_HOST: meilisearch.${DDEV_SITENAME}.ddev.site
+            HTTP_EXPOSE: "${DDEV_ROUTER_HTTP_PORT}:7700"
+            HTTPS_EXPOSE: "${DDEV_ROUTER_HTTPS_PORT}:7700"
+            MEILI_ENV: "${MEILI_ENV:-development}"
+            MEILI_MASTER_KEY: "${MEILI_MASTER_KEY:?missing — run .ddev/generate-secrets.sh (pre-start hook)}"
+            MEILI_NO_ANALYTICS: "true"
+        volumes:
+            - meilisearch_data:/meili_data
+
+volumes:
+    meilisearch_data:

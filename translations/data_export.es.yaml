@@ -1,0 +1,32 @@
+readme:
+    title: 'Exportación de datos de Tyto'
+    rule: '============================'
+    generated: 'Generado:   %generated%'
+    account: 'Cuenta:     %email% (id %userId%)'
+    format: 'Formato:    archivos JSON dentro de este ZIP'
+
+    files_heading: 'Archivos'
+    files_rule: '--------'
+    file_profile: 'profile.json         — Perfil de la cuenta, idioma, preferencias de notificación'
+    file_messages: |
+        messages.json        — Todos los mensajes que escribiste, incluidas todas las
+                               versiones editadas anteriores. Los mensajes con borrado
+                               suave se incluyen con isDeleted=true.
+    file_conversations: 'conversations.json   — Membresías de mensajes directos y los nombres visibles de los demás participantes.'
+    file_attachments: |
+        attachments.json     — Archivos subidos (solo metadatos). Cada entrada incluye una
+                               `signedUrl` que puedes descargar con cualquier cliente HTTP.
+                               Las URL son válidas durante %attachmentHours% horas desde la
+                               generación de la exportación y están limitadas a
+                               %attachmentMaxDownloads% descargas cada una — trátalas como
+                               secretos. Vuelve a exportar para renovar las URL.
+    file_reactions: 'reactions.json       — Reacciones que diste a mensajes de otras personas.'
+    file_moderation: 'moderation.json      — Acciones de moderación aplicadas a tu cuenta.'
+    file_notifications: 'notifications.json   — Notificaciones que recibiste.'
+
+    excluded_heading: 'Qué NO está incluido'
+    excluded_rule: '--------------------'
+    excluded_others_messages: '- Mensajes de otros usuarios (aunque te hayan mencionado).'
+    excluded_mod_notes: '- Notas de moderadores sobre ti (excepción del artículo 15(4): datos internos del operador).'
+    excluded_mod_actions_actor: '- Acciones de moderación que emitiste contra otros (datos de terceros).'
+    excluded_other: '- Elementos fijados, registros de auditoría, bytes de los archivos adjuntos.'

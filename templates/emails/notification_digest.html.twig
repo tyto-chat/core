@@ -1,0 +1,11 @@
+<h1>{% trans from 'emails' %}digest.title{% endtrans %}</h1>
+
+<p>{{ 'digest.greeting'|trans({'%name%': name}, 'emails') }}</p>
+
+<ul>
+    {% for item in items %}
+        <li>{{ item }}</li>
+    {% endfor %}
+</ul>
+
+<p style="color:#888;font-size:12px">{% trans from 'emails' %}digest.footer{% endtrans %}</p>

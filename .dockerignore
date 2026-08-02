@@ -1,0 +1,13 @@
+.git
+.ddev
+var/
+vendor/
+tests/
+node_modules/
+.env.local
+.env.*.local
+config/jwt/*.pem
+*.md
+.github
+compose*.yaml
+.php-cs-fixer.cache

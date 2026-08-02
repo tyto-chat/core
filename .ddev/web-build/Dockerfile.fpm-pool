@@ -1,0 +1,6 @@
+# The stock pool allows 8 PHP workers. One app page load fires 15-20 concurrent
+# API calls, so a 4-worker Playwright run puts 60-80 requests against those 8:
+# they queue, latency crosses the 20s per-test timeout, and the retries pile on
+# more load. Tests that pass alone collapse in parallel.
+RUN printf '[www]\npm = dynamic\npm.max_children = 48\npm.start_servers = 12\npm.min_spare_servers = 8\npm.max_spare_servers = 24\n' \
+    > /etc/php/8.5/fpm/pool.d/zz-concurrency.conf

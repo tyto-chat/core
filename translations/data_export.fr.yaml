@@ -1,0 +1,34 @@
+readme:
+    title: 'Export de données Tyto'
+    rule: '======================'
+    generated: 'Généré le : %generated%'
+    account: 'Compte :    %email% (id %userId%)'
+    format: 'Format :    fichiers JSON dans cette archive ZIP'
+
+    files_heading: 'Fichiers'
+    files_rule: '--------'
+    file_profile: 'profile.json         — Profil du compte, langue, préférences de notification'
+    file_messages: |
+        messages.json        — Chaque message que tu as rédigé, y compris toutes les
+                               versions d'édition antérieures. Les messages supprimés
+                               (soft delete) sont inclus avec isDeleted=true.
+    file_conversations: 'conversations.json   — Tes conversations privées et les noms d''affichage des autres participants.'
+    file_attachments: |
+        attachments.json     — Fichiers téléversés (métadonnées uniquement). Chaque
+                               entrée contient une `signedUrl` que tu peux récupérer
+                               avec n'importe quel client HTTP. Les URL sont valides
+                               pendant %attachmentHours% heures à partir de la
+                               génération de l'export et limitées à
+                               %attachmentMaxDownloads% téléchargements chacune —
+                               traite-les comme des secrets. Relance un export pour
+                               rafraîchir les URL.
+    file_reactions: 'reactions.json       — Les réactions que tu as ajoutées aux messages des autres.'
+    file_moderation: 'moderation.json      — Les actions de modération prises contre ton compte.'
+    file_notifications: 'notifications.json   — Les notifications que tu as reçues.'
+
+    excluded_heading: 'Ce qui n''est PAS inclus'
+    excluded_rule: '-----------------------'
+    excluded_others_messages: '- Les messages des autres utilisateurs (même s''ils te mentionnent).'
+    excluded_mod_notes: '- Les notes de modérateurs à ton sujet (exception de l''article 15, paragraphe 4 : données internes de l''opérateur).'
+    excluded_mod_actions_actor: '- Les actions de modération que tu as prises contre d''autres (données de tiers).'
+    excluded_other: '- Les éléments épinglés, les journaux d''audit, les octets des fichiers joints.'

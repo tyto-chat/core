@@ -1,0 +1,11 @@
+services:
+    redis:
+        image: valkey/valkey:8-alpine
+        restart: unless-stopped
+        container_name: "ddev-${DDEV_SITENAME}-redis"
+        labels:
+            com.ddev.site-name: ${DDEV_SITENAME}
+            com.ddev.approot: ${DDEV_APPROOT}
+        expose:
+            - "6379"
+        command: ["valkey-server", "--save", "", "--appendonly", "no"]

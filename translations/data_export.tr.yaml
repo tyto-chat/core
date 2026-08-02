@@ -1,0 +1,32 @@
+readme:
+    title: 'Tyto veri dışa aktarımı'
+    rule: '================='
+    generated: 'Oluşturuldu: %generated%'
+    account: 'Hesap:      %email% (id %userId%)'
+    format: 'Biçim:      bu ZIP içindeki JSON dosyaları'
+
+    files_heading: 'Dosyalar'
+    files_rule: '-----'
+    file_profile: 'profile.json         — Hesap profili, dil, bildirim tercihleri'
+    file_messages: |
+        messages.json        — Yazdığın her mesaj, önceki tüm düzenleme sürümleri dahil.
+                               Yumuşak silinen mesajlar isDeleted=true ile dahildir.
+    file_conversations: 'conversations.json   — DM üyelikleri ve diğer katılımcıların görünen adları.'
+    file_attachments: |
+        attachments.json     — Dosya yüklemeleri (yalnızca meta veriler). Her giriş,
+                               herhangi bir HTTP istemcisiyle indirebileceğin bir
+                               `signedUrl` içerir. URL''ler dışa aktarımın
+                               oluşturulmasından itibaren %attachmentHours% saat
+                               geçerlidir ve her biri %attachmentMaxDownloads% indirmeyle
+                               sınırlıdır — bunlara sır gibi davran. URL''leri yenilemek
+                               için yeniden dışa aktar.
+    file_reactions: 'reactions.json       — Başkalarının mesajlarına verdiğin tepkiler.'
+    file_moderation: 'moderation.json      — Hesabına uygulanan moderasyon eylemleri.'
+    file_notifications: 'notifications.json   — Aldığın bildirimler.'
+
+    excluded_heading: 'Dahil OLMAYANLAR'
+    excluded_rule: '--------------------'
+    excluded_others_messages: '- Diğer kullanıcıların mesajları (senden bahsetseler bile).'
+    excluded_mod_notes: '- Hakkındaki moderatör notları (Madde 15(4) istisnası: iç operatör verisi).'
+    excluded_mod_actions_actor: '- Başkalarına uyguladığın moderasyon eylemleri (üçüncü taraf verisi).'
+    excluded_other: '- Sabitlenmiş öğeler, denetim kayıtları, ek dosyalarının içeriği.'

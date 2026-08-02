@@ -1,0 +1,7 @@
+<h1>{% trans from 'emails' %}invitation.title{% endtrans %}</h1>
+
+<p>{% trans from 'emails' %}invitation.intro{% endtrans %}</p>
+
+<p><code>{{ resetPasswordRequest.plainToken }}</code></p>
+
+<p>{% trans with {'%expiryInHours%': expiryInHours} from 'emails' %}invitation.code_validity{% endtrans %}</p>

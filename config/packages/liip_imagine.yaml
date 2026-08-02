@@ -1,0 +1,54 @@
+liip_imagine:
+    # Imagick preserves animated GIF frames during thumbnailing; GD only keeps
+    # the first frame. Avatars, logos and emojis all use the same driver.
+    driver: "imagick"
+
+    twig:
+        mode: lazy
+
+    loaders:
+        media_private:
+            filesystem:
+                data_root: "%kernel.project_dir%/var/media"
+
+    filter_sets:
+        avatar_sm:
+            data_loader: media_private
+            filters:
+                thumbnail: { size: [40, 40], mode: outbound }
+
+        avatar_md:
+            data_loader: media_private
+            filters:
+                thumbnail: { size: [80, 80], mode: outbound }
+
+        avatar_lg:
+            data_loader: media_private
+            filters:
+                thumbnail: { size: [160, 160], mode: outbound }
+
+        logo_sm:
+            data_loader: media_private
+            filters:
+                thumbnail: { size: [48, 48], mode: outbound }
+
+        logo_md:
+            data_loader: media_private
+            filters:
+                thumbnail: { size: [96, 96], mode: outbound }
+
+        logo_lg:
+            data_loader: media_private
+            filters:
+                thumbnail: { size: [192, 192], mode: outbound }
+
+        community_emoji:
+            data_loader: media_private
+            filters:
+                # `inset` + `allow_upscale` always scales the longest side to
+                # exactly max_width/max_height, preserving aspect ratio.
+                # Smaller sources are scaled up, larger ones down.
+                thumbnail:
+                    size: ['%app.community_emoji.max_width%', '%app.community_emoji.max_height%']
+                    mode: inset
+                    allow_upscale: true

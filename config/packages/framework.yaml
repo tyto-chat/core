@@ -1,0 +1,20 @@
+# see https://symfony.com/doc/current/reference/configuration/framework.html
+framework:
+    secret: '%env(APP_SECRET)%'
+    default_locale: en
+    enabled_locales: [en, pl, fr, de, es, it, pt, uk, nl, tr]
+
+    # API is fully stateless (all firewalls stateless: true; no controller uses sessions).
+    session: false
+
+    # Behind FrankenPHP/Caddy or an external reverse proxy. Empty TRUSTED_PROXIES
+    # (the FrankenPHP-is-edge default) trusts none; set it to your proxy CIDR when
+    # running plain HTTP behind a separate proxy (SERVER_DOMAIN=:80).
+    trusted_proxies: '%env(TRUSTED_PROXIES)%'
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port']
+    # Empty = no host restriction. Set TRUSTED_HOSTS to your domain regex in prod.
+    trusted_hosts: '%env(TRUSTED_HOSTS)%'
+
+when@test:
+    framework:
+        test: true

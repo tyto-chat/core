@@ -1,0 +1,12 @@
+framework:
+    messenger:
+        routing:
+            # Route webhook dispatch to the sync transport in the test environment so
+            # emit→deliver runs synchronously and delivery rows are assertable inline
+            # without starting a worker process.
+            App\Async\DispatchWebhookMessage: sync
+            App\Async\DispatchMessageNotificationsMessage: sync
+            App\Async\GenerateDataExportMessage: sync
+            App\Async\SendEmailDigestsMessage: sync
+            App\Async\PurgeExpiredAccountsMessage: sync
+            App\Async\ExpireDataExportsMessage: sync

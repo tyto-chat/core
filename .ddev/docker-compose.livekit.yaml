@@ -1,0 +1,20 @@
+services:
+  livekit:
+    image: livekit/livekit-server:v1.9
+    restart: unless-stopped
+    container_name: "ddev-${DDEV_SITENAME}-livekit"
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: ${DDEV_APPROOT}
+    expose:
+      - "7880"
+    ports:
+      - "50100-50150:50100-50150/udp"  # RTP media (UDP ICE)
+      - "7881:7881"                    # TCP ICE fallback (raw TCP, not via Traefik)
+    command: --config /etc/livekit/config.yaml
+    volumes:
+      - ./livekit.yaml:/etc/livekit/config.yaml
+    environment:
+      VIRTUAL_HOST: livekit.${DDEV_SITENAME}.ddev.site
+      HTTP_EXPOSE: "${DDEV_ROUTER_HTTP_PORT}:7880"
+      HTTPS_EXPOSE: "${DDEV_ROUTER_HTTPS_PORT}:7880"

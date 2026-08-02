@@ -1,0 +1,76 @@
+{
+	frankenphp
+	order php_server before file_server
+	cache {
+		redis {
+			url {$CACHE_REDIS_URL:redis:6379}
+		}
+		mode bypass_request
+		api {
+			souin
+		}
+	}
+	{$CADDY_GLOBAL_OPTIONS}
+}
+
+# The second, loopback-only address exists for Symfony's internal Mercure
+# publishes (MERCURE_URL): once CADDY_SITE_ADDRESS is a real domain, a request
+# with Host: localhost matches no site and Caddy drops it with an empty
+# response — publishes silently vanish while subscribers (arriving via the
+# domain) stay connected. Same site block = same Mercure hub instance; the
+# port is never published by compose.
+{$CADDY_SITE_ADDRESS:localhost}, http://localhost:8890 {
+	log
+
+	# HSTS at the edge (ignored by browsers over plain HTTP, so safe in :80 mode).
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+	route {
+		mercure {
+			publisher_jwt {env.MERCURE_JWT_SECRET}
+			subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY}
+			cors_origins {$MERCURE_CORS_ORIGINS:*}
+			anonymous
+		}
+	}
+
+	# LiveKit signal (WebSocket) rides the app origin so it gets TLS from
+	# Caddy (or the operator's proxy in BEHIND_PROXY mode) — the LiveKit
+	# container itself serves plain ws only. Media stays direct via the
+	# published RTC ports.
+	@livekit path /rtc /rtc/*
+	route @livekit {
+		reverse_proxy {$LIVEKIT_INTERNAL_URL:http://livekit:7880}
+	}
+
+	# Keep in lockstep with the bucketFor() regexp in src/Service/HttpCache/CacheContextService.php —
+	# any shape matched here must be recognized there, or buckets collapse (see task-2 brief).
+	# The `(/(...))?` group is optional so a bare /api/communities/{c} (community
+	# detail, task-3) matches too, without swallowing subresources such as
+	# /membership, /invites, /moderation, /unread-channels, or a bare /channels/{ch}.
+	@cacheable path_regexp ^/api/v[0-9]+/(communities/[^/]+(/(channels/[^/]+/(pages/[0-9]+|messages/current|pinned-messages)|emojis|presence/summary))?|messages/[0-9a-f-]{36}(/thread)?)$
+	route @cacheable {
+		forward_auth localhost:8888 {
+			uri /api/http-cache/context-hash
+			copy_headers X-User-Context-Hash
+		}
+		cache
+	}
+
+	root * /app/public
+	encode zstd br gzip
+	php_server
+}
+
+# Optional extra site blocks rendered by the entrypoint (single-stack bundle:
+# the web client's site is written here when APP_DOMAIN is set).
+import sites.d/*.caddyfile
+
+# Internal-only listener for the forward_auth hash sub-request above. Never
+# published by compose. (Souin's purge/admin API is separate: it rides
+# Caddy's built-in Admin API on loopback :2019, not this site block — see
+# CACHE_PURGE_URL in compose.yaml.)
+:8888 {
+	root * /app/public
+	php_server
+}

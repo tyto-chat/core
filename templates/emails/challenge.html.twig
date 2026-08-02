@@ -1,0 +1,7 @@
+<h1>{% trans from 'emails' %}challenge.title{% endtrans %}</h1>
+
+<p>{% trans from 'emails' %}challenge.intro{% endtrans %}</p>
+
+<p style="font-size: 32px; font-weight: bold; letter-spacing: 0.25em;"><code>{{ challenge.plainToken }}</code></p>
+
+<p>{% trans with {'%expiryInMinutes%': expiryInMinutes} from 'emails' %}challenge.code_validity{% endtrans %}</p>

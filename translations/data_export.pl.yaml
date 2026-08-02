@@ -1,0 +1,33 @@
+readme:
+    title: 'Eksport danych Tyto'
+    rule: '===================='
+    generated: 'Wygenerowano: %generated%'
+    account: 'Konto:        %email% (id %userId%)'
+    format: 'Format:       pliki JSON wewnątrz tego archiwum ZIP'
+
+    files_heading: 'Pliki'
+    files_rule: '-----'
+    file_profile: 'profile.json         — Profil konta, język interfejsu, preferencje powiadomień'
+    file_messages: |
+        messages.json        — Każda wysłana przez Ciebie wiadomość wraz z pełną
+                               historią edycji. Wiadomości usunięte miękko są
+                               oznaczone polem isDeleted=true.
+    file_conversations: 'conversations.json   — Twoje rozmowy prywatne i nazwy pozostałych uczestników.'
+    file_attachments: |
+        attachments.json     — Załączniki (tylko metadane). Każdy wpis zawiera
+                               `signedUrl`, który możesz pobrać dowolnym klientem
+                               HTTP. Adresy URL są ważne przez %attachmentHours%
+                               godzin od wygenerowania eksportu i ograniczone do
+                               %attachmentMaxDownloads% pobrań — traktuj je jak
+                               sekrety. Wygeneruj eksport ponownie, aby odświeżyć
+                               adresy.
+    file_reactions: 'reactions.json       — Twoje reakcje na wiadomości innych użytkowników.'
+    file_moderation: 'moderation.json      — Działania moderacyjne wobec Twojego konta.'
+    file_notifications: 'notifications.json   — Powiadomienia, które otrzymałeś.'
+
+    excluded_heading: 'Czego ten plik NIE zawiera'
+    excluded_rule: '--------------------------'
+    excluded_others_messages: '- Wiadomości innych użytkowników (nawet jeśli wspomniano Ciebie).'
+    excluded_mod_notes: '- Notatek moderatorów na Twój temat (wyłączenie z art. 15 ust. 4 — wewnętrzne dane operatora).'
+    excluded_mod_actions_actor: '- Działań moderacyjnych podjętych przez Ciebie wobec innych użytkowników (dane osób trzecich).'
+    excluded_other: '- Przypiętych wiadomości, dzienników zdarzeń, fizycznych plików załączników.'

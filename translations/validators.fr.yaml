@@ -1,0 +1,4 @@
+email_available.already_registered: 'Cette adresse e-mail est déjà enregistrée.'
+email_exists.not_registered: 'Cet e-mail n''est pas enregistré.'
+valid_challenge.invalid: 'Code de vérification d''e-mail invalide ou expiré.'
+valid_reset_password_request.invalid: 'Jeton de réinitialisation invalide ou expiré.'

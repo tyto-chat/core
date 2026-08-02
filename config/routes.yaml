@@ -1,0 +1,6 @@
+controllers:
+    resource: routing.controllers
+
+auth:
+    path: /auth
+    methods: ["POST"]

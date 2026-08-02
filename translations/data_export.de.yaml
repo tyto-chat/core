@@ -1,0 +1,33 @@
+readme:
+    title: 'Tyto-Datenexport'
+    rule: '================'
+    generated: 'Erstellt:   %generated%'
+    account: 'Konto:      %email% (id %userId%)'
+    format: 'Format:     JSON-Dateien in diesem ZIP-Archiv'
+
+    files_heading: 'Dateien'
+    files_rule: '-------'
+    file_profile: 'profile.json         — Kontoprofil, Sprache, Benachrichtigungseinstellungen'
+    file_messages: |
+        messages.json        — Jede von dir verfasste Nachricht, einschließlich aller
+                               früheren Bearbeitungsversionen. Soft-gelöschte Nachrichten
+                               sind mit isDeleted=true enthalten.
+    file_conversations: 'conversations.json   — Deine Direktnachrichten-Mitgliedschaften und die Anzeigenamen der anderen Teilnehmer.'
+    file_attachments: |
+        attachments.json     — Datei-Uploads (nur Metadaten). Jeder Eintrag enthält
+                               eine `signedUrl`, die du mit einem beliebigen HTTP-Client
+                               abrufen kannst. Die URLs sind ab der Erstellung des
+                               Exports %attachmentHours% Stunden gültig und auf
+                               %attachmentMaxDownloads% Downloads pro URL begrenzt —
+                               behandle sie wie Geheimnisse. Exportiere erneut, um die
+                               URLs zu erneuern.
+    file_reactions: 'reactions.json       — Reaktionen, die du auf Nachrichten anderer gegeben hast.'
+    file_moderation: 'moderation.json      — Moderationsaktionen gegen dein Konto.'
+    file_notifications: 'notifications.json   — Benachrichtigungen, die du erhalten hast.'
+
+    excluded_heading: 'Was NICHT enthalten ist'
+    excluded_rule: '-----------------------'
+    excluded_others_messages: '- Nachrichten anderer Benutzer (auch wenn sie dich erwähnt haben).'
+    excluded_mod_notes: '- Moderatornotizen über dich (Ausnahme nach Art. 15 Abs. 4 — interne Betreiberdaten).'
+    excluded_mod_actions_actor: '- Moderationsaktionen, die du gegen andere veranlasst hast (Daten Dritter).'
+    excluded_other: '- Angeheftete Elemente, Audit-Logs, Anhang-Dateiinhalte.'

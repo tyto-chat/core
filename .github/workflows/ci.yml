@@ -1,0 +1,150 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11.8
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: app
+          MARIADB_USER: app
+          MARIADB_PASSWORD: app
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: valkey/valkey:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="valkey-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      meilisearch:
+        image: getmeili/meilisearch:v1.13
+        env:
+          MEILI_MASTER_KEY: ci_meili_master_key_for_tests
+          MEILI_NO_ANALYTICS: "true"
+        ports:
+          - 7700:7700
+        options: >-
+          --health-cmd="curl -fs http://localhost:7700/health"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATABASE_URL: "mysql://app:app@127.0.0.1:3306/app?serverVersion=mariadb-11.8.0&charset=utf8mb4"
+      REDIS_DSN: "tcp://127.0.0.1:6379"
+      MEILI_URL: "http://127.0.0.1:7700"
+      MEILI_MASTER_KEY: ci_meili_master_key_for_tests
+      APP_ENV: test
+      APP_SECRET: ci_secret_for_tests
+      JWT_PASSPHRASE: test_passphrase
+      # HS256 signers reject keys under 256 bits — these must stay >= 32 bytes.
+      MERCURE_JWT_SECRET: ci_mercure_publisher_secret_at_least_32_bytes_long
+      MERCURE_SUBSCRIBER_JWT_KEY: ci_mercure_subscriber_secret_at_least_32_bytes_long
+      MERCURE_URL: https://mercure.example.com/.well-known/mercure
+      MERCURE_PUBLIC_URL: https://mercure.example.com/.well-known/mercure
+      LIVEKIT_API_KEY: test_key
+      LIVEKIT_API_SECRET: ci_livekit_api_secret_at_least_32_bytes_long
+      LIVEKIT_PUBLIC_URL: https://livekit.example.com
+      LIVEKIT_INTERNAL_URL: https://livekit.example.com
+      APP_VALIDATE_EMAILS: "false"
+      APP_SERVER_NAME: "tyto.chat Test"
+      APP_SERVER_DESCRIPTION: "Test"
+      SERVER_API_URL: http://localhost
+      MAILER_DSN: "null://null"
+      MAILER_FROM: test@example.com
+      APP_RESET_PASSWORD_CODE_EXPIRY_IN_MINUTES: "15"
+      APP_EMAIL_CHALLENGE_EXPIRY_IN_MINUTES: "60"
+      APP_SHARE_DIR: var/share
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: pdo_mysql, intl, ctype, iconv
+          coverage: pcov
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress
+
+      # phpstan-symfony reads the dev container dump; without it phpstan aborts.
+      - name: Warm dev container
+        run: php bin/console cache:warmup --env=dev
+
+      - name: Static analysis
+        run: composer phpstan
+
+      - name: Code style
+        run: composer checkcs
+
+      - name: Generate JWT keypair
+        run: php bin/console lexik:jwt:generate-keypair --overwrite
+
+      - name: Create test database
+        run: |
+          mysql -uapp -papp -h127.0.0.1 -e "CREATE DATABASE IF NOT EXISTS app_test;" 2>/dev/null || \
+          mysql -uroot -proot -h127.0.0.1 -e "CREATE DATABASE IF NOT EXISTS app_test; GRANT ALL ON app_test.* TO 'app'@'%';"
+
+      - name: Run migrations
+        run: php bin/console doctrine:migrations:migrate --env=test --no-interaction
+
+      - name: Run Unit tests (with coverage)
+        run: php vendor/bin/phpunit --testsuite Unit --fail-on-phpunit-deprecation --coverage-clover var/coverage.xml --coverage-text
+
+      - name: Enforce coverage threshold
+        run: |
+          php -r "
+            \$xml = simplexml_load_file('var/coverage.xml');
+            \$m = \$xml->project->metrics;
+            \$total = (int)\$m['statements'];
+            \$covered = (int)\$m['coveredstatements'];
+            \$pct = \$total > 0 ? round(\$covered / \$total * 100, 1) : 0.0;
+            printf('Unit line coverage: %.1f%% (%d/%d)\n', \$pct, \$covered, \$total);
+            if (\$pct < 20.0) {
+              fwrite(STDERR, \"Coverage \$pct% is below the required 20%.\n\");
+              exit(1);
+            }
+          "
+
+      - name: Run Functional tests
+        run: php vendor/bin/phpunit --testsuite Functional --fail-on-phpunit-deprecation
+
+      - name: Run Integration tests
+        run: php vendor/bin/phpunit --testsuite Integration --fail-on-phpunit-deprecation
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: var/coverage.xml
+          retention-days: 7

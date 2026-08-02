@@ -1,0 +1,18 @@
+#!/bin/bash
+## Description: Run the test suite
+## Usage: test [phpunit-options]
+set -e
+
+# Rebuild the test DB from scratch each run — this guarantees a clean schema +
+# consistent migration tracking (an incremental "migrate only" path desyncs if
+# the DB and doctrine_migration_versions ever drift). Functional tests use DAMA
+# (per-test transaction rollback) on top of this baseline.
+php bin/console doctrine:database:drop --env=test --force --if-exists
+php bin/console doctrine:database:create --env=test
+php bin/console doctrine:migrations:migrate --env=test --no-interaction
+# JWT keypair lives on disk (config/jwt/), not in the DB, so it survives the DB
+# rebuild — only generate it when missing. (A fresh 4096-bit RSA keygen on every
+# run, which the old --overwrite forced, was ~1-2s of pure waste per run.)
+php bin/console lexik:jwt:generate-keypair --env=test --skip-if-exists --no-interaction
+
+php vendor/bin/phpunit "$@"

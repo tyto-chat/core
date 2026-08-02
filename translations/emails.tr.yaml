@@ -1,0 +1,30 @@
+challenge:
+    subject: '%code% tyto.chat doğrulama kodun'
+    title: 'tyto.chat - e-postanı doğrula!'
+    intro: 'Hesap oluşturmak için bu e-postanın gerçekten sana ait olduğunu doğrulaman gerekiyor. Hesabını oluşturmak için aşağıdaki kodu kullan.'
+    code_validity: 'Bu kod %expiryInMinutes% dakika geçerlidir. Bu kodu sen istemediysen bu e-postayı yok sayabilirsin.'
+
+digest:
+    subject: '%count% yeni bildirimin var - tyto.chat|%count% yeni bildirimin var - tyto.chat'
+    title: 'tyto.chat - neler kaçırdın'
+    greeting: 'Merhaba %name%, sen yokken olanlar şunlar:'
+    footer: 'Bunu, günlük e-posta bildirimleri etkin olduğu için alıyorsun. Tercihler bölümünden kapatabilirsin.'
+    line:
+        mention: '%author%, #%channel% kanalında senden bahsetti'
+        dm_message: '%author% sana bir mesaj gönderdi'
+        group_added: 'Bir gruba eklendin'
+        group_ownership_transferred: 'Bir grubun sahibi yapıldın'
+        channel_access: '#%channel% kanalına erişim verildi'
+        channel_moderator: '#%channel% kanalının moderatörü yapıldın'
+
+password_reset:
+    subject: 'Parolanı sıfırla - tyto.chat'
+    title: 'tyto.chat - parolanı sıfırla'
+    intro: 'Hesabının parolasını sıfırlamak için bir kod istendi; kodu aşağıda bulabilirsin.'
+    code_validity: 'Bu kod %expiryInMinutes% dakika geçerlidir. Bu kodu sen istemediysen bu e-postayı yok sayabilirsin.'
+
+invitation:
+    subject: 'tyto.chat''e davet edildin'
+    title: 'tyto.chat - davet edildin'
+    intro: 'Senin için bir hesap oluşturuldu. Parolanı belirlemek ve başlamak için aşağıdaki kodu kullan.'
+    code_validity: 'Bu kod %expiryInHours% saat geçerlidir.'

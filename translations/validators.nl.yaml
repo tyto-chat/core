@@ -1,0 +1,4 @@
+email_available.already_registered: 'Dit e-mailadres is al geregistreerd.'
+email_exists.not_registered: 'E-mailadres is niet geregistreerd.'
+valid_challenge.invalid: 'Ongeldige of verlopen e-mailverificatiecode.'
+valid_reset_password_request.invalid: 'Ongeldig of verlopen resettoken.'

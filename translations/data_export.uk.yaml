@@ -1,0 +1,32 @@
+readme:
+    title: 'Експорт даних Tyto'
+    rule: '================='
+    generated: 'Створено:   %generated%'
+    account: 'Обліковий запис: %email% (id %userId%)'
+    format: 'Формат:     файли JSON у цьому ZIP-архіві'
+
+    files_heading: 'Файли'
+    files_rule: '-----'
+    file_profile: 'profile.json         — Профіль облікового запису, мова, налаштування сповіщень'
+    file_messages: |
+        messages.json        — Кожне повідомлення, яке ти написав, включно з усіма
+                               попередніми версіями редагувань. М''яко видалені
+                               повідомлення включені з isDeleted=true.
+    file_conversations: 'conversations.json   — Участь у розмовах та імена інших учасників.'
+    file_attachments: |
+        attachments.json     — Завантажені файли (лише метадані). Кожен запис містить
+                               `signedUrl`, який можна отримати будь-яким HTTP-клієнтом.
+                               URL дійсні %attachmentHours% годин з моменту створення
+                               експорту й обмежені %attachmentMaxDownloads% завантаженнями
+                               кожен — стався до них як до секретів. Повтори експорт, щоб
+                               оновити URL.
+    file_reactions: 'reactions.json       — Реакції, які ти поставив на повідомлення інших.'
+    file_moderation: 'moderation.json      — Дії модерації щодо твого облікового запису.'
+    file_notifications: 'notifications.json   — Сповіщення, які ти отримав.'
+
+    excluded_heading: 'Чого тут НЕМАЄ'
+    excluded_rule: '--------------------'
+    excluded_others_messages: '- Повідомлення інших користувачів (навіть якщо вони згадували тебе).'
+    excluded_mod_notes: '- Нотатки модераторів про тебе (виняток статті 15(4): внутрішні дані оператора).'
+    excluded_mod_actions_actor: '- Дії модерації, які ти застосував до інших (дані третіх осіб).'
+    excluded_other: '- Закріплені елементи, журнали аудиту, вміст файлів вкладень.'

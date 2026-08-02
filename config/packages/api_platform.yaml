@@ -1,0 +1,32 @@
+api_platform:
+    title: tyto.chat API
+    version: 1.0.0
+    show_webby: false
+    serializer:
+        hydra_prefix: true
+    defaults:
+        stateless: true
+        cache_headers:
+            vary: ['Content-Type', 'Authorization', 'Origin']
+        normalization_context:
+            skip_null_values: false
+        pagination_items_per_page: 30
+        pagination_maximum_items_per_page: 100
+        pagination_client_items_per_page: true
+    formats:
+        jsonld: [ "application/ld+json" ]
+        json: [ "application/json" ]
+        multipart: [ "multipart/form-data" ]
+    exception_to_status:
+        App\Exception\Channel\UserNotCommunityMemberException: 403
+        App\Exception\UserGroup\UserGroupNotFoundException: 404
+        App\Exception\UserGroup\InvalidGroupRoleException: 422
+        App\Exception\UserGroup\UserNotGroupMemberException: 404
+        # Invalid enum strings (e.g. role="superadmin") trigger this during DTO denormalization.
+        # API Platform wraps NotNormalizableValueException → UnexpectedValueException; map the wrapper.
+        Symfony\Component\Serializer\Exception\UnexpectedValueException: 422
+    swagger:
+        api_keys:
+            JWT:
+                name: Authorization
+                type: header

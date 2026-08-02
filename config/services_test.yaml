@@ -1,0 +1,107 @@
+services:
+    App\Tests\Factory\:
+        resource: '%kernel.project_dir%/tests/Factory/'
+        autowire: true
+        autoconfigure: true
+
+    # Swap the search backend for an in-memory stub so functional tests don't
+    # require Meilisearch (and don't leak docs between tests).
+    App\Tests\Stub\InMemorySearchService:
+        public: true
+
+    App\Service\Search\SearchServiceInterface:
+        alias: App\Tests\Stub\InMemorySearchService
+        public: true
+
+    # Swap presence backend for an in-memory stub so functional tests don't
+    # require Redis (and so test state stays isolated).
+    App\Tests\Stub\InMemoryPresenceService:
+        autowire: true
+        public: true
+
+    App\Service\Presence\PresenceServiceInterface:
+        alias: App\Tests\Stub\InMemoryPresenceService
+        public: true
+
+    App\Tests\Stub\InMemoryGuestPresenceService:
+        autowire: true
+        public: true
+
+    App\Service\Presence\GuestPresenceServiceInterface:
+        alias: App\Tests\Stub\InMemoryGuestPresenceService
+        public: true
+
+    App\Tests\Stub\MutableDiskSpaceProbe:
+        autowire: true
+        public: true
+
+    App\Service\Retention\DiskSpaceProbeInterface:
+        alias: App\Tests\Stub\MutableDiskSpaceProbe
+        public: true
+
+    # Expose DiskPressurePurgeServiceInterface for functional tests that fetch
+    # it directly from the container (e.g. DiskPressurePurgeTest).
+    App\Service\Retention\DiskPressurePurgeService:
+        public: true
+        autowire: true
+        autoconfigure: true
+
+    App\Service\Retention\DiskPressurePurgeServiceInterface:
+        alias: App\Service\Retention\DiskPressurePurgeService
+        public: true
+
+    # Swap the voice-participant store for an in-memory stub so functional tests
+    # don't require Redis (and so test state stays isolated).
+    App\Tests\Stub\InMemoryChannelParticipantStore:
+        autowire: true
+        public: true
+
+    App\Service\Voice\ChannelParticipantStoreInterface:
+        alias: App\Tests\Stub\InMemoryChannelParticipantStore
+        public: true
+
+    # Swap the IP-reputation lookup for an in-memory stub so functional tests
+    # don't hit StopForumSpam over the network.
+    App\Tests\Stub\InMemoryIpReputationService:
+        autowire: true
+        public: true
+
+    App\Service\IpReputation\IpReputationServiceInterface:
+        alias: App\Tests\Stub\InMemoryIpReputationService
+        public: true
+
+    # In-memory stub so the export-attachment download cap is exercisable in
+    # functional tests without booting Redis.
+    App\Tests\Stub\InMemoryExportDownloadLimiter:
+        autowire: true
+        public: true
+
+    App\Service\Gdpr\ExportDownloadLimiterInterface:
+        alias: App\Tests\Stub\InMemoryExportDownloadLimiter
+        public: true
+
+    # Expose SettingsServiceInterface for functional tests that fetch it directly
+    # from the container (e.g. SettingsServiceTest).
+    App\Service\Settings\SettingsService:
+        public: true
+        autowire: true
+        autoconfigure: true
+        arguments:
+            $secretBox: '@App\Service\Security\SecretBoxInterface'
+
+    App\Service\Settings\SettingsServiceInterface:
+        alias: App\Service\Settings\SettingsService
+        public: true
+
+    # Swap the webhook HTTP client with a no-network MockHttpClient so
+    # functional tests (and unit tests via container) never hit the network.
+    # The default mock returns 200 OK for every request.
+    app.webhook_mock_http_client:
+        class: Symfony\Component\HttpClient\MockHttpClient
+        public: true
+
+    App\Async\Handler\DispatchWebhookHandler:
+        autoconfigure: true
+        autowire: true
+        arguments:
+            $webhookHttpClient: '@app.webhook_mock_http_client'

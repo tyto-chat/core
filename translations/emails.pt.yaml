@@ -1,0 +1,30 @@
+challenge:
+    subject: '%code% é seu código de verificação do tyto.chat'
+    title: 'tyto.chat - verifique seu e-mail!'
+    intro: 'Para criar uma conta, você precisa confirmar que este e-mail é realmente seu. Use o código abaixo para criar sua conta.'
+    code_validity: 'Este código é válido por %expiryInMinutes% minutos. Se você não solicitou este código, pode ignorar este e-mail.'
+
+digest:
+    subject: 'Você tem %count% nova notificação - tyto.chat|Você tem %count% novas notificações - tyto.chat'
+    title: 'tyto.chat - o que você perdeu'
+    greeting: 'Olá %name%, aqui está o que aconteceu enquanto você esteve fora:'
+    footer: 'Você recebe isto porque as notificações diárias por e-mail estão ativadas. Você pode desativá-las nas Preferências.'
+    line:
+        mention: '%author% mencionou você em #%channel%'
+        dm_message: '%author% enviou uma mensagem para você'
+        group_added: 'Você foi adicionado a um grupo'
+        group_ownership_transferred: 'Você se tornou dono de um grupo'
+        channel_access: 'Você recebeu acesso a #%channel%'
+        channel_moderator: 'Você se tornou moderador de #%channel%'
+
+password_reset:
+    subject: 'Redefina sua senha - tyto.chat'
+    title: 'tyto.chat - redefina sua senha'
+    intro: 'Um código para redefinir a senha da sua conta foi solicitado, e você pode encontrá-lo abaixo.'
+    code_validity: 'Este código é válido por %expiryInMinutes% minutos. Se você não solicitou este código, pode ignorar este e-mail.'
+
+invitation:
+    subject: 'Você foi convidado para o tyto.chat'
+    title: 'tyto.chat - você foi convidado'
+    intro: 'Uma conta foi criada para você. Use o código abaixo para definir sua senha e começar.'
+    code_validity: 'Este código é válido por %expiryInHours% horas.'

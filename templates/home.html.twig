@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ info.name|default('tyto.chat') }}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <style>
+        :root {
+            --bg: #0e0f13; --surface: #16181f; --raised: #1d2029; --line: #262a35;
+            --line-strong: #333949; --fg: #e7e9ee; --fg-muted: #a2a8b8; --fg-subtle: #6b7284;
+            --accent: #22d3ee; --accent-2: #a855f7; --accent-soft: rgba(34,211,238,.14);
+            --good: #34d399; --good-soft: rgba(52,211,153,.14);
+            --grad: linear-gradient(135deg, var(--accent), var(--accent-2));
+            --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 30px -12px rgba(0,0,0,.5);
+            --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            color-scheme: dark;
+        }
+        :root[data-theme="light"] {
+            --bg: #f5f6f9; --surface: #fff; --raised: #eef0f4; --line: #e3e6ee;
+            --line-strong: #d3d8e4; --fg: #14161c; --fg-muted: #565d70; --fg-subtle: #8a90a2;
+            --accent-soft: rgba(34,211,238,.10); --good: #10a36e; --good-soft: rgba(16,163,110,.12);
+            --shadow: 0 1px 2px rgba(20,22,28,.05), 0 12px 30px -16px rgba(20,22,28,.22);
+            color-scheme: light;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+        a { color: inherit; text-decoration: none; }
+        .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+        header.bar { position: sticky; top: 0; z-index: 20; backdrop-filter: saturate(140%) blur(12px); background: color-mix(in srgb, var(--bg) 82%, transparent); border-bottom: 1px solid var(--line); }
+        .bar-inner { display: flex; align-items: center; gap: 16px; height: 60px; }
+        .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.18rem; letter-spacing: -.02em; }
+        .grad-text { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .brand .glyph { width: 28px; height: 28px; border-radius: 8px; background: var(--grad); display: grid; place-items: center; color: #fff; box-shadow: var(--shadow); }
+        .bar-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+        .theme-toggle { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: transparent; border: 1px solid var(--line-strong); color: var(--fg-muted); cursor: pointer; font-size: 15px; }
+        .theme-toggle:hover { background: var(--raised); color: var(--fg); }
+        .hero { position: relative; padding: 56px 0 34px; overflow: hidden; }
+        .hero::before { content: ""; position: absolute; inset: -40% 30% auto -10%; height: 340px; background: radial-gradient(60% 60% at 20% 30%, var(--accent-soft), transparent 70%); pointer-events: none; }
+        .server-id { display: flex; gap: 20px; align-items: center; position: relative; }
+        .server-logo { width: 76px; height: 76px; border-radius: 20px; flex: none; background: var(--grad); display: grid; place-items: center; color: #fff; font-size: 34px; font-weight: 700; box-shadow: var(--shadow); }
+        .server-id h1 { margin: 0 0 4px; font-size: clamp(28px, 4vw, 40px); letter-spacing: -.03em; text-wrap: balance; }
+        .server-id p { margin: 0; color: var(--fg-muted); font-size: 16px; max-width: 60ch; }
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; position: relative; }
+        .chip { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; padding: 6px 11px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); color: var(--fg-muted); }
+        .chip .dot { width: 7px; height: 7px; border-radius: 50%; }
+        .dot-good { background: var(--good); box-shadow: 0 0 0 3px var(--good-soft); }
+        .dot-off { background: var(--fg-subtle); }
+        .chip.strong { color: var(--fg); }
+        .section { padding: 12px 0 40px; }
+        .sec-head { display: flex; align-items: baseline; gap: 12px; margin: 26px 0 16px; }
+        .sec-head h2 { margin: 0; font-size: 15px; letter-spacing: .04em; text-transform: uppercase; color: var(--fg-subtle); font-weight: 700; }
+        .sec-head .rule { flex: 1; height: 1px; background: var(--line); }
+        .count-badge { font-family: var(--mono); font-size: 12px; color: var(--fg-muted); background: var(--surface); border: 1px solid var(--line); padding: 2px 8px; border-radius: 6px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+        .card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px; overflow: hidden; transition: transform .12s ease, border-color .15s ease; }
+        .card:hover { transform: translateY(-2px); border-color: var(--line-strong); }
+        .card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--c-accent, var(--accent)); }
+        .card-top { display: flex; align-items: center; gap: 12px; }
+        .c-mono { width: 46px; height: 46px; border-radius: 13px; flex: none; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 20px; overflow: hidden; }
+        .c-mono img { width: 100%; height: 100%; object-fit: cover; }
+        .c-name { font-weight: 700; font-size: 16px; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; }
+        .c-handle { font-family: var(--mono); font-size: 11.5px; color: var(--fg-subtle); margin-top: 1px; }
+        .locale { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .05em; padding: 2px 6px; border-radius: 5px; background: var(--raised); color: var(--fg-muted); border: 1px solid var(--line); }
+        .c-desc { color: var(--fg-muted); font-size: 14px; margin: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 40px; }
+        .card-foot { display: flex; align-items: center; gap: 14px; margin-top: auto; padding-top: 2px; }
+        .stat { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+        .stat svg { color: var(--fg-subtle); }
+        .empty { color: var(--fg-muted); font-size: 15px; padding: 8px 2px 4px; }
+        .info-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
+        .ic-head { display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-bottom: 1px solid var(--line); color: var(--fg-subtle); font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; }
+        .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); }
+        .info-item { padding: 14px 18px; border-top: 1px solid var(--line); }
+        .info-item:nth-child(-n+2) { border-top: none; }
+        .info-item:nth-child(odd) { border-right: 1px solid var(--line); }
+        .info-item .k { font-family: var(--mono); font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--fg-subtle); margin-bottom: 6px; }
+        .info-item .v { font-family: var(--mono); font-size: 13.5px; color: var(--fg); word-break: break-all; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .pill { font-family: var(--mono); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; }
+        .pill-on { background: var(--good-soft); color: var(--good); }
+        .pill-off { background: var(--raised); color: var(--fg-subtle); }
+        .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+        footer { border-top: 1px solid var(--line); padding: 22px 0 40px; margin-top: 20px; }
+        .foot-inner { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; color: var(--fg-subtle); font-size: 13px; }
+        .foot-inner .powered { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; color: var(--fg-muted); transition: color .15s ease; }
+        .foot-inner .powered:hover { color: var(--fg); }
+        .foot-inner a:not(.powered) { color: var(--fg-subtle); text-decoration: none; }
+        .foot-inner a:not(.powered):hover { color: var(--fg); text-decoration: underline; }
+        .foot-inner .powered .glyph { width: 18px; height: 18px; border-radius: 5px; background: var(--grad); }
+        @media (max-width: 620px) {
+            .info-grid { grid-template-columns: 1fr; }
+            .info-item:nth-child(odd) { border-right: none; }
+            .info-item:nth-child(2) { border-top: 1px solid var(--line); }
+            .server-id { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+{% set accent_default = '#22d3ee' %}
+<header class="bar">
+    <div class="wrap bar-inner">
+        <div class="brand"><span class="glyph"><svg viewBox="115 120 800 800" aria-hidden="true" style="width:82%;height:82%"><defs><linearGradient id="owl-brand" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs><path fill="#fff" d="M817.57,399.62c0-222.31-204.78-253.9-306.07,0-82.57-248.39-306.07-222.31-306.07,0,0,153.12,91.4,286.25,185.53,354.3,15.41,11.14,23.03,30.44,18.07,48.8-5.57,20.61-17.9,42.5-24.85,53.85-2.29,3.74.31,8.57,4.7,8.68,63,1.58,167.43-62.08,218.62-93.71,101.59-62.78,210.08-204.23,210.08-371.92Z"/><path fill="url(#owl-brand)" d="M317.61,367.16l78.67,21.05c16.47,4.41,30.68,14.87,39.78,29.29l75.45,119.56v50.43l-89.41-131.51s-69.4-1.08-96.16-43.29c-15.21-23.99-8.32-45.54-8.32-45.54Z"/><path fill="url(#owl-brand)" d="M705.39,367.16l-78.67,21.05c-16.47,4.41-30.68,14.87-39.78,29.29l-75.45,119.56v50.43s89.41-131.51,89.41-131.51c0,0,69.4-1.08,96.16-43.29,15.21-23.99,8.32-45.54,8.32-45.54Z"/></svg></span><span class="grad-text">tyto.chat</span></div>
+        <div class="bar-actions">
+            <button class="theme-toggle" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">◐</button>
+        </div>
+    </div>
+</header>
+
+<main>
+    <section class="hero">
+        <div class="wrap">
+            <div class="server-id">
+                <div class="server-logo">{{ info.name|default('T')|first|upper }}</div>
+                <div>
+                    <h1>{{ info.name|default('tyto.chat server') }}</h1>
+                    {% if info.description %}<p>{{ info.description }}</p>{% endif %}
+                </div>
+            </div>
+            <div class="chips">
+                {% if info.registrationEnabled %}
+                    <span class="chip strong"><span class="dot dot-good"></span>Registration open</span>
+                {% else %}
+                    <span class="chip"><span class="dot dot-off"></span>Registration closed</span>
+                {% endif %}
+                <span class="chip"><span class="dot {{ info.voiceEnabled ? 'dot-good' : 'dot-off' }}"></span>Voice {{ info.voiceEnabled ? 'enabled' : 'off' }}</span>
+                <span class="chip">{{ info.communities|length }} public {{ info.communities|length == 1 ? 'community' : 'communities' }}</span>
+            </div>
+        </div>
+    </section>
+
+    <div class="wrap">
+        <section class="section">
+            <div class="sec-head">
+                <h2>Public communities</h2>
+                <span class="count-badge">{{ info.communities|length }}</span>
+                <div class="rule"></div>
+            </div>
+            {% if info.communities is empty %}
+                <p class="empty">No public communities yet.</p>
+            {% else %}
+                <div class="grid">
+                    {% for community in info.communities %}
+                        {% set accent = community.accentColor|default(accent_default) %}
+                        {% set channel_count = community.channels|length %}
+                        {% set logo_url = community.logo ? community.logo.contentUrl.sm|default(null) : null %}
+                        <div class="card" style="--c-accent: {{ accent }}">
+                            <div class="card-top">
+                                <div class="c-mono" style="background: {{ accent }}">
+                                    {% if logo_url %}<img src="{{ logo_url }}" alt="{{ community.name }}" loading="lazy">{% else %}{{ community.name|first|upper }}{% endif %}
+                                </div>
+                                <div>
+                                    <div class="c-name">{{ community.name }} <span class="locale">{{ community.locale|upper }}</span></div>
+                                    <div class="c-handle">/{{ community.identifier }}</div>
+                                </div>
+                            </div>
+                            {% if community.description %}<p class="c-desc">{{ community.description }}</p>{% endif %}
+                            <div class="card-foot">
+                                <span class="stat" title="Members">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                    {% if community.memberCount >= 1000 %}{{ (community.memberCount / 1000)|round(1) }}k{% else %}{{ community.memberCount }}{% endif %}
+                                </span>
+                                <span class="stat" title="Channels">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+                                    {{ channel_count }}
+                                </span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="section">
+            <div class="sec-head"><h2>Server info</h2><div class="rule"></div></div>
+            <div class="info-card">
+                <div class="ic-head">GET /api/server-info</div>
+                <div class="info-grid">
+                    <div class="info-item"><div class="k">API URL</div><div class="v">{{ info.apiUrl }}</div></div>
+                    <div class="info-item"><div class="k">Realtime (Mercure)</div><div class="v">{{ info.mercureUrl }}</div></div>
+                    <div class="info-item"><div class="k">Voice (LiveKit)</div><div class="v">
+                        {% if info.voiceEnabled %}<span class="pill pill-on"><span class="dot"></span>ENABLED</span> {{ info.liveKitUrl }}{% else %}<span class="pill pill-off"><span class="dot"></span>OFF</span>{% endif %}
+                    </div></div>
+                    <div class="info-item"><div class="k">Registration</div><div class="v">
+                        {% if info.registrationEnabled %}<span class="pill pill-on"><span class="dot"></span>OPEN</span>{% else %}<span class="pill pill-off"><span class="dot"></span>CLOSED</span>{% endif %}
+                    </div></div>
+                    <div class="info-item"><div class="k">Web Push</div><div class="v">
+                        {% if info.webPushPublicKey %}<span class="pill pill-on"><span class="dot"></span>CONFIGURED</span>{% else %}<span class="pill pill-off"><span class="dot"></span>OFF</span>{% endif %}
+                    </div></div>
+                    <div class="info-item"><div class="k">API version</div><div class="v">v1 <span class="pill pill-off">/api/versions</span></div></div>
+                </div>
+            </div>
+        </section>
+    </div>
+</main>
+
+<footer>
+    <div class="wrap foot-inner">
+        <a class="powered" href="https://tyto.chat/" target="_blank" rel="noopener"><span class="glyph"><svg viewBox="115 120 800 800" aria-hidden="true" style="width:82%;height:82%;display:block;margin:9%"><path fill="#fff" d="M817.57,399.62c0-222.31-204.78-253.9-306.07,0-82.57-248.39-306.07-222.31-306.07,0,0,153.12,91.4,286.25,185.53,354.3,15.41,11.14,23.03,30.44,18.07,48.8-5.57,20.61-17.9,42.5-24.85,53.85-2.29,3.74.31,8.57,4.7,8.68,63,1.58,167.43-62.08,218.62-93.71,101.59-62.78,210.08-204.23,210.08-371.92Z"/></svg></span>Powered by tyto.chat</a>
+        <span>&middot;</span>
+        <span>Self-hosted &middot; MIT licensed</span>
+        {% if info.legalContactEmail %}<span>&middot;</span><a href="mailto:{{ info.legalContactEmail }}">Legal contact</a>{% endif %}
+    </div>
+</footer>
+
+<script>
+    (function () {
+        var root = document.documentElement;
+        var stored = null;
+        try { stored = localStorage.getItem("theme"); } catch (e) {}
+        if (stored === "light" || stored === "dark") root.setAttribute("data-theme", stored);
+        else if (window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches) root.setAttribute("data-theme", "light");
+        document.getElementById("themeBtn").addEventListener("click", function () {
+            var cur = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+            root.setAttribute("data-theme", cur);
+            try { localStorage.setItem("theme", cur); } catch (e) {}
+        });
+    })();
+</script>
+</body>
+</html>

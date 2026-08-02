@@ -1,0 +1,30 @@
+lexik_jwt_authentication:
+    secret_key: '%env(resolve:JWT_SECRET_KEY)%'
+    public_key: '%env(resolve:JWT_PUBLIC_KEY)%'
+    pass_phrase: '%env(JWT_PASSPHRASE)%'
+    api_platform:
+        check_path: /auth
+        username_path: email
+        password_path: password
+    # The access token also rides in an httpOnly cookie so that browser <img>
+    # tags can authenticate to the signed-URL media endpoint. The Authorization
+    # header continues to work for API calls (kept for SPA + tests).
+    token_extractors:
+        authorization_header:
+            enabled: true
+            prefix: Bearer
+            name: Authorization
+        cookie:
+            enabled: true
+            name: BEARER
+    set_cookies:
+        BEARER:
+            lifetime: null
+            samesite: none
+            path: /
+            domain: null
+            secure: true
+            httpOnly: true
+    # SPA also needs the token in the response body (kept in localStorage for
+    # Authorization-header API calls). The cookie is a parallel transport.
+    remove_token_from_body_when_cookies_used: false

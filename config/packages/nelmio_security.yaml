@@ -1,0 +1,26 @@
+nelmio_security:
+    # Send a strict-but-safe header set on every response.
+    content_type:
+        nosniff: true
+    referrer_policy:
+        enabled: true
+        policies: ['strict-origin-when-cross-origin']
+    clickjacking:
+        paths:
+            '^/.*': DENY
+    # NOTE: TLS termination + http→https redirect + HSTS are handled at the edge
+    # (Caddy/FrankenPHP), NOT at the app layer. App-layer forced_ssl would be
+    # redundant under auto-HTTPS and cause redirect loops behind a misconfigured
+    # reverse proxy. HSTS lives in the Caddyfile.
+
+    # CSP in REPORT-ONLY first (per spec) — observe violations, flip to enforcing later.
+    # Core serves JSON/media, not the SPA; this is a tight baseline.
+    csp:
+        hosts: []
+        report:
+            default-src: ["'none'"]
+            frame-ancestors: ["'none'"]
+            img-src: ["'self'", 'data:', 'blob:']
+            connect-src: ["'self'"]
+            base-uri: ["'none'"]
+            form-action: ["'none'"]

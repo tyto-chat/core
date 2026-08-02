@@ -1,0 +1,330 @@
+# yaml-language-server: $schema=../vendor/symfony/dependency-injection/Loader/schema/services.schema.json
+
+parameters:
+    app.community_emoji.max_width: '%env(int:APP_COMMUNITY_EMOJI_MAX_WIDTH)%'
+    app.community_emoji.max_height: '%env(int:APP_COMMUNITY_EMOJI_MAX_HEIGHT)%'
+    app.voice.enabled: '%env(bool:VOICE_ENABLED)%'
+    # SMTP secret key: use APP_SMTP_KEY when set, else derive a stable 32-byte
+    # (64 hex) key by SHA-256-hashing APP_SECRET via the sha256hex processor.
+    app.smtp.key: '%env(default:app_smtp_key_fallback:APP_SMTP_KEY)%'
+    app_smtp_key_fallback: '%env(sha256hex:APP_SECRET)%'
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+
+    App\EventListener\LocaleListener:
+        arguments:
+            $enabledLocales: '%kernel.enabled_locales%'
+
+    # Extends gesdinet's plain EntityRepository — not autowirable, needs the factory.
+    App\Repository\RefreshTokenRepository:
+        factory: ['@doctrine.orm.entity_manager', 'getRepository']
+        arguments: ['App\Entity\RefreshToken']
+
+    # Text-only-server switch (VOICE_ENABLED). ServerInfoProvider binds it
+    # inline; these three enforce/surface it.
+    App\Service\Channel\ChannelService:
+        bind:
+            $voiceEnabled: '%app.voice.enabled%'
+    App\Service\Channel\ChannelAudioService:
+        bind:
+            $voiceEnabled: '%app.voice.enabled%'
+    App\Serializer\CommunityNormalizer:
+        bind:
+            $voiceEnabled: '%app.voice.enabled%'
+
+    App\State\MediaObject\Processor\UpdateAvatarProcessor:
+        bind:
+            $processor: "@api_platform.doctrine.orm.state.persist_processor"
+
+    App\State\MediaObject\Processor\UpdateLogoProcessor:
+        bind:
+            $processor: "@api_platform.doctrine.orm.state.persist_processor"
+
+    App\Service\Realtime\MercureSubscriberTokenFactory:
+        arguments:
+            $subscriberJwtKey: '%env(hmac_key:MERCURE_SUBSCRIBER_JWT_KEY)%'
+            $tokenTtl: '%lexik_jwt_authentication.token_ttl%'
+
+    App\Service\Voice\LiveKitVoiceService:
+        arguments:
+            $apiKey: '%env(LIVEKIT_API_KEY)%'
+            $apiSecret: '%env(hmac_key:LIVEKIT_API_SECRET)%'
+            $publicUrl: '%env(LIVEKIT_PUBLIC_URL)%'
+            $internalUrl: '%env(LIVEKIT_INTERNAL_URL)%'
+
+    App\Controller\VoiceController:
+        arguments:
+            $apiKey: '%env(LIVEKIT_API_KEY)%'
+            $apiSecret: '%env(hmac_key:LIVEKIT_API_SECRET)%'
+
+    App\Command\SeedDataCommand:
+        bind:
+            $apiUrl: '%env(string:SERVER_API_URL)%'
+
+    App\EventListener\RateLimitListener:
+        arguments:
+            $authLoginLimiter: '@limiter.auth_login'
+            $sessionRefreshLimiter: '@limiter.session_refresh'
+            $authRegisterLimiter: '@limiter.auth_register'
+            $apiWriteLimiter: '@limiter.api_write'
+            $attachmentUploadLimiter: '@limiter.attachment_upload'
+            $messageSendLimiter: '@limiter.message_send'
+            $passwordResetLimiter: '@limiter.password_reset'
+            $searchLimiter: '@limiter.search'
+            $reportLimiter: '@limiter.report'
+
+    App\State\MediaObject\Processor\UploadAttachmentProcessor:
+        bind:
+            $processor: "@api_platform.doctrine.orm.state.persist_processor"
+
+    App\State\MediaObject\Processor\UploadConversationAttachmentProcessor:
+        bind:
+            $processor: "@api_platform.doctrine.orm.state.persist_processor"
+
+    App\State\ServerInfo\Provider\ServerInfoProvider:
+        bind:
+            $serverApiUrl: '%env(string:SERVER_API_URL)%'
+            $mercurePublicUrl: '%env(string:MERCURE_PUBLIC_URL)%'
+            $liveKitPublicUrl: '%env(string:LIVEKIT_PUBLIC_URL)%'
+            $voiceEnabled: '%app.voice.enabled%'
+            $webPushPublicKey: '%env(string:VAPID_PUBLIC_KEY)%'
+            $communityEmojiMaxWidth: '%app.community_emoji.max_width%'
+            $communityEmojiMaxHeight: '%app.community_emoji.max_height%'
+
+    App\Service\MediaObject\SignedUrlService:
+        arguments:
+            $signingKey: '%env(APP_MEDIA_SIGNING_KEY)%'
+    App\Service\MediaObject\SignedUrlServiceInterface: '@App\Service\MediaObject\SignedUrlService'
+
+    App\Service\Gdpr\ExportDownloadLimiterInterface: '@App\Service\Gdpr\ExportDownloadLimiter'
+
+    App\Service\Settings\SettingsService:
+        arguments:
+            $secretBox: '@App\Service\Security\SecretBoxInterface'
+    App\Service\Settings\SettingsServiceInterface: '@App\Service\Settings\SettingsService'
+
+    App\Service\Admin\AdminAuditLoggerInterface: '@App\Service\Admin\AdminAuditLogger'
+
+    App\Service\Admin\ConfigStatusService:
+        arguments:
+            $mercurePublicUrl: '%env(string:MERCURE_PUBLIC_URL)%'
+            $meiliMasterKey: '%env(string:MEILI_MASTER_KEY)%'
+    App\Service\Admin\ConfigStatusServiceInterface: '@App\Service\Admin\ConfigStatusService'
+
+    App\Health\Check\MeilisearchHealthCheck:
+        arguments:
+            $meilisearchUrl: '%env(string:MEILI_URL)%'
+
+    App\Health\Check\MercureHealthCheck:
+        arguments:
+            $mercureInternalUrl: '%env(string:MERCURE_URL)%'
+
+    Symfony\Component\RateLimiter\Storage\CacheStorage:
+        arguments:
+            $pool: '@cache.rate_limiter'
+    Symfony\Component\RateLimiter\Storage\StorageInterface: '@Symfony\Component\RateLimiter\Storage\CacheStorage'
+
+    # Four DB-driven limiter factories — one per scope. Service IDs match
+    # the framework's `limiter.X` shape so RateLimitListener wiring stays
+    # untouched.
+    limiter.auth_login:
+        class: App\RateLimiter\ConfigurableRateLimiterFactory
+        arguments:
+            $scope: !php/const App\RateLimiter\ConfigurableRateLimiterFactory::SCOPE_LOGIN
+            $settings: '@App\Service\Settings\SettingsServiceInterface'
+            $storage: '@Symfony\Component\RateLimiter\Storage\StorageInterface'
+
+    limiter.session_refresh:
+        class: App\RateLimiter\ConfigurableRateLimiterFactory
+        arguments:
+            $scope: !php/const App\RateLimiter\ConfigurableRateLimiterFactory::SCOPE_SESSION_REFRESH
+            $settings: '@App\Service\Settings\SettingsServiceInterface'
+            $storage: '@Symfony\Component\RateLimiter\Storage\StorageInterface'
+
+    limiter.auth_register:
+        class: App\RateLimiter\ConfigurableRateLimiterFactory
+        arguments:
+            $scope: !php/const App\RateLimiter\ConfigurableRateLimiterFactory::SCOPE_REGISTER
+            $settings: '@App\Service\Settings\SettingsServiceInterface'
+            $storage: '@Symfony\Component\RateLimiter\Storage\StorageInterface'
+
+    limiter.api_write:
+        class: App\RateLimiter\ConfigurableRateLimiterFactory
+        arguments:
+            $scope: !php/const App\RateLimiter\ConfigurableRateLimiterFactory::SCOPE_API_WRITE
+            $settings: '@App\Service\Settings\SettingsServiceInterface'
+            $storage: '@Symfony\Component\RateLimiter\Storage\StorageInterface'
+
+    limiter.attachment_upload:
+        class: App\RateLimiter\ConfigurableRateLimiterFactory
+        arguments:
+            $scope: !php/const App\RateLimiter\ConfigurableRateLimiterFactory::SCOPE_ATTACHMENT_UPLOAD
+            $settings: '@App\Service\Settings\SettingsServiceInterface'
+            $storage: '@Symfony\Component\RateLimiter\Storage\StorageInterface'
+
+    limiter.message_send:
+        class: App\RateLimiter\ConfigurableRateLimiterFactory
+        arguments:
+            $scope: !php/const App\RateLimiter\ConfigurableRateLimiterFactory::SCOPE_MESSAGE_SEND
+            $settings: '@App\Service\Settings\SettingsServiceInterface'
+            $storage: '@Symfony\Component\RateLimiter\Storage\StorageInterface'
+
+    limiter.password_reset:
+        class: App\RateLimiter\ConfigurableRateLimiterFactory
+        arguments:
+            $scope: !php/const App\RateLimiter\ConfigurableRateLimiterFactory::SCOPE_PASSWORD_RESET
+            $settings: '@App\Service\Settings\SettingsServiceInterface'
+            $storage: '@Symfony\Component\RateLimiter\Storage\StorageInterface'
+
+    limiter.search:
+        class: App\RateLimiter\ConfigurableRateLimiterFactory
+        arguments:
+            $scope: !php/const App\RateLimiter\ConfigurableRateLimiterFactory::SCOPE_SEARCH
+            $settings: '@App\Service\Settings\SettingsServiceInterface'
+            $storage: '@Symfony\Component\RateLimiter\Storage\StorageInterface'
+
+    limiter.report:
+        class: App\RateLimiter\ConfigurableRateLimiterFactory
+        arguments:
+            $scope: !php/const App\RateLimiter\ConfigurableRateLimiterFactory::SCOPE_REPORT
+            $settings: '@App\Service\Settings\SettingsServiceInterface'
+            $storage: '@Symfony\Component\RateLimiter\Storage\StorageInterface'
+
+    limiter.two_factor:
+        class: App\RateLimiter\ConfigurableRateLimiterFactory
+        arguments:
+            $scope: !php/const App\RateLimiter\ConfigurableRateLimiterFactory::SCOPE_TWO_FACTOR
+            $settings: '@App\Service\Settings\SettingsServiceInterface'
+            $storage: '@Symfony\Component\RateLimiter\Storage\StorageInterface'
+
+    # Meilisearch client + search service binding
+    Meilisearch\Client:
+        arguments:
+            $url: '%env(string:MEILI_URL)%'
+            $apiKey: '%env(string:MEILI_MASTER_KEY)%'
+
+    App\Service\Search\SearchServiceInterface: '@App\Service\Search\MeilisearchSearchService'
+
+    # Redis client (presence + ephemeral state)
+    Predis\Client:
+        arguments:
+            - '%env(REDIS_DSN)%'
+            - { exceptions: true }
+
+    Predis\ClientInterface: '@Predis\Client'
+
+    App\Service\Presence\PresenceServiceInterface: '@App\Service\Presence\RedisPresenceService'
+
+    App\Service\Presence\GuestPresenceServiceInterface: '@App\Service\Presence\RedisGuestPresenceService'
+
+    App\Service\Retention\DiskSpaceProbeInterface: '@App\Service\Retention\PhpDiskSpaceProbe'
+
+    App\Service\Voice\ChannelParticipantStoreInterface: '@App\Service\Voice\RedisChannelParticipantStore'
+
+    # Web Push (VAPID) — keys live in .env.local; empty = push disabled (no-op)
+    App\Service\Notification\MinishlinkWebPushSender:
+        arguments:
+            $vapidPublicKey: '%env(string:VAPID_PUBLIC_KEY)%'
+            $vapidPrivateKey: '%env(string:VAPID_PRIVATE_KEY)%'
+            $vapidSubject: '%env(string:VAPID_SUBJECT)%'
+
+    App\Service\Notification\WebPushSenderInterface: '@App\Service\Notification\MinishlinkWebPushSender'
+
+    # API keys (Phase 1 + 2) — service bindings + JWT extractor decoration so
+    # `Bearer pat_*` requests bypass Lexik and reach ApiKeyAuthenticator.
+    App\Service\ApiKey\ApiKeyServiceInterface: '@App\Service\ApiKey\ApiKeyService'
+    App\Service\ApiKey\ScopeIssuancePolicyInterface: '@App\Service\ApiKey\ScopeIssuancePolicy'
+
+    # GDPR account deletion (RC §3).
+    App\Service\Gdpr\AccountDeletionServiceInterface: '@App\Service\Gdpr\AccountDeletionService'
+
+    # GDPR data export (RC §3) — ZIP archive of personal data, generated async.
+    App\Service\Gdpr\DataExportService:
+        arguments:
+            $exportDir: '%env(resolve:APP_EXPORT_DIR)%'
+    App\Service\Gdpr\DataExportServiceInterface: '@App\Service\Gdpr\DataExportService'
+    App\Security\Authentication\JwtTokenExtractorDecorator:
+        decorates: lexik_jwt_authentication.extractor.authorization_header_extractor
+        arguments:
+            $inner: '@.inner'
+
+    App\Service\Notification\EmailDigestServiceInterface: '@App\Service\Notification\EmailDigestService'
+
+    App\Service\Security\SecretBox:
+        arguments:
+            $key: '%app.smtp.key%'
+    App\Service\Security\SecretBoxInterface: '@App\Service\Security\SecretBox'
+
+    App\Controller\TwoFactorLoginController:
+        arguments:
+            $successHandler: '@lexik_jwt_authentication.handler.authentication_success'
+            $twoFactorLimiter: '@limiter.two_factor'
+
+    App\Service\Webhook\WebhookEmitterInterface: '@App\Service\Webhook\WebhookEmitter'
+    App\Service\Webhook\WebhookServiceInterface: '@App\Service\Webhook\WebhookService'
+
+    # Named binding so DispatchWebhookHandler receives a real HTTP client in
+    # prod/dev; overridden in services_test.yaml with a MockHttpClient.
+    App\Async\Handler\DispatchWebhookHandler:
+        arguments:
+            $webhookHttpClient: '@http_client'
+
+    # Prefer admin-configured DB SMTP, falling back to the env MAILER_DSN
+    # transport (the decorated inner) when DB SMTP is unset. Decorates
+    # mailer.transports — the service Mailer, the messenger send handler, and
+    # mailer:test actually inject; mailer.default_transport is an unused alias
+    # and decorating it leaves every real send on the raw env transport.
+    App\Mailer\DbConfiguredTransport:
+        decorates: mailer.transports
+        arguments:
+            $inner: '@.inner'
+            $settings: '@App\Service\Settings\SettingsServiceInterface'
+            $secretBox: '@App\Service\Security\SecretBoxInterface'
+
+    # HTTP cache purging — co-located with Mercure publishes via #[AsDecorator]
+    # on CachePurgingMessagePublisher. Empty CACHE_PURGE_URL = purging disabled.
+    # Explicit alias needed so #[AsDecorator] has a concrete service id to
+    # decorate (implicit single-implementation autowiring resolves the
+    # interface for constructor injection, but isn't a registered alias).
+    App\Service\Realtime\MessageRealtimePublisherInterface: '@App\Service\Realtime\MercurePublisher'
+
+    # Same reasoning as above, for CachePurgingStructurePublisher (task-3):
+    # StructureRealtimePublisherInterface had no explicit alias until now, so
+    # #[AsDecorator] had nothing concrete to decorate.
+    App\Service\Realtime\StructureRealtimePublisherInterface: '@App\Service\Realtime\MercurePublisher'
+
+    App\Service\HttpCache\SouinCachePurger:
+        arguments:
+            # env(default::X) resolves to null (not '') when X is unset/empty —
+            # string: coerces that back to '' so the non-nullable constructor
+            # argument type holds and the purger's empty-string no-op check works.
+            $purgeBaseUrl: '%env(string:default::CACHE_PURGE_URL)%'
+
+    App\Service\HttpCache\CachePurgerInterface: '@App\Service\HttpCache\SouinCachePurger'
+
+    # OpenAPI documents a concrete version, not the /api/{version} routing
+    # template — rewrites generated paths to the canonical version (task-3).
+    App\OpenApi\VersionedPathsOpenApiFactory:
+        decorates: api_platform.openapi.factory
+        arguments:
+            $decorated: '@.inner'
+
+when@test:
+    services:
+        App\EventListener\RateLimitListener:
+            arguments:
+                $authLoginLimiter: '@limiter.auth_login'
+                $sessionRefreshLimiter: '@limiter.session_refresh'
+                $authRegisterLimiter: '@limiter.auth_register'
+                $apiWriteLimiter: '@limiter.api_write'
+                $attachmentUploadLimiter: '@limiter.attachment_upload'
+                $enabled: false
