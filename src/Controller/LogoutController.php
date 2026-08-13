@@ -21,7 +21,7 @@ class LogoutController extends AbstractController
     #[Route('/logout', name: 'logout', methods: ['POST'])]
     public function logout(Request $request): Response
     {
-        $tokenString = $request->cookies->get('refresh_token');
+        $tokenString = $request->cookies->get('refresh_token') ?? $this->extractRefreshTokenFromBody($request);
         if ($tokenString) {
             $token = $this->refreshTokenManager->get($tokenString);
             if ($token) {
@@ -35,5 +35,25 @@ class LogoutController extends AbstractController
         $response->headers->clearCookie(RememberMeListener::REMEMBER_ME_COOKIE, '/', null, true, true, 'none');
 
         return $response;
+    }
+
+    private function extractRefreshTokenFromBody(Request $request): ?string
+    {
+        $content = $request->getContent();
+        if ('' === $content) {
+            return null;
+        }
+
+        try {
+            $data = json_decode($content, true, 512, \JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return null;
+        }
+
+        if (!is_array($data) || !isset($data['refresh_token']) || !is_string($data['refresh_token'])) {
+            return null;
+        }
+
+        return $data['refresh_token'];
     }
 }
