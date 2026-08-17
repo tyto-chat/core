@@ -23,9 +23,10 @@ jobs:
           images: ghcr.io/tyto-chat/tyto-core
           tags: |
             type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             # prereleases (v1.0.0-beta.1) get only their exact version tag —
-            # metadata-action skips {{major}} for them, and latest is gated here
+            # metadata-action skips the channel patterns for them, and latest is gated here
             type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
       - uses: docker/build-push-action@v6
         with:

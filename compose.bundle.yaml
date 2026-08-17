@@ -4,7 +4,7 @@
 
 services:
   web-files:
-    image: ghcr.io/tyto-chat/tyto-client:${TYTO_VERSION:-latest}
+    image: ghcr.io/tyto-chat/tyto-client:${CLIENT_VERSION:-${TYTO_VERSION:-latest}}
     restart: "no"
     entrypoint: ["sh", "-c", "rm -rf /files/* && cp -a /srv/. /files/ && rm -f /files/config.js"]
     volumes:
