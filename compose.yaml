@@ -4,7 +4,7 @@ x-core-image: &core-image
   image: ghcr.io/tyto-chat/tyto-core:${TYTO_VERSION:-latest}
   restart: unless-stopped
   # Committed .env is deliberately NOT env_file'd — it's the dev default set; operator config passes below as real env vars.
-  environment:
+  environment: &core-env
     APP_ENV: prod
     # *_OVERRIDE names so an empty value never shadows .env.local in `docker compose exec` CLI sessions.
     DATABASE_URL_OVERRIDE: ${DATABASE_URL:-}
@@ -88,6 +88,10 @@ services:
     command: ["worker"]
     ports: []
     healthcheck: { disable: true }
+    # No hub in this container — publish to the app container's internal Mercure listener.
+    environment:
+      <<: *core-env
+      MERCURE_URL: "http://app:8890/.well-known/mercure"
     depends_on:
       app: { condition: service_healthy }
 
@@ -96,6 +100,9 @@ services:
     command: ["scheduler"]
     ports: []
     healthcheck: { disable: true }
+    environment:
+      <<: *core-env
+      MERCURE_URL: "http://app:8890/.well-known/mercure"
     depends_on:
       app: { condition: service_healthy }
 

@@ -13,13 +13,14 @@
 	{$CADDY_GLOBAL_OPTIONS}
 }
 
-# The second, loopback-only address exists for Symfony's internal Mercure
-# publishes (MERCURE_URL): once CADDY_SITE_ADDRESS is a real domain, a request
-# with Host: localhost matches no site and Caddy drops it with an empty
-# response — publishes silently vanish while subscribers (arriving via the
-# domain) stay connected. Same site block = same Mercure hub instance; the
-# port is never published by compose.
-{$CADDY_SITE_ADDRESS:localhost}, http://localhost:8890 {
+# The extra :8890 addresses exist for Symfony's internal Mercure publishes
+# (MERCURE_URL): once CADDY_SITE_ADDRESS is a real domain, a request with
+# Host: localhost or Host: app matches no site and Caddy drops it with an
+# empty response — publishes silently vanish while subscribers (arriving via
+# the domain) stay connected. localhost covers in-container publishes,
+# app:8890 covers the worker/scheduler containers. Same site block = same
+# Mercure hub instance; the port is never published by compose.
+{$CADDY_SITE_ADDRESS:localhost}, http://localhost:8890, http://app:8890 {
 	log
 
 	# HSTS at the edge (ignored by browsers over plain HTTP, so safe in :80 mode).
