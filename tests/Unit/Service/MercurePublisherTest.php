@@ -16,6 +16,9 @@ use App\Service\Realtime\MercurePublisher;
 use App\Tests\Stub\InMemoryChannelParticipantStore;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+use Symfony\Component\Mercure\Exception\RuntimeException;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -54,6 +57,7 @@ final class MercurePublisherTest extends TestCase
             new InMemoryChannelParticipantStore(),
             $this->createMock(UrlGeneratorInterface::class),
             $this->createMock(SignedUrlServiceInterface::class),
+            new NullLogger(),
         );
     }
 
@@ -161,5 +165,35 @@ final class MercurePublisherTest extends TestCase
         self::assertTrue($this->captured->isPrivate());
         self::assertStringContainsString('"event":"community.removed"', $this->captured->getData());
         self::assertStringContainsString('"communityIdentifier":"my-community"', $this->captured->getData());
+    }
+
+    public function testHubFailureIsLoggedNotThrown(): void
+    {
+        $iri = $this->createMock(IriConverterInterface::class);
+        $iri->method('getIriFromResource')->willReturn('/api/v1/users/42');
+
+        $hub = $this->createMock(HubInterface::class);
+        $hub->method('publish')->willThrowException(new RuntimeException('Failed to connect to localhost port 8890'));
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('error')
+            ->with(self::stringContains('Mercure publish failed'), self::callback(
+                fn (array $context): bool => '/api/users/42/notifications' === $context['topic']
+            ));
+
+        $publisher = new MercurePublisher(
+            $hub,
+            $iri,
+            new InMemoryChannelParticipantStore(),
+            $this->createMock(UrlGeneratorInterface::class),
+            $this->createMock(SignedUrlServiceInterface::class),
+            $logger,
+        );
+
+        $notification = new Notification();
+        $notification->setRecipient(new User());
+        $notification->setCreatedAt(new \DateTime());
+
+        $publisher->publishNotification($notification);
     }
 }

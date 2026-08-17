@@ -16,6 +16,7 @@ use App\Enum\Presence\PresenceState;
 use App\Service\MediaObject\SignedUrlServiceInterface;
 use App\Service\Voice\ChannelParticipantStoreInterface;
 use App\Utils\Topics;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -28,21 +29,30 @@ class MercurePublisher implements RealtimePublisherInterface
         private readonly ChannelParticipantStoreInterface $participantStore,
         private readonly UrlGeneratorInterface $urlGenerator,
         private readonly SignedUrlServiceInterface $signedUrlService,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
     /**
      * Always private — a public publish bypasses JWT subscribe claims and leaks private data; every publish must go through here.
      *
+     * Never rethrows a hub failure: async handlers flush before publishing, so messenger retries would duplicate their rows.
+     *
      * @param array<string, mixed> $data
      */
     private function publish(string $topic, array $data): void
     {
-        $this->hub->publish(new Update(
-            $topic,
-            json_encode($data, \JSON_THROW_ON_ERROR),
-            private: true,
-        ));
+        $payload = json_encode($data, \JSON_THROW_ON_ERROR);
+
+        try {
+            $this->hub->publish(new Update($topic, $payload, private: true));
+        } catch (\Throwable $e) {
+            $this->logger->error('Mercure publish failed: {reason}', [
+                'reason' => $e->getMessage(),
+                'topic' => $topic,
+                'exception' => $e,
+            ]);
+        }
     }
 
     /** IriConverter IRIs are versioned in-request but topics must stay unversioned — strip here; payload '@id' stays versioned. */
