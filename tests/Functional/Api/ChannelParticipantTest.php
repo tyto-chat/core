@@ -45,6 +45,17 @@ class ChannelParticipantTest extends ApiTestCase
         self::assertResponseIsSuccessful();
     }
 
+    public function testCommunityNonMemberCannotListParticipantsOfPublicChannel(): void
+    {
+        $outsider = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('cp-outsider')->create();
+        ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'cp-outsider-ch'])->create();
+
+        $this->jsonClient($outsider)->request('GET', '/api/v1/communities/cp-outsider/channels/cp-outsider-ch/participants');
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
     public function testNonChannelMemberCannotListParticipantsOfPrivateChannel(): void
     {
         $outsider = UserFactory::createOne();

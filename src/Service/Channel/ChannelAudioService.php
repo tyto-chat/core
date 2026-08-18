@@ -37,7 +37,7 @@ class ChannelAudioService implements ChannelAudioServiceInterface
     public function getParticipants(Channel $channel): array
     {
         $this->security->throwAccessDeniedUnlessAuthenticated('You must be signed in to view channel participants.');
-        $this->security->throwAccessDeniedUnlessGranted(ChannelVoter::VIEW, $channel, 'You do not have permission to view channel participants.');
+        $this->security->throwAccessDeniedUnlessGranted(ChannelVoter::JOIN_AUDIO, $channel, 'You do not have permission to view channel participants.');
 
         return $this->participantStore->findByChannel($channel);
     }
@@ -47,7 +47,7 @@ class ChannelAudioService implements ChannelAudioServiceInterface
     {
         $user = $this->security->currentUser('You must be signed in to join audio channels.');
 
-        $this->security->throwAccessDeniedUnlessGranted(ChannelVoter::VIEW, $channel, 'You do not have permission to join this channel.');
+        $this->security->throwAccessDeniedUnlessGranted(ChannelVoter::JOIN_AUDIO, $channel, 'You do not have permission to join this channel.');
 
         $this->joinAudioChannel($user, $channel);
     }

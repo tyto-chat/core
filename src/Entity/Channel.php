@@ -185,7 +185,8 @@ use Symfony\Component\Validator\Constraints as Assert;
     normalizationContext: ['groups' => ['voice_call_token:read']],
     openapi: new Model\Operation(
         summary: 'Join a voice call',
-        description: 'Any user who may view the channel. Joins the caller to the audio channel (recording a '
+        description: 'Community members only (community mods/admins and global admins included); browsing a public '
+            .'community does not grant voice access. Joins the caller to the audio channel (recording a '
             .'participant row), publishes the updated participant list over Mercure, re-evaluates presence, and '
             .'returns a LiveKit room token plus the server URL. Returns `404` when the channel is not an audio '
             .'channel and `403` when voice is disabled on the server.',

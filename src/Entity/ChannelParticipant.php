@@ -26,7 +26,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
     extraProperties: ['scopeResource' => 'communities'],
     openapi: new Model\Operation(
         summary: 'List voice call participants',
-        description: 'Any user who may view the channel. Returns the users currently connected to the channel\'s '
+        description: 'Community members only. Returns the users currently connected to the channel\'s '
             .'voice room, with their LiveKit identity and join time.',
     ),
 )]

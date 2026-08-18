@@ -129,6 +129,66 @@ class ChannelVoterTest extends TestCase
         yield 'POST' => [ChannelVoter::POST];
         yield 'MODERATE' => [ChannelVoter::MODERATE];
         yield 'VIEW_MEMBERS' => [ChannelVoter::VIEW_MEMBERS];
+        yield 'JOIN_AUDIO' => [ChannelVoter::JOIN_AUDIO];
+    }
+
+    public function testDeniesJoinAudioToCommunityNonMemberOnPublicChannel(): void
+    {
+        $this->grant(null);
+
+        self::assertSame(
+            VoterInterface::ACCESS_DENIED,
+            $this->voter->vote($this->tokenFor($this->createMock(User::class)), $this->publicChannel(), [ChannelVoter::JOIN_AUDIO])
+        );
+    }
+
+    public function testGrantsJoinAudioToCommunityMemberOnPublicChannel(): void
+    {
+        $this->grant(CommunityRole::Member);
+
+        self::assertSame(
+            VoterInterface::ACCESS_GRANTED,
+            $this->voter->vote($this->tokenFor($this->createMock(User::class)), $this->publicChannel(), [ChannelVoter::JOIN_AUDIO])
+        );
+    }
+
+    public function testGrantsJoinAudioToGlobalAdmin(): void
+    {
+        self::assertSame(
+            VoterInterface::ACCESS_GRANTED,
+            $this->voter->vote($this->adminTokenFor(), $this->publicChannel(), [ChannelVoter::JOIN_AUDIO])
+        );
+    }
+
+    public function testGrantsJoinAudioToChannelMemberOnPrivateChannel(): void
+    {
+        $this->grant(CommunityRole::Member, ChannelRole::Member);
+
+        self::assertSame(
+            VoterInterface::ACCESS_GRANTED,
+            $this->voter->vote($this->tokenFor($this->createMock(User::class)), $this->privateChannel(), [ChannelVoter::JOIN_AUDIO])
+        );
+    }
+
+    public function testDeniesJoinAudioToCommunityMemberOnPrivateChannelWithoutChannelRole(): void
+    {
+        $this->grant(CommunityRole::Member, null);
+
+        self::assertSame(
+            VoterInterface::ACCESS_DENIED,
+            $this->voter->vote($this->tokenFor($this->createMock(User::class)), $this->privateChannel(), [ChannelVoter::JOIN_AUDIO])
+        );
+    }
+
+    public function testDeniesJoinAudioOnArchivedChannel(): void
+    {
+        $this->grant(CommunityRole::Member);
+        $channel = $this->publicChannel()->setArchivedAt(new \DateTimeImmutable());
+
+        self::assertSame(
+            VoterInterface::ACCESS_DENIED,
+            $this->voter->vote($this->tokenFor($this->createMock(User::class)), $channel, [ChannelVoter::JOIN_AUDIO])
+        );
     }
 
     public function testDeniesPostToReadonlyChannel(): void

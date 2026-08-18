@@ -21,6 +21,7 @@ class VoiceCallTest extends ApiTestCase
     {
         $user = UserFactory::createOne();
         $community = CommunityFactory::new()->withIdentifier('voice-com')->create();
+        CommunityMemberFactory::createForUserAndCommunity($user, $community);
         ChannelFactory::new()->audio()->inCommunity($community)->with(['identifier' => 'voice-ch'])->create();
 
         $response = $this->jsonClient($user)->request(
@@ -53,6 +54,7 @@ class VoiceCallTest extends ApiTestCase
     {
         $user = UserFactory::createOne();
         $community = CommunityFactory::new()->withIdentifier('voice-leave-com')->create();
+        CommunityMemberFactory::createForUserAndCommunity($user, $community);
         ChannelFactory::new()->audio()->inCommunity($community)->with(['identifier' => 'leave-ch'])->create();
         $client = $this->jsonClient($user);
 
@@ -62,10 +64,24 @@ class VoiceCallTest extends ApiTestCase
         self::assertResponseStatusCodeSame(204);
     }
 
+    public function testCommunityNonMemberCannotGetTokenForPublicAudioChannel(): void
+    {
+        $outsider = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('voice-outsider-com')->create();
+        ChannelFactory::new()->audio()->inCommunity($community)->with(['identifier' => 'voice-outsider-ch'])->create();
+
+        $this->jsonClient($outsider)->request(
+            'POST',
+            '/api/v1/communities/voice-outsider-com/channels/voice-outsider-ch/call/token',
+        );
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
     public function testNonMemberCannotGetTokenForPrivateAudioChannel(): void
     {
         // Community member, but NOT a member of the private audio channel:
-        // joinAudioChannelAsCurrentUser enforces CHANNEL_VIEW → denied.
+        // joinAudioChannelAsCurrentUser enforces CHANNEL_JOIN_AUDIO → denied.
         $outsider = UserFactory::createOne();
         $community = CommunityFactory::new()->withIdentifier('voice-priv-com')->create();
         CommunityMemberFactory::createForUserAndCommunity($outsider, $community);
