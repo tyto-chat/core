@@ -82,6 +82,37 @@ class ReactionTest extends ApiTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
+    public function testCommunityNonMemberCannotReactOnPublicChannel(): void
+    {
+        $author = UserFactory::createOne();
+        [, , $message] = $this->createMessageInCommunity($author);
+        $outsider = UserFactory::createOne();
+
+        $this->jsonClient($outsider)->request('POST', '/api/v1/messages/'.$message->getId().'/reactions', [
+            'json' => ['emoji' => '👍'],
+            'headers' => ['Content-Type' => 'application/ld+json'],
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testMemberCanReactInReadonlyChannel(): void
+    {
+        $user = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('react-ro')->create();
+        CommunityMemberFactory::createForUserAndCommunity($user, $community);
+        $channel = ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'ro-ch', 'readonly' => true])->create();
+        $page = MessagePageFactory::new()->forChannel($channel)->create();
+        $message = MessageFactory::new()->inPage($page)->byUser($user)->create();
+
+        $this->jsonClient($user)->request('POST', '/api/v1/messages/'.$message->getId().'/reactions', [
+            'json' => ['emoji' => '👍'],
+            'headers' => ['Content-Type' => 'application/ld+json'],
+        ]);
+
+        self::assertResponseStatusCodeSame(201);
+    }
+
     public function testAuthorCanDeleteReaction(): void
     {
         $user = UserFactory::createOne();

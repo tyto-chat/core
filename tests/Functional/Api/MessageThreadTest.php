@@ -48,6 +48,19 @@ class MessageThreadTest extends ApiTestCase
         self::assertJsonContains(['text' => 'a reply']);
     }
 
+    public function testCommunityNonMemberCannotReply(): void
+    {
+        [$user, , , $page] = $this->setupFixture();
+        $root = MessageFactory::new()->inPage($page)->byUser($user)->withText('root')->create();
+        $outsider = UserFactory::createOne();
+
+        $this->jsonClient($outsider)->request('POST', '/api/v1/messages/'.$root->getId().'/replies', [
+            'json' => ['text' => 'drive-by reply'],
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
     public function testMemberCannotReplyInReadonlyChannelWithoutFlag(): void
     {
         $user = UserFactory::createOne();

@@ -91,6 +91,20 @@ class AttachmentTest extends ApiTestCase
         ]);
     }
 
+    public function testCommunityNonMemberCannotUploadAttachment(): void
+    {
+        $this->setupCommunityAndChannel();
+        $outsider = UserFactory::createOne();
+
+        $file = $this->createUploadedFile();
+
+        $this->uploadClient($outsider)->request('POST', '/api/v1/communities/att-c/channels/att-ch/attachments', [
+            'extra' => ['files' => ['file' => $file]],
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
     public function testUploadResponseContainsContentUrl(): void
     {
         [$user] = $this->setupCommunityAndChannel();

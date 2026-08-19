@@ -7,6 +7,8 @@ namespace App\State\MediaObject\Processor;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Entity\MediaObject;
+use App\Security\SecurityContext;
+use App\Security\Voter\ChannelVoter;
 use App\Service\Channel\ChannelServiceInterface;
 use App\Service\Community\CommunityServiceInterface;
 use App\Service\MediaObject\MediaObjectServiceInterface;
@@ -25,6 +27,7 @@ final readonly class UploadAttachmentProcessor implements ProcessorInterface
         private readonly ChannelServiceInterface $channelService,
         private readonly MediaObjectServiceInterface $mediaObjectService,
         private readonly RequestStack $requestStack,
+        private readonly SecurityContext $security,
     ) {
     }
 
@@ -34,6 +37,8 @@ final readonly class UploadAttachmentProcessor implements ProcessorInterface
         $request = $this->requestStack->getCurrentRequest();
         $community = $this->communityService->getByIdentifier((string) $request?->attributes->get('community', ''));
         $channel = $this->channelService->getByIdentifier((string) $request?->attributes->get('channel', ''), $community);
+
+        $this->security->throwAccessDeniedUnlessGranted(ChannelVoter::REPLY, $channel, 'You do not have permission to upload attachments to this channel.');
 
         if (!$channel->getAllowAttachments()) {
             throw new AccessDeniedHttpException('Attachments are disabled for this channel.');

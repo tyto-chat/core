@@ -130,6 +130,86 @@ class ChannelVoterTest extends TestCase
         yield 'MODERATE' => [ChannelVoter::MODERATE];
         yield 'VIEW_MEMBERS' => [ChannelVoter::VIEW_MEMBERS];
         yield 'JOIN_AUDIO' => [ChannelVoter::JOIN_AUDIO];
+        yield 'REACT' => [ChannelVoter::REACT];
+    }
+
+    public function testDeniesPostToCommunityNonMemberOnPublicChannel(): void
+    {
+        $this->grant(null);
+
+        self::assertSame(
+            VoterInterface::ACCESS_DENIED,
+            $this->voter->vote($this->tokenFor($this->createMock(User::class)), $this->publicChannel(), [ChannelVoter::POST])
+        );
+    }
+
+    public function testDeniesReplyToCommunityNonMemberOnPublicChannel(): void
+    {
+        $this->grant(null);
+
+        self::assertSame(
+            VoterInterface::ACCESS_DENIED,
+            $this->voter->vote($this->tokenFor($this->createMock(User::class)), $this->publicChannel(), [ChannelVoter::REPLY])
+        );
+    }
+
+    public function testDeniesReactToCommunityNonMemberOnPublicChannel(): void
+    {
+        $this->grant(null);
+
+        self::assertSame(
+            VoterInterface::ACCESS_DENIED,
+            $this->voter->vote($this->tokenFor($this->createMock(User::class)), $this->publicChannel(), [ChannelVoter::REACT])
+        );
+    }
+
+    public function testGrantsReactToCommunityMemberOnPublicChannel(): void
+    {
+        $this->grant(CommunityRole::Member);
+
+        self::assertSame(
+            VoterInterface::ACCESS_GRANTED,
+            $this->voter->vote($this->tokenFor($this->createMock(User::class)), $this->publicChannel(), [ChannelVoter::REACT])
+        );
+    }
+
+    public function testGrantsReactToCommunityMemberOnReadonlyChannel(): void
+    {
+        $this->grant(CommunityRole::Member);
+        $channel = (new Channel())->setName('readonly')->setPrivate(false)->setReadonly(true)->setCommunity(new Community());
+
+        self::assertSame(
+            VoterInterface::ACCESS_GRANTED,
+            $this->voter->vote($this->tokenFor($this->createMock(User::class)), $channel, [ChannelVoter::REACT])
+        );
+    }
+
+    public function testGrantsReactToChannelMemberOnPrivateChannel(): void
+    {
+        $this->grant(CommunityRole::Member, ChannelRole::Member);
+
+        self::assertSame(
+            VoterInterface::ACCESS_GRANTED,
+            $this->voter->vote($this->tokenFor($this->createMock(User::class)), $this->privateChannel(), [ChannelVoter::REACT])
+        );
+    }
+
+    public function testDeniesReactToCommunityMemberOnPrivateChannelWithoutChannelRole(): void
+    {
+        $this->grant(CommunityRole::Member, null);
+
+        self::assertSame(
+            VoterInterface::ACCESS_DENIED,
+            $this->voter->vote($this->tokenFor($this->createMock(User::class)), $this->privateChannel(), [ChannelVoter::REACT])
+        );
+    }
+
+    public function testGrantsReactToGlobalAdmin(): void
+    {
+        self::assertSame(
+            VoterInterface::ACCESS_GRANTED,
+            $this->voter->vote($this->adminTokenFor(), $this->publicChannel(), [ChannelVoter::REACT])
+        );
     }
 
     public function testDeniesJoinAudioToCommunityNonMemberOnPublicChannel(): void

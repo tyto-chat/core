@@ -43,7 +43,7 @@ class ReactionService extends AbstractDoctrineService implements ReactionService
         $conversation = $message->getConversation();
 
         if (null !== $channel) {
-            $this->security->throwAccessDeniedUnlessGranted(ChannelVoter::VIEW, $channel, 'You must be a member of this channel to react to messages.');
+            $this->security->throwAccessDeniedUnlessGranted(ChannelVoter::REACT, $channel, 'You must be a member of this community to react to messages.');
 
             if ($channel->isArchived()) {
                 throw new ChannelArchivedException();

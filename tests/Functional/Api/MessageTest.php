@@ -60,6 +60,18 @@ class MessageTest extends ApiTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
+    public function testCommunityNonMemberCannotSendToPublicChannel(): void
+    {
+        $this->setupCommunityAndChannel();
+        $outsider = UserFactory::createOne();
+
+        $this->jsonClient($outsider)->request('POST', '/api/v1/communities/msg-community/channels/general/messages', [
+            'json' => ['text' => 'Drive-by post'],
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
     public function testNonMemberCannotSendToPrivateChannel(): void
     {
         $user = UserFactory::createOne();

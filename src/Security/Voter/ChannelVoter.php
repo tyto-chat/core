@@ -26,6 +26,7 @@ class ChannelVoter extends Voter
     public const string VIEW_MEMBERS = 'CHANNEL_VIEW_MEMBERS';
     public const string PIN = 'CHANNEL_PIN';
     public const string JOIN_AUDIO = 'CHANNEL_JOIN_AUDIO';
+    public const string REACT = 'CHANNEL_REACT';
 
     public function __construct(private readonly PermissionResolverInterface $permissions)
     {
@@ -34,7 +35,7 @@ class ChannelVoter extends Voter
     #[\Override]
     protected function supports(string $attribute, mixed $subject): bool
     {
-        return in_array($attribute, [self::VIEW, self::MODERATE, self::POST, self::REPLY, self::VIEW_MEMBERS, self::PIN, self::JOIN_AUDIO], true)
+        return in_array($attribute, [self::VIEW, self::MODERATE, self::POST, self::REPLY, self::VIEW_MEMBERS, self::PIN, self::JOIN_AUDIO, self::REACT], true)
             && $subject instanceof Channel;
     }
 
@@ -65,7 +66,7 @@ class ChannelVoter extends Voter
 
         if (CommunityRole::Moderator === $communityRole) {
             return match ($attribute) {
-                self::VIEW, self::POST, self::REPLY, self::VIEW_MEMBERS, self::PIN, self::MODERATE, self::JOIN_AUDIO => true,
+                self::VIEW, self::POST, self::REPLY, self::VIEW_MEMBERS, self::PIN, self::MODERATE, self::JOIN_AUDIO, self::REACT => true,
                 default => false,
             };
         }
@@ -76,16 +77,15 @@ class ChannelVoter extends Voter
             return true;
         }
 
-        if (self::POST === $attribute && !$subject->isPrivate() && !$subject->isReadonly() && $canSeeCommunity) {
+        if (self::POST === $attribute && !$subject->isPrivate() && !$subject->isReadonly() && null !== $communityRole) {
             return true;
         }
 
-        // Voice rooms are community-members-only — browsing a public community never grants a join.
-        if (self::JOIN_AUDIO === $attribute && !$subject->isPrivate() && null !== $communityRole) {
+        if (in_array($attribute, [self::JOIN_AUDIO, self::REACT], true) && !$subject->isPrivate() && null !== $communityRole) {
             return true;
         }
 
-        if (self::REPLY === $attribute && !$subject->isPrivate() && $canSeeCommunity
+        if (self::REPLY === $attribute && !$subject->isPrivate() && null !== $communityRole
             && (!$subject->isReadonly() || $subject->getAreReadonlyRepliesAllowed())) {
             return true;
         }
@@ -101,7 +101,7 @@ class ChannelVoter extends Voter
         }
 
         return match ($attribute) {
-            self::VIEW, self::VIEW_MEMBERS, self::JOIN_AUDIO => true,
+            self::VIEW, self::VIEW_MEMBERS, self::JOIN_AUDIO, self::REACT => true,
             self::POST => ChannelRole::Moderator === $effectiveRole || !$subject->isReadonly(),
             self::REPLY => ChannelRole::Moderator === $effectiveRole || !$subject->isReadonly() || $subject->getAreReadonlyRepliesAllowed(),
             self::MODERATE, self::PIN => ChannelRole::Moderator === $effectiveRole,
