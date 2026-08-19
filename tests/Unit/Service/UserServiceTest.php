@@ -56,6 +56,8 @@ class UserServiceTest extends TestCase
             $this->createMock(\App\Service\IpReputation\IpReputationServiceInterface::class),
             $this->createMock(RequestStack::class),
             $this->createMock(SessionRevokerInterface::class),
+            $this->createMock(\App\Service\Conversation\ConversationServiceInterface::class),
+            $this->createMock(\App\Service\Notification\NotificationServiceInterface::class),
         );
         $this->service->setEntityManager($this->entityManager);
     }

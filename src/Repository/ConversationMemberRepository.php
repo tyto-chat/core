@@ -20,6 +20,35 @@ class ConversationMemberRepository extends ServiceEntityRepository
         parent::__construct($registry, ConversationMember::class);
     }
 
+    /** @return list<int> */
+    public function findRecentPartnerUserIds(User $user, int $limit): array
+    {
+        /** @var list<array{userId: int}> $rows */
+        $rows = $this->createQueryBuilder('other')
+            ->select('IDENTITY(other.user) AS userId')
+            ->join('other.conversation', 'c')
+            ->join(ConversationMember::class, 'me', 'WITH', 'me.conversation = c AND me.user = :user')
+            ->where('other.user != :user')
+            ->setParameter('user', $user)
+            ->orderBy('c.lastMessageAt', 'DESC')
+            ->setMaxResults($limit * 3)
+            ->getQuery()
+            ->getArrayResult();
+
+        $ids = [];
+        foreach ($rows as $row) {
+            $id = (int) $row['userId'];
+            if (!\in_array($id, $ids, true)) {
+                $ids[] = $id;
+            }
+            if (\count($ids) >= $limit) {
+                break;
+            }
+        }
+
+        return $ids;
+    }
+
     public function findForUser(Conversation $conversation, User $user): ?ConversationMember
     {
         return $this->findOneBy([

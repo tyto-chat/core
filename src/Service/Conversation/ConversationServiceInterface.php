@@ -39,4 +39,7 @@ interface ConversationServiceInterface
 
     /** @return MessagePage[] */
     public function getPages(Conversation $conversation): array;
+
+    /** @return list<int> */
+    public function findRecentPartnerUserIds(User $user, int $limit): array;
 }

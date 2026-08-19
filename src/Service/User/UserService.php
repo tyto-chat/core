@@ -22,12 +22,15 @@ use App\Security\SecurityContext;
 use App\Service\AbstractDoctrineService;
 use App\Service\Challenge\ChallengeServiceInterface;
 use App\Service\Community\CommunityMembershipServiceInterface;
+use App\Service\Conversation\ConversationServiceInterface;
 use App\Service\IpReputation\IpReputationServiceInterface;
 use App\Service\MediaObject\MediaObjectServiceInterface;
+use App\Service\Notification\NotificationServiceInterface;
 use App\Service\Security\SessionRevokerInterface;
 use App\Service\Settings\SettingsServiceInterface;
 use App\Settings\Settings;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Symfony\Component\DependencyInjection\Attribute\Lazy;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
@@ -44,6 +47,9 @@ class UserService extends AbstractDoctrineService implements UserServiceInterfac
         private readonly IpReputationServiceInterface $ipReputation,
         private readonly RequestStack $requestStack,
         private readonly SessionRevokerInterface $sessionRevoker,
+        #[Lazy]
+        private readonly ConversationServiceInterface $conversationService,
+        private readonly NotificationServiceInterface $notificationService,
     ) {
     }
 
@@ -293,9 +299,13 @@ class UserService extends AbstractDoctrineService implements UserServiceInterfac
         $caller = $this->security->currentUser('You must be signed in to list invitable users.');
         $limit = max(1, min(50, $limit));
 
-        $users = $this->security->isAdmin()
-            ? $this->userRepository->searchNonBot($search, $limit)
-            : $this->membership->findUsersSharingCommunity($caller, $search, $limit);
+        if (null === $search || '' === trim($search)) {
+            $users = $this->findSuggestedContacts($caller, $limit);
+        } else {
+            $users = $this->security->isAdmin()
+                ? $this->userRepository->searchNonBot($search, $limit)
+                : $this->membership->findUsersSharingCommunity($caller, $search, $limit);
+        }
 
         $items = [];
         foreach ($users as $user) {
@@ -311,6 +321,45 @@ class UserService extends AbstractDoctrineService implements UserServiceInterfac
         }
 
         return $items;
+    }
+
+    /** @return User[] */
+    private function findSuggestedContacts(User $caller, int $limit): array
+    {
+        $ids = $this->conversationService->findRecentPartnerUserIds($caller, $limit);
+        foreach ($this->notificationService->findRecentMentionerUserIds($caller, $limit) as $id) {
+            if (!\in_array($id, $ids, true)) {
+                $ids[] = $id;
+            }
+        }
+        $callerId = (int) $caller->getId();
+        $ids = array_values(array_filter($ids, static fn (int $id): bool => $id !== $callerId));
+        if ([] === $ids) {
+            return [];
+        }
+
+        $usersById = [];
+        foreach ($this->userRepository->findBy(['id' => $ids]) as $user) {
+            $usersById[(int) $user->getId()] = $user;
+        }
+
+        $isAdmin = $this->security->isAdmin();
+        $result = [];
+        foreach ($ids as $id) {
+            $user = $usersById[$id] ?? null;
+            if (null === $user || $user->isBot()) {
+                continue;
+            }
+            if (!$isAdmin && !$this->membership->existsSharedCommunity($caller, $user)) {
+                continue;
+            }
+            $result[] = $user;
+            if (\count($result) >= $limit) {
+                break;
+            }
+        }
+
+        return $result;
     }
 
     #[\Override]

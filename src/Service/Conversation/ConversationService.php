@@ -39,6 +39,12 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
     ) {
     }
 
+    #[\Override]
+    public function findRecentPartnerUserIds(User $user, int $limit): array
+    {
+        return $this->conversationMemberRepository->findRecentPartnerUserIds($user, $limit);
+    }
+
     private function attachUnreadCount(Conversation $conversation, User $caller): Conversation
     {
         $member = $this->conversationMemberRepository->findForUser($conversation, $caller);

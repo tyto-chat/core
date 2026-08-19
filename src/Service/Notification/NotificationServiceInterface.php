@@ -35,4 +35,7 @@ interface NotificationServiceInterface
     public function markAllAsRead(): void;
 
     public function upsertChannelActivity(User $recipient, Channel $channel, int $actorId, string $actorName, string $messageIri): Notification;
+
+    /** @return list<int> */
+    public function findRecentMentionerUserIds(User $user, int $limit): array;
 }

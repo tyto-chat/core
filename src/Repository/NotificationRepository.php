@@ -152,6 +152,40 @@ class NotificationRepository extends ServiceEntityRepository
         return $grouped;
     }
 
+    /** @return list<int> */
+    public function findRecentMentionerUserIds(User $user, int $limit): array
+    {
+        $sql = <<<'SQL'
+            SELECT m.created_by_id AS mentioner_id
+            FROM notification n
+            JOIN message m ON m.id = SUBSTRING_INDEX(n.message_iri, '/', -1)
+            WHERE n.recipient_id = :userId
+              AND n.type = :type
+              AND n.message_iri IS NOT NULL
+              AND m.created_by_id IS NOT NULL
+            ORDER BY n.created_at DESC
+            LIMIT :lim
+            SQL;
+
+        $rows = $this->getEntityManager()->getConnection()->fetchFirstColumn($sql, [
+            'userId' => (int) $user->getId(),
+            'type' => NotificationType::Mention->value,
+            'lim' => $limit,
+        ], [
+            'lim' => \Doctrine\DBAL\ParameterType::INTEGER,
+        ]);
+
+        $ids = [];
+        foreach ($rows as $row) {
+            $id = (int) $row;
+            if (!\in_array($id, $ids, true)) {
+                $ids[] = $id;
+            }
+        }
+
+        return $ids;
+    }
+
     public function findOpenChannelActivity(User $user, Channel $channel): ?Notification
     {
         // Oldest-first so racing upserts converge on one row — MariaDB has no partial indexes to enforce "one open row".

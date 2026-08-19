@@ -276,4 +276,10 @@ class NotificationService extends AbstractDoctrineService implements Notificatio
 
         return $notification;
     }
+
+    #[\Override]
+    public function findRecentMentionerUserIds(User $user, int $limit): array
+    {
+        return $this->notificationRepository->findRecentMentionerUserIds($user, $limit);
+    }
 }
