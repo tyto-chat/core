@@ -3,6 +3,7 @@ challenge:
     title: 'tyto.chat - zweryfikuj swój adres e-mail!'
     intro: 'Aby utworzyć konto, musisz potwierdzić, że ten adres e-mail należy do Ciebie. Użyj poniższego kodu, aby założyć konto.'
     code_validity: 'Ten kod jest ważny przez %expiryInMinutes% minut. Jeśli nie prosiłeś/-aś o ten kod, możesz zignorować tę wiadomość.'
+    open_app: 'Otwórz tyto.chat'
 
 digest:
     subject: 'Masz %count% nowe powiadomienie - tyto.chat|Masz %count% nowych powiadomień - tyto.chat'
@@ -22,6 +23,7 @@ password_reset:
     title: 'tyto.chat - zresetuj swoje hasło'
     intro: 'Zażądano kodu do resetowania hasła Twojego konta, który znajdziesz poniżej.'
     code_validity: 'Ten kod jest ważny przez %expiryInMinutes% minut. Jeśli nie prosiłeś/-aś o ten kod, możesz zignorować tę wiadomość.'
+    open_app: 'Otwórz stronę resetowania hasła'
 
 invitation:
     subject: 'Zostałeś/-aś zaproszony/-a do tyto.chat'

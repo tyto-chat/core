@@ -15,6 +15,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -28,6 +29,7 @@ class ChallengeServiceTest extends TestCase
     private TranslatorInterface&MockObject $translator;
     private ChallengeService $service;
     private bool $validateEmails = false;
+    private string $clientBaseUrl = '';
 
     #[\Override]
     protected function setUp(): void
@@ -40,6 +42,7 @@ class ChallengeServiceTest extends TestCase
             ->willReturnCallback(fn ($def) => match ($def->key) {
                 Settings::emailChallengeExpiryMinutes()->key => 60,
                 Settings::validateEmails()->key => $this->validateEmails,
+                Settings::clientBaseUrl()->key => $this->clientBaseUrl,
                 default => null,
             });
 
@@ -87,6 +90,47 @@ class ChallengeServiceTest extends TestCase
         $this->mailer->expects(self::once())->method('send');
 
         $this->service->new(new CreateChallengeDto('user@example.com'));
+    }
+
+    public function testChallengeEmailContextDefaultsToTheWebClient(): void
+    {
+        $this->validateEmails = true;
+        $this->clientBaseUrl = 'https://chat.example.com';
+        $this->entityManager->method('persist');
+
+        $context = $this->captureEmailContext();
+        $this->service->new(new CreateChallengeDto('user@example.com'));
+
+        self::assertSame('web', $context()['client']);
+        self::assertSame('https://chat.example.com', $context()['clientBaseUrl']);
+    }
+
+    public function testChallengeEmailContextCarriesTheRequestingClient(): void
+    {
+        $this->validateEmails = true;
+        $this->clientBaseUrl = 'https://chat.example.com';
+        $this->entityManager->method('persist');
+
+        $context = $this->captureEmailContext();
+        $this->service->new(new CreateChallengeDto('user@example.com', 'desktop'));
+
+        self::assertSame('desktop', $context()['client']);
+    }
+
+    /** @return \Closure(): array<string, mixed> */
+    private function captureEmailContext(): \Closure
+    {
+        $sent = null;
+        $this->mailer->expects(self::once())->method('send')
+            ->willReturnCallback(static function (TemplatedEmail $email) use (&$sent): void {
+                $sent = $email;
+            });
+
+        return static function () use (&$sent): array {
+            self::assertInstanceOf(TemplatedEmail::class, $sent);
+
+            return $sent->getContext();
+        };
     }
 
     public function testChallengeEmailSubjectCarriesTheCode(): void

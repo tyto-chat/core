@@ -57,6 +57,8 @@ class ResetPasswordRequestService extends AbstractDoctrineService implements Res
                 ->context([
                     'resetPasswordRequest' => $request,
                     'expiryInMinutes' => $expiryInMinutes,
+                    'client' => $dto->client,
+                    'clientBaseUrl' => $this->settings->get(Settings::clientBaseUrl()),
                 ])
         );
     }

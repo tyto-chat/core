@@ -3,6 +3,7 @@ challenge:
     title: 'tyto.chat - ¡verifica tu correo!'
     intro: 'Para crear una cuenta, necesitas confirmar que este correo electrónico es realmente tuyo. Usa el código de abajo para crear tu cuenta.'
     code_validity: 'Este código es válido durante %expiryInMinutes% minutos. Si no solicitaste este código, puedes ignorar este correo.'
+    open_app: 'Abrir tyto.chat'
 
 digest:
     subject: 'Tienes %count% notificación nueva - tyto.chat|Tienes %count% notificaciones nuevas - tyto.chat'
@@ -22,6 +23,7 @@ password_reset:
     title: 'tyto.chat - restablece tu contraseña'
     intro: 'Se solicitó un código para restablecer la contraseña de tu cuenta; puedes encontrarlo abajo.'
     code_validity: 'Este código es válido durante %expiryInMinutes% minutos. Si no solicitaste este código, puedes ignorar este correo.'
+    open_app: 'Abrir la página de restablecimiento de contraseña'
 
 invitation:
     subject: 'Has sido invitado a tyto.chat'
