@@ -9,6 +9,7 @@ use App\Enum\Admin\AdminAuditAction;
 use App\Tests\Factory\UserFactory;
 use App\Tests\Functional\ApiTestCase;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Zenstruck\Foundry\Test\Factories;
 use Zenstruck\Foundry\Test\ResetDatabase;
 
@@ -64,6 +65,40 @@ class AdminServerConfigTest extends ApiTestCase
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame('https://chat.example.com', $response->toArray()['clientBaseUrl']);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function clientBaseUrlsThatBreakLinks(): iterable
+    {
+        yield 'query string' => ['https://chat.example.com/?a=1'];
+        yield 'fragment' => ['https://chat.example.com/#top'];
+        yield 'userinfo' => ['https://user:pass@chat.example.com'];
+    }
+
+    #[DataProvider('clientBaseUrlsThatBreakLinks')]
+    public function testPatchRejectsClientBaseUrlThatWouldBreakLinks(string $url): void
+    {
+        $admin = UserFactory::new()->admin()->create();
+
+        $this->plainJsonClient($admin)->request('PATCH', '/api/v1/admin/server-config', [
+            'headers' => ['Content-Type' => 'application/merge-patch+json'],
+            'json' => ['clientBaseUrl' => $url],
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+    }
+
+    public function testPatchAcceptsClientBaseUrlWithPathAndPort(): void
+    {
+        $admin = UserFactory::new()->admin()->create();
+
+        $response = $this->plainJsonClient($admin)->request('PATCH', '/api/v1/admin/server-config', [
+            'headers' => ['Content-Type' => 'application/merge-patch+json'],
+            'json' => ['clientBaseUrl' => 'https://chat.example.com:8443/app/'],
+        ]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('https://chat.example.com:8443/app', $response->toArray()['clientBaseUrl']);
     }
 
     public function testPatchRejectsClientBaseUrlThatIsNotAUrl(): void
