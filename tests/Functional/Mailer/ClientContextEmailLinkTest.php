@@ -55,7 +55,7 @@ final class ClientContextEmailLinkTest extends KernelTestCase
         ]);
 
         self::assertStringContainsString((string) $request->getPlainToken(), $html);
-        self::assertSame($linked, str_contains($html, 'href="'.self::BASE_URL.'/reset-password"'));
+        self::assertSame($linked, str_contains($html, 'href="'.self::BASE_URL.'/reset-password?step=confirm"'));
         self::assertSame($linked, str_contains($html, '<a '));
     }
 
