@@ -14,6 +14,8 @@ final readonly class RequestPasswordResetDto
         #[Assert\NotBlank]
         #[Assert\Email]
         public string $email = '',
+        #[Assert\Choice(choices: ['web', 'desktop', 'mobile'])]
+        public string $client = 'web',
     ) {
     }
 }

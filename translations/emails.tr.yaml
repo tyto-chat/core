@@ -3,6 +3,7 @@ challenge:
     title: 'tyto.chat - e-postanı doğrula!'
     intro: 'Hesap oluşturmak için bu e-postanın gerçekten sana ait olduğunu doğrulaman gerekiyor. Hesabını oluşturmak için aşağıdaki kodu kullan.'
     code_validity: 'Bu kod %expiryInMinutes% dakika geçerlidir. Bu kodu sen istemediysen bu e-postayı yok sayabilirsin.'
+    open_app: 'tyto.chat uygulamasını aç'
 
 digest:
     subject: '%count% yeni bildirimin var - tyto.chat|%count% yeni bildirimin var - tyto.chat'
@@ -22,6 +23,7 @@ password_reset:
     title: 'tyto.chat - parolanı sıfırla'
     intro: 'Hesabının parolasını sıfırlamak için bir kod istendi; kodu aşağıda bulabilirsin.'
     code_validity: 'Bu kod %expiryInMinutes% dakika geçerlidir. Bu kodu sen istemediysen bu e-postayı yok sayabilirsin.'
+    open_app: 'Parola sıfırlama sayfasını aç'
 
 invitation:
     subject: 'tyto.chat''e davet edildin'

@@ -3,6 +3,7 @@ challenge:
     title: 'tyto.chat - vérifie ton adresse e-mail !'
     intro: 'Pour créer un compte, tu dois confirmer que cette adresse e-mail t''appartient bien. Utilise le code ci-dessous pour créer ton compte.'
     code_validity: 'Ce code est valide pendant %expiryInMinutes% minutes. Si tu n''as pas demandé ce code, tu peux ignorer cet e-mail.'
+    open_app: 'Ouvrir tyto.chat'
 
 digest:
     subject: 'Tu as %count% nouvelle notification - tyto.chat|Tu as %count% nouvelles notifications - tyto.chat'
@@ -22,6 +23,7 @@ password_reset:
     title: 'tyto.chat - réinitialise ton mot de passe'
     intro: 'Un code de réinitialisation du mot de passe de ton compte a été demandé, tu le trouveras ci-dessous.'
     code_validity: 'Ce code est valide pendant %expiryInMinutes% minutes. Si tu n''as pas demandé ce code, tu peux ignorer cet e-mail.'
+    open_app: 'Ouvrir la page de réinitialisation du mot de passe'
 
 invitation:
     subject: 'Tu as été invité(e) sur tyto.chat'

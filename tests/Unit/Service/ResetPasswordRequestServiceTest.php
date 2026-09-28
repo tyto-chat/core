@@ -18,6 +18,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -48,6 +49,7 @@ class ResetPasswordRequestServiceTest extends TestCase
         $settings = self::createStub(SettingsServiceInterface::class);
         $settings->method('get')->willReturnCallback(static fn ($def) => match ($def->key) {
             Settings::resetPasswordCodeExpiryMinutes()->key => 15,
+            Settings::clientBaseUrl()->key => 'https://chat.example.com',
             default => throw new \LogicException("Unexpected setting: {$def->key}"),
         });
 
@@ -74,6 +76,40 @@ class ResetPasswordRequestServiceTest extends TestCase
         $dto = new RequestPasswordResetDto(email: 'user@example.com');
 
         $this->service->requestPasswordReset($dto);
+    }
+
+    public function testRequestPasswordResetEmailContextDefaultsToTheWebClient(): void
+    {
+        $context = $this->sendAndCaptureContext(new RequestPasswordResetDto(email: 'user@example.com'));
+
+        self::assertSame('web', $context['client']);
+        self::assertSame('https://chat.example.com', $context['clientBaseUrl']);
+    }
+
+    public function testRequestPasswordResetEmailContextCarriesTheRequestingClient(): void
+    {
+        $context = $this->sendAndCaptureContext(
+            new RequestPasswordResetDto(email: 'user@example.com', client: 'desktop'),
+        );
+
+        self::assertSame('desktop', $context['client']);
+    }
+
+    /** @return array<string, mixed> */
+    private function sendAndCaptureContext(RequestPasswordResetDto $dto): array
+    {
+        $this->userService->method('existsByEmail')->willReturn(true);
+        $sent = null;
+        $this->mailer->expects(self::once())->method('send')
+            ->willReturnCallback(static function (TemplatedEmail $email) use (&$sent): void {
+                $sent = $email;
+            });
+
+        $this->service->requestPasswordReset($dto);
+
+        self::assertInstanceOf(TemplatedEmail::class, $sent);
+
+        return $sent->getContext();
     }
 
     public function testRequestPasswordResetSkipsUnknownEmail(): void

@@ -3,6 +3,7 @@ challenge:
     title: 'tyto.chat - verifieer je e-mail!'
     intro: 'Om een account aan te maken moet je bevestigen dat dit e-mailadres echt van jou is. Gebruik de onderstaande code om je account aan te maken.'
     code_validity: 'Deze code is %expiryInMinutes% minuten geldig. Heb je deze code niet aangevraagd, dan kun je deze e-mail negeren.'
+    open_app: 'tyto.chat openen'
 
 digest:
     subject: 'Je hebt %count% nieuwe melding - tyto.chat|Je hebt %count% nieuwe meldingen - tyto.chat'
@@ -22,6 +23,7 @@ password_reset:
     title: 'tyto.chat - wachtwoord opnieuw instellen'
     intro: 'Er is een code aangevraagd om het wachtwoord van je account opnieuw in te stellen; je vindt hem hieronder.'
     code_validity: 'Deze code is %expiryInMinutes% minuten geldig. Heb je deze code niet aangevraagd, dan kun je deze e-mail negeren.'
+    open_app: 'Pagina voor wachtwoordherstel openen'
 
 invitation:
     subject: 'Je bent uitgenodigd voor tyto.chat'

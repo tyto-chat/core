@@ -39,13 +39,13 @@ class ChallengeService extends AbstractDoctrineService implements ChallengeServi
         $saved = $this->save($challenge, $createChallengeDto);
 
         if ($this->settings->get(Settings::validateEmails())) {
-            $this->sendChallengeCreatedEmail($saved, $expiryInMinutes);
+            $this->sendChallengeCreatedEmail($saved, $expiryInMinutes, $createChallengeDto->client);
         }
 
         return $saved;
     }
 
-    private function sendChallengeCreatedEmail(Challenge $challenge, int $expiryInMinutes): void
+    private function sendChallengeCreatedEmail(Challenge $challenge, int $expiryInMinutes, string $client): void
     {
         $locale = $this->requestStack->getCurrentRequest()?->getLocale() ?? 'en';
 
@@ -57,6 +57,8 @@ class ChallengeService extends AbstractDoctrineService implements ChallengeServi
             ->context([
                 'challenge' => $challenge,
                 'expiryInMinutes' => $expiryInMinutes,
+                'client' => $client,
+                'clientBaseUrl' => $this->settings->get(Settings::clientBaseUrl()),
             ]);
 
         $this->mailer->send($email);

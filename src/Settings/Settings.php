@@ -23,6 +23,17 @@ final class Settings
         return new SettingDef('serverDescription', SettingType::String, '', normalizer: self::trimmed());
     }
 
+    /** @return SettingDef<string> */
+    public static function clientBaseUrl(): SettingDef
+    {
+        return new SettingDef(
+            'clientBaseUrl',
+            SettingType::String,
+            '',
+            normalizer: static fn (mixed $v): mixed => is_string($v) ? rtrim(trim($v), '/') : $v,
+        );
+    }
+
     /** @return SettingDef<?string> */
     public static function accentColor(): SettingDef
     {
@@ -561,7 +572,7 @@ final class Settings
     public static function all(): array
     {
         return self::$all ??= [
-            self::serverName(), self::serverDescription(), self::accentColor(),
+            self::serverName(), self::serverDescription(), self::clientBaseUrl(), self::accentColor(),
             self::registrationEnabled(), self::defaultLocale(),
             self::termsContent(), self::privacyContent(), self::legalContactEmail(),
             self::requireRegistrationConsent(),
