@@ -17,6 +17,9 @@ class ServerConfigDto
     public ?string $serverDescription = null;
 
     #[Groups(['admin_server_config:read'])]
+    public string $clientBaseUrl = '';
+
+    #[Groups(['admin_server_config:read'])]
     public ?string $accentColor = null;
 
     #[Groups(['admin_server_config:read'])]
@@ -252,6 +255,7 @@ class ServerConfigDto
         $dto = new self();
         $dto->serverName = $s->get(Settings::serverName());
         $dto->serverDescription = $s->get(Settings::serverDescription());
+        $dto->clientBaseUrl = $s->get(Settings::clientBaseUrl());
         $dto->accentColor = $s->get(Settings::accentColor());
         $dto->registrationEnabled = $s->get(Settings::registrationEnabled());
         $dto->termsContent = $s->get(Settings::termsContent());

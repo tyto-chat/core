@@ -36,7 +36,19 @@ final class SettingsRegistryTest extends TestCase
         self::assertContains('listInServerCatalogue', $keys);
         self::assertContains('minimumAgeYears', $keys);
         self::assertContains('messageRetentionDays', $keys);
-        self::assertCount(89, $all);
+        self::assertContains('clientBaseUrl', $keys);
+        self::assertCount(90, $all);
+    }
+
+    public function testClientBaseUrlDefaultsToOffAndDropsTrailingSlashes(): void
+    {
+        $def = Settings::clientBaseUrl();
+
+        self::assertSame('', $def->default);
+        self::assertSame(SettingType::String, $def->type);
+        self::assertSame('https://chat.example.com', $def->normalize(' https://chat.example.com/ '));
+        self::assertSame('https://chat.example.com/app', $def->normalize('https://chat.example.com/app//'));
+        self::assertSame('', $def->normalize(''));
     }
 
     public function testByKeyResolves(): void

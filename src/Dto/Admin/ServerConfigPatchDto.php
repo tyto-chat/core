@@ -21,6 +21,11 @@ class ServerConfigPatchDto
     #[Groups(['admin_server_config:write'])]
     public string $serverDescription;
 
+    #[Assert\Url(protocols: ['http', 'https'], requireTld: false)]
+    #[Assert\Length(max: 255)]
+    #[Groups(['admin_server_config:write'])]
+    public string $clientBaseUrl;
+
     #[Assert\Regex('/^#[0-9a-fA-F]{6}$/', message: 'accentColor must be a #RRGGBB hex color.')]
     #[Groups(['admin_server_config:write'])]
     public ?string $accentColor;

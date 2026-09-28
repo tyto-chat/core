@@ -50,6 +50,34 @@ class AdminServerConfigTest extends ApiTestCase
         self::assertFalse($body['ipReputationEnabled']);
     }
 
+    public function testPatchStoresNormalizedClientBaseUrl(): void
+    {
+        $admin = UserFactory::new()->admin()->create();
+        $client = $this->plainJsonClient($admin);
+
+        self::assertSame('', $client->request('GET', '/api/v1/admin/server-config')->toArray()['clientBaseUrl']);
+
+        $response = $client->request('PATCH', '/api/v1/admin/server-config', [
+            'headers' => ['Content-Type' => 'application/merge-patch+json'],
+            'json' => ['clientBaseUrl' => 'https://chat.example.com/'],
+        ]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('https://chat.example.com', $response->toArray()['clientBaseUrl']);
+    }
+
+    public function testPatchRejectsClientBaseUrlThatIsNotAUrl(): void
+    {
+        $admin = UserFactory::new()->admin()->create();
+
+        $this->plainJsonClient($admin)->request('PATCH', '/api/v1/admin/server-config', [
+            'headers' => ['Content-Type' => 'application/merge-patch+json'],
+            'json' => ['clientBaseUrl' => 'javascript:alert(1)'],
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+    }
+
     public function testPatchUpdatesKnownFieldsAndRecordsAudit(): void
     {
         $admin = UserFactory::new()->admin()->create();

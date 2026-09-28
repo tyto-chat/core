@@ -37,6 +37,9 @@ class CreateChallengeDto implements EntityDtoInterface
         #[Assert\Email]
         #[Groups(['challenge:create'])]
         public readonly string $email = '',
+        #[Assert\Choice(choices: ['web', 'desktop', 'mobile'])]
+        #[Groups(['challenge:create'])]
+        public readonly string $client = 'web',
     ) {
     }
 

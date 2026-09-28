@@ -28,6 +28,28 @@ class ResetPasswordTest extends ApiTestCase
         self::assertResponseStatusCodeSame(204);
     }
 
+    public function testRequestPasswordResetAcceptsKnownClientContext(): void
+    {
+        UserFactory::createOne(['email' => 'desktop-reset@example.com']);
+
+        $this->jsonClient()->request('POST', '/api/v1/reset_password', [
+            'json' => ['email' => 'desktop-reset@example.com', 'client' => 'desktop'],
+        ]);
+
+        self::assertResponseStatusCodeSame(204);
+    }
+
+    public function testRequestPasswordResetRejectsUnknownClientContext(): void
+    {
+        UserFactory::createOne(['email' => 'bogus-reset@example.com']);
+
+        $this->jsonClient()->request('POST', '/api/v1/reset_password', [
+            'json' => ['email' => 'bogus-reset@example.com', 'client' => 'bogus'],
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+    }
+
     public function testRequestPasswordResetReturns204ForUnknownEmail(): void
     {
         // Should not expose whether the email exists
