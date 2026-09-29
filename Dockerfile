@@ -25,6 +25,7 @@ COPY --from=caddy:builder /usr/bin/xcaddy /usr/bin/xcaddy
 # observed behavior, not documented public contract. An unpinned rebuild
 # picking up a newer release could silently change or break purge behavior.
 # Bump deliberately, then re-run docker/test/cache-smoke.sh before shipping.
+# Mercure is pinned to the release FrankenPHP itself depends on: 1.x needs a newer Go than the builder image has.
 ENV CGO_ENABLED=1 XCADDY_SETCAP=1
 RUN CGO_CFLAGS=$(php-config --includes) \
     CGO_LDFLAGS="$(php-config --ldflags) $(php-config --libs)" \
@@ -32,7 +33,7 @@ RUN CGO_CFLAGS=$(php-config --includes) \
     --output /usr/local/bin/frankenphp \
     --with github.com/dunglas/frankenphp/caddy \
     --with github.com/dunglas/caddy-cbrotli \
-    --with github.com/dunglas/mercure/caddy \
+    --with github.com/dunglas/mercure/caddy@v0.24.2 \
     --with github.com/dunglas/vulcain/caddy \
     --with github.com/darkweak/souin/plugins/caddy@v1.7.8 \
     --with github.com/darkweak/storages/redis/caddy@v0.0.19
