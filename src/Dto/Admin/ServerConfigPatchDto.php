@@ -22,6 +22,7 @@ class ServerConfigPatchDto
     public string $serverDescription;
 
     #[Assert\Url(protocols: ['http', 'https'], requireTld: false)]
+    #[Assert\Regex('/[?#@]/', message: 'clientBaseUrl must not contain a query string, fragment or credentials.', match: false)]
     #[Assert\Length(max: 255)]
     #[Groups(['admin_server_config:write'])]
     public string $clientBaseUrl;
