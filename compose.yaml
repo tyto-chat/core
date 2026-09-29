@@ -22,6 +22,7 @@ x-core-image: &core-image
     DEFAULT_URI: ${DEFAULT_URI:-https://${SERVER_DOMAIN:-localhost}}
     SERVER_API_URL: ${SERVER_API_URL:-${DEFAULT_URI:-https://${SERVER_DOMAIN:-localhost}}}
     CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:-}
+    CORS_ALLOW_DESKTOP_APP: ${CORS_ALLOW_DESKTOP_APP:-1}
     MERCURE_CORS_ORIGINS: ${MERCURE_CORS_ORIGINS:-*}
     # Fallback only — admin-panel SMTP (DB-stored) takes precedence.
     MAILER_DSN: ${MAILER_DSN:-null://null}
