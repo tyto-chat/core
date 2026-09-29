@@ -21,6 +21,7 @@ use App\Security\Voter\ConversationVoter;
 use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Message\MessageServiceInterface;
+use App\Service\Notification\NotificationServiceInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\DependencyInjection\Attribute\Lazy;
@@ -36,6 +37,7 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
         #[Lazy]
         private readonly MessageServiceInterface $messageService,
         private readonly ManagerRegistry $managerRegistry,
+        private readonly NotificationServiceInterface $notifications,
     ) {
     }
 
@@ -188,8 +190,11 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
         }
 
         $member->setLastReadAt(new \DateTimeImmutable());
+        $member = $this->save($member);
 
-        return $this->save($member);
+        $this->notifications->markConversationAsRead($conversation);
+
+        return $member;
     }
 
     #[\Override]

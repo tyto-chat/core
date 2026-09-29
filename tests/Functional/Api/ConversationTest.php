@@ -6,10 +6,12 @@ namespace App\Tests\Functional\Api;
 
 use App\Entity\Conversation;
 use App\Entity\User;
+use App\Enum\Notification\NotificationType;
 use App\Tests\Factory\CommunityFactory;
 use App\Tests\Factory\CommunityMemberFactory;
 use App\Tests\Factory\ConversationFactory;
 use App\Tests\Factory\ConversationMemberFactory;
+use App\Tests\Factory\NotificationFactory;
 use App\Tests\Factory\UserFactory;
 use App\Tests\Functional\ApiTestCase;
 use Zenstruck\Foundry\Test\Factories;
@@ -259,6 +261,34 @@ class ConversationTest extends ApiTestCase
         $this->jsonClient($b)->request('POST', '/api/v1/conversations/'.$conversation->getIdentifier().'/mark-read');
 
         self::assertResponseIsSuccessful();
+    }
+
+    public function testMarkReadClearsThatConversationsNotificationsOnly(): void
+    {
+        [$a, $b] = $this->pairSharingCommunity('mark-read-notif-c');
+        $opened = $this->makeConvo($a, $b);
+        $other = ConversationFactory::createOne();
+        ConversationMemberFactory::createForUserAndConversation($b, $other);
+
+        $dm = [
+            'community' => null,
+            'communityIdentifier' => '',
+            'channelIdentifier' => '',
+            'type' => NotificationType::DmMessage,
+        ];
+        NotificationFactory::new()->forRecipient($b)->create([...$dm, 'conversationIdentifier' => $opened->getIdentifier()]);
+        NotificationFactory::new()->forRecipient($b)->create([...$dm, 'conversationIdentifier' => $opened->getIdentifier()]);
+        NotificationFactory::new()->forRecipient($b)->create([...$dm, 'conversationIdentifier' => $other->getIdentifier()]);
+        NotificationFactory::new()->forRecipient($a)->create([...$dm, 'conversationIdentifier' => $opened->getIdentifier()]);
+
+        $this->jsonClient($b)->request('POST', '/api/v1/conversations/'.$opened->getIdentifier().'/mark-read');
+        self::assertResponseIsSuccessful();
+
+        $mine = $this->jsonClient($b)->request('GET', '/api/v1/notifications/unread-counts')->toArray();
+        self::assertSame(1, $mine['counts']['dm']);
+
+        $theirs = $this->jsonClient($a)->request('GET', '/api/v1/notifications/unread-counts')->toArray();
+        self::assertSame(1, $theirs['counts']['dm']);
     }
 
     public function testNonMemberCannotMarkRead(): void

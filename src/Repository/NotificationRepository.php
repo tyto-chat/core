@@ -94,6 +94,20 @@ class NotificationRepository extends ServiceEntityRepository
             ->execute();
     }
 
+    public function markDmReadForConversation(User $user, string $conversationIdentifier): void
+    {
+        $this->createQueryBuilder('n')
+            ->update()
+            ->set('n.isRead', 'true')
+            ->set('n.coalesceKey', 'NULL')
+            ->where('n.recipient = :user AND n.community IS NULL AND n.isRead = false')
+            ->andWhere('n.conversationIdentifier = :conversation')
+            ->setParameter('user', $user)
+            ->setParameter('conversation', $conversationIdentifier)
+            ->getQuery()
+            ->execute();
+    }
+
     public function markAllReadForUser(User $user): void
     {
         $this->createQueryBuilder('n')

@@ -9,6 +9,7 @@ use App\Dto\Notification\CreateNotificationDto;
 use App\Dto\Notification\UpdateNotificationDto;
 use App\Entity\Channel;
 use App\Entity\Community;
+use App\Entity\Conversation;
 use App\Entity\Notification;
 use App\Entity\User;
 use App\Enum\Notification\NotificationType;
@@ -105,6 +106,14 @@ class NotificationService extends AbstractDoctrineService implements Notificatio
         $user = $this->security->currentUser('You must be signed in to update notifications.');
 
         $this->notificationRepository->markAllDmReadForUser($user);
+    }
+
+    #[\Override]
+    public function markConversationAsRead(Conversation $conversation): void
+    {
+        $user = $this->security->currentUser('You must be signed in to update notifications.');
+
+        $this->notificationRepository->markDmReadForConversation($user, $conversation->getIdentifier());
     }
 
     #[\Override]
