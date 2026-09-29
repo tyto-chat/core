@@ -107,6 +107,18 @@ class RealtimeTokenTest extends ApiTestCase
         self::assertNotContains($threadTemplate, $this->subscribeTopicsFor($stranger));
     }
 
+    public function testTokenCoversAConversationThatHasNoMessagesYet(): void
+    {
+        $alice = UserFactory::createOne();
+        $bob = UserFactory::createOne();
+        $conversation = ConversationFactory::new()->withParticipants([$alice, $bob])->create();
+        ConversationMemberFactory::createForUserAndConversation($alice, $conversation);
+        ConversationMemberFactory::createForUserAndConversation($bob, $conversation);
+
+        self::assertNull($conversation->getLastMessageAt());
+        self::assertContains($conversation->getConversationIri(), $this->subscribeTopicsFor($bob));
+    }
+
     public function testTokenSubscribesToCommunityIriAndUserEvents(): void
     {
         $user = UserFactory::createOne();

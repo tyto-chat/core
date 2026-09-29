@@ -117,11 +117,11 @@ class ConversationTest extends ApiTestCase
         self::assertNotNull($community);
         CommunityMemberFactory::createForUserAndCommunity($other, $community);
 
-        $mine = ConversationFactory::createOne();
+        $mine = ConversationFactory::createOne(['lastMessageAt' => new \DateTimeImmutable()]);
         ConversationMemberFactory::createForUserAndConversation($a, $mine);
         ConversationMemberFactory::createForUserAndConversation($b, $mine);
 
-        $notMine = ConversationFactory::createOne();
+        $notMine = ConversationFactory::createOne(['lastMessageAt' => new \DateTimeImmutable()]);
         ConversationMemberFactory::createForUserAndConversation($b, $notMine);
         ConversationMemberFactory::createForUserAndConversation($other, $notMine);
 
@@ -130,6 +130,52 @@ class ConversationTest extends ApiTestCase
         self::assertResponseIsSuccessful();
         $data = $response->toArray();
         self::assertCount(1, $data['hydra:member']);
+    }
+
+    public function testListHidesConversationWithoutMessagesFromEveryParticipant(): void
+    {
+        [$a, $b] = $this->pairSharingCommunity('empty-c');
+
+        $this->jsonClient($a)->request('POST', '/api/v1/conversations', [
+            'json' => ['memberUserIds' => [$b->getId()]],
+        ]);
+        self::assertResponseStatusCodeSame(201);
+
+        $recipient = $this->jsonClient($b)->request('GET', '/api/v1/conversations')->toArray();
+        self::assertCount(0, $recipient['hydra:member']);
+
+        $starter = $this->jsonClient($a)->request('GET', '/api/v1/conversations')->toArray();
+        self::assertCount(0, $starter['hydra:member']);
+    }
+
+    public function testListShowsConversationOnceAMessageIsSent(): void
+    {
+        [$a, $b] = $this->pairSharingCommunity('first-message-c');
+
+        $conversation = $this->jsonClient($a)->request('POST', '/api/v1/conversations', [
+            'json' => ['memberUserIds' => [$b->getId()]],
+        ])->toArray();
+
+        $this->jsonClient($a)->request('POST', sprintf('/api/v1/conversations/%s/messages', $conversation['identifier']), [
+            'json' => ['text' => 'hello'],
+        ]);
+        self::assertResponseStatusCodeSame(201);
+
+        $recipient = $this->jsonClient($b)->request('GET', '/api/v1/conversations')->toArray();
+        self::assertCount(1, $recipient['hydra:member']);
+        self::assertSame($conversation['identifier'], $recipient['hydra:member'][0]['identifier']);
+    }
+
+    public function testStarterCanStillOpenAConversationWithoutMessages(): void
+    {
+        [$a, $b] = $this->pairSharingCommunity('open-empty-c');
+
+        $conversation = $this->jsonClient($a)->request('POST', '/api/v1/conversations', [
+            'json' => ['memberUserIds' => [$b->getId()]],
+        ])->toArray();
+
+        $this->jsonClient($a)->request('GET', sprintf('/api/v1/conversations/%s', $conversation['identifier']));
+        self::assertResponseIsSuccessful();
     }
 
     public function testGetByIdentifierGrantsMember(): void

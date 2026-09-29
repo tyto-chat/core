@@ -141,9 +141,21 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
     #[\Override]
     public function listForCurrentUser(): array
     {
+        return $this->listFor(startedOnly: false);
+    }
+
+    #[\Override]
+    public function listStartedForCurrentUser(): array
+    {
+        return $this->listFor(startedOnly: true);
+    }
+
+    /** @return Conversation[] */
+    private function listFor(bool $startedOnly): array
+    {
         $caller = $this->security->currentUser();
 
-        $conversations = $this->conversationMemberRepository->findConversationsForUser($caller);
+        $conversations = $this->conversationMemberRepository->findConversationsForUser($caller, $startedOnly);
         $unreadByConversation = $this->messageService->countUnreadPerConversationFor($caller);
         foreach ($conversations as $conversation) {
             $conversation->setUnreadCount($unreadByConversation[(int) $conversation->getId()] ?? 0);
