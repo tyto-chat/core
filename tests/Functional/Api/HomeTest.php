@@ -52,4 +52,14 @@ class HomeTest extends ApiTestCase
 
         self::assertStringNotContainsString('home-private', $html);
     }
+
+    public function testHomeOffersTheDesktopApp(): void
+    {
+        $html = static::createClient()->request('GET', '/')->getContent();
+
+        self::assertStringContainsString('href="tyto://open?url=http%3A%2F%2Flocalhost"', $html);
+        self::assertStringContainsString('Open in Tyto desktop', $html);
+        self::assertStringContainsString('href="https://tyto.chat/download"', $html);
+        self::assertStringContainsString('Get the desktop app', $html);
+    }
 }
