@@ -70,19 +70,21 @@ class ConversationMemberRepository extends ServiceEntityRepository
     }
 
     /** @return Conversation[] caller's conversations, newest activity first */
-    public function findConversationsForUser(User $user): array
+    public function findConversationsForUser(User $user, bool $startedOnly = false): array
     {
-        $rows = $this->getEntityManager()->createQueryBuilder()
+        $query = $this->getEntityManager()->createQueryBuilder()
             ->select('c')
             ->from(Conversation::class, 'c')
             ->innerJoin('c.members', 'cm')
             ->where('cm.user = :user')
             ->setParameter('user', $user)
             ->orderBy('c.lastMessageAt', 'DESC')
-            ->addOrderBy('c.updatedAt', 'DESC')
-            ->getQuery()
-            ->getResult();
+            ->addOrderBy('c.updatedAt', 'DESC');
 
-        return $rows;
+        if ($startedOnly) {
+            $query->andWhere('c.lastMessageAt IS NOT NULL');
+        }
+
+        return $query->getQuery()->getResult();
     }
 }

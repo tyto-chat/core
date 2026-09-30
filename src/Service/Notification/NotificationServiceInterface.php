@@ -7,6 +7,7 @@ namespace App\Service\Notification;
 use App\Dto\Notification\CreateNotificationDto;
 use App\Entity\Channel;
 use App\Entity\Community;
+use App\Entity\Conversation;
 use App\Entity\Notification;
 use App\Entity\User;
 
@@ -31,6 +32,8 @@ interface NotificationServiceInterface
     public function getAllDmForCurrentUser(): array;
 
     public function markAllDmAsRead(): void;
+
+    public function markConversationAsRead(Conversation $conversation): void;
 
     public function markAllAsRead(): void;
 

@@ -21,6 +21,9 @@ interface ConversationServiceInterface
     /** @return Conversation[] */
     public function listForCurrentUser(): array;
 
+    /** @return Conversation[] */
+    public function listStartedForCurrentUser(): array;
+
     public function setMuted(Conversation $conversation, ?\DateTimeImmutable $mutedUntil): ConversationMember;
 
     public function markRead(Conversation $conversation): ConversationMember;

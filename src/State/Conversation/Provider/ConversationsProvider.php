@@ -20,6 +20,6 @@ final readonly class ConversationsProvider implements ProviderInterface
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): iterable
     {
-        return $this->conversationService->listForCurrentUser();
+        return $this->conversationService->listStartedForCurrentUser();
     }
 }

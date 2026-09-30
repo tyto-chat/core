@@ -17,6 +17,7 @@ use App\Security\SecurityContext;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Conversation\ConversationService;
 use App\Service\Message\MessageServiceInterface;
+use App\Service\Notification\NotificationServiceInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -35,6 +36,7 @@ class ConversationServiceTest extends TestCase
     private MessageServiceInterface&MockObject $messageService;
     private EntityManagerInterface&MockObject $entityManager;
     private Security&MockObject $security;
+    private NotificationServiceInterface&MockObject $notifications;
     private ConversationService $service;
 
     #[\Override]
@@ -47,6 +49,7 @@ class ConversationServiceTest extends TestCase
         $this->messageService = $this->createMock(MessageServiceInterface::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->security = $this->createMock(Security::class);
+        $this->notifications = $this->createMock(NotificationServiceInterface::class);
 
         $this->service = new ConversationService(
             new SecurityContext($this->security, $this->communityMembershipService),
@@ -56,6 +59,7 @@ class ConversationServiceTest extends TestCase
             $this->pageRepository,
             $this->messageService,
             $this->createMock(ManagerRegistry::class),
+            $this->notifications,
         );
         $this->service->setEntityManager($this->entityManager);
         $this->service->setLogger(new NullLogger());
@@ -165,6 +169,8 @@ class ConversationServiceTest extends TestCase
         $member = new ConversationMember();
         $this->authenticate($caller);
         $this->memberRepository->method('findForUser')->willReturn($member);
+
+        $this->notifications->expects(self::once())->method('markConversationAsRead')->with($conversation);
 
         $before = new \DateTimeImmutable();
         $this->service->markRead($conversation);
