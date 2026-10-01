@@ -2,6 +2,13 @@
 
 Backend API for the tyto.chat platform. Built with Symfony 7.4 LTS and API Platform 4, it exposes a JSON-LD REST API consumed by the standalone React SPA ([client](https://github.com/tyto-chat/client)).
 
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://tyto.chat/shots/server-home-dark.webp">
+  <img src="https://tyto.chat/shots/server-home-light.webp" alt="The homepage a Tyto server serves at its API domain: server name and status badges, buttons to open it in the desktop app, the list of public communities and the server-info card" width="880">
+</picture>
+</p>
+
 > This document will be most useful for developers working on the codebase. If you just want to install and run your own Tyto server, [tyto.chat](https://tyto.chat) has you covered — see below.
 
 ## Running Tyto in production
