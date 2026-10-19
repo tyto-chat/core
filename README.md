@@ -151,6 +151,20 @@ The full production environment reference lives in
 [`.env.prod.example`](.env.prod.example) and the
 [advanced configuration docs](https://tyto.chat/docs/advanced-configuration).
 
+## About this project and AI usage
+
+AI is part of the daily workflow behind this backend, but a large part of it was written by its
+maintainer, with AI as an assistant rather than the other way around. Every product and
+architecture decision is a human one, AI-produced code is reviewed before it lands, and the
+application is tested manually before releases. The practices that keep a backend like this
+healthy are enforced regardless of who wrote a given line: the unit, functional and integration
+test suites, PHPStan static analysis and code style checks run on every pull request, and the code
+has gone through dedicated security and code-quality reviews.
+
+AI was also used to translate the server-rendered texts (emails, system messages, validation
+messages) into the supported languages. Translations into languages the maintainer does not speak
+have not been reviewed by native speakers yet; corrections are welcome.
+
 ## Contributing
 
 See the [contribution guide](https://tyto.chat/docs/contributing) for the
