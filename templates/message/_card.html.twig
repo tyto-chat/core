@@ -1,0 +1,53 @@
+{% if embed is null %}
+<a href="{{ messageUrl }}" target="_blank" rel="noopener noreferrer" class="embed-card embed-card--unavailable">
+    <span class="embed-unavailable-text">{{ 'embed.unavailable'|trans }}</span>
+</a>
+{% else %}
+<a href="{{ messageUrl }}" target="_blank" rel="noopener noreferrer" class="embed-card">
+    <div class="embed-header">
+        {% if embed.avatarUrl %}
+            <img src="{{ embed.avatarUrl }}" alt="" class="embed-avatar">
+        {% else %}
+            <div class="embed-avatar embed-avatar-fallback"><span class="embed-avatar-initial">{{ embed.authorName|first|upper }}</span></div>
+        {% endif %}
+        <div class="embed-header-text">
+            <span class="embed-author" style="color: var(--user-text-{{ embed.authorColor }})">{{ embed.authorName }}</span>
+            <time class="embed-timestamp" datetime="{{ embed.createdAt|date('c') }}">{{ embed.createdAt|date('Y-m-d H:i') }}</time>
+        </div>
+    </div>
+    <div class="embed-body">{{ embed.bodyHtml|raw }}</div>
+    {% if embed.media is not empty %}
+        <div class="embed-attachments">
+            {% for item in embed.media %}
+                <div class="embed-attachment-image-wrap">
+                    {% if item.video %}
+                        <video src="{{ item.url }}" class="embed-attachment-image" preload="metadata" muted playsinline></video>
+                        <span class="embed-video-overlay"><span class="embed-video-play"><svg width="12" height="14" viewBox="0 0 12 14" fill="#fff" aria-hidden="true"><path d="M0 0 L12 7 L0 14 Z"/></svg></span></span>
+                    {% else %}
+                        <img src="{{ item.url }}" alt="{{ item.name ?: 'embed.image'|trans }}" class="embed-attachment-image">
+                    {% endif %}
+                    {% if loop.last and embed.extraMediaCount > 0 %}<span class="embed-attachment-more">+{{ embed.extraMediaCount }}</span>{% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    {% if embed.fileCount > 0 %}
+        <div class="embed-attachment-badge"><svg class="embed-icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> {{ embed.fileCount }}</div>
+    {% endif %}
+    {% if embed.reactions is not empty %}
+        <div class="embed-reactions">
+            {% for reaction in embed.reactions %}
+                <span class="embed-reaction-pill">
+                    {% if reaction.imageUrl %}<img src="{{ reaction.imageUrl }}" alt="{{ reaction.key }}" title="{{ reaction.key }}" class="embed-reaction-emoji">{% else %}<span>{{ reaction.key }}</span>{% endif %}
+                    {% if reaction.count > 1 %}<span class="embed-reaction-count">{{ reaction.count }}</span>{% endif %}
+                </span>
+            {% endfor %}
+        </div>
+    {% endif %}
+    {% if embed.replyCount > 0 %}
+        <div class="embed-replies"><svg class="embed-icon" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg> {{ 'embed.replies'|trans({'%count%': embed.replyCount}) }}</div>
+    {% endif %}
+    <div class="embed-label">#{{ embed.channelIdentifier }} · {{ embed.communityName }}</div>
+    <div class="embed-footer">tyto.chat</div>
+</a>
+{% endif %}

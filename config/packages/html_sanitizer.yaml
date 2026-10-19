@@ -1,0 +1,12 @@
+framework:
+    html_sanitizer:
+        sanitizers:
+            message_embed:
+                allow_safe_elements: true
+                allow_relative_links: true
+                allow_relative_medias: true
+                allow_attributes:
+                    class: ['span', 'img']
+                    data-user-id: ['span']
+                    data-channel-id: ['span']
+                    data-shortcode: ['img']

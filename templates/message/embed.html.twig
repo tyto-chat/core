@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="{{ app.request.locale }}"{% if app.request.query.get('theme') in ['light', 'dark'] %} data-theme="{{ app.request.query.get('theme') }}"{% endif %}>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>{{ 'embed.title'|trans }}</title>
+    <link rel="stylesheet" href="/embed.css">
+</head>
+<body>
+    <div class="embed-root" id="embed-root">
+        {{ include('message/_card.html.twig') }}
+    </div>
+    {{ include('message/_timestamps.html.twig') }}
+    <script>
+        (function () {
+            var uuid = {{ uuid|json_encode|raw }};
+            var report = function () {
+                window.parent.postMessage({ type: "tyto-embed-height", uuid: uuid, height: document.documentElement.scrollHeight }, "*");
+            };
+            report();
+            window.addEventListener("load", report);
+            if (window.ResizeObserver) new ResizeObserver(report).observe(document.getElementById("embed-root"));
+        })();
+    </script>
+</body>
+</html>

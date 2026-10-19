@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="{{ app.request.locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ 'embed.link_title'|trans({'%server%': serverName}) }}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/embed.css">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="{{ messageUrl }}">
+    <meta property="og:site_name" content="{{ serverName }}">
+    {% if embed %}
+        <meta property="og:title" content="{{ embed.authorName }} · #{{ embed.channelIdentifier }} · {{ embed.communityName }}">
+        <meta property="og:description" content="{{ embed.plaintext|slice(0, 200) }}">
+        {% if embed.avatarUrl %}<meta property="og:image" content="{{ embed.avatarUrl }}">{% endif %}
+    {% else %}
+        <meta property="og:title" content="{{ 'embed.link_title'|trans({'%server%': serverName}) }}">
+    {% endif %}
+    <style>
+        body { background: #f5f6f9; min-height: 100vh; }
+        @media (prefers-color-scheme: dark) { body { background: #0e0f13; } }
+        .link-page { max-width: 550px; margin: 0 auto; padding: 48px 16px; }
+        .link-server { font-size: 13px; color: var(--embed-muted); margin: 0 0 12px; }
+        .link-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+        .link-btn { display: inline-flex; align-items: center; font-size: 14px; font-weight: 600; padding: 9px 16px; border-radius: 10px; border: 1px solid var(--embed-border); background: var(--embed-card-bg); color: var(--embed-fg); text-decoration: none; }
+        .link-btn:hover { background: var(--embed-hover); }
+        .link-btn.primary { background: var(--embed-accent); border-color: transparent; color: #fff; }
+        .link-hint { font-size: 12.5px; color: var(--embed-muted); margin: 12px 0 0; }
+    </style>
+</head>
+<body>
+    <main class="link-page">
+        <p class="link-server">{{ 'embed.shared_from'|trans({'%server%': serverName}) }}</p>
+        {{ include('message/_card.html.twig') }}
+        <div class="link-actions">
+            <a class="link-btn primary" href="{{ desktopLink }}">{{ 'embed.open_desktop'|trans }}</a>
+            {% if webLink %}<a class="link-btn" href="{{ webLink }}">{{ 'embed.open_web'|trans }}</a>{% endif %}
+            <a class="link-btn" href="https://tyto.chat/download" rel="noopener">{{ 'embed.get_app'|trans }}</a>
+        </div>
+        <p class="link-hint">{{ 'embed.link_hint'|trans }}</p>
+    </main>
+    {{ include('message/_timestamps.html.twig') }}
+</body>
+</html>

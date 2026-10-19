@@ -7,6 +7,7 @@ nelmio_security:
         policies: ['strict-origin-when-cross-origin']
     clickjacking:
         paths:
+            '^/embed/': ALLOW
             '^/.*': DENY
     # NOTE: TLS termination + http→https redirect + HSTS are handled at the edge
     # (Caddy/FrankenPHP), NOT at the app layer. App-layer forced_ssl would be
