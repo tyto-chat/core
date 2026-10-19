@@ -7,6 +7,7 @@ namespace App\Dto\UserPreference;
 use App\Dto\EntityDtoInterface;
 use App\Entity\UserPreference;
 use App\Enum\Settings\SupportedLocale;
+use App\Enum\User\RemoteContentLevel;
 use App\Enum\User\UserSubmitKey;
 use App\Enum\User\UserTheme;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -48,6 +49,21 @@ class UpdateUserPreferencesDto implements EntityDtoInterface
     #[Groups(['user_preference:write'])]
     public ?array $sectionCollapse;
 
+    #[Groups(['user_preference:write'])]
+    public ?RemoteContentLevel $remoteContent;
+
+    /**
+     * @var list<string>|null
+     */
+    #[Assert\Count(max: 100)]
+    #[Assert\All([
+        new Assert\Type('string'),
+        new Assert\Length(max: 253),
+        new Assert\Regex('/^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))+$/', message: 'Each entry must be a bare host name such as example.com.'),
+    ])]
+    #[Groups(['user_preference:write'])]
+    public ?array $remoteContentHosts;
+
     #[\Override]
     public static function getEntityClass(): string
     {
@@ -85,6 +101,12 @@ class UpdateUserPreferencesDto implements EntityDtoInterface
         }
         if ((new \ReflectionProperty($this, 'sectionCollapse'))->isInitialized($this)) {
             $entity->setSectionCollapse($this->sectionCollapse);
+        }
+        if ((new \ReflectionProperty($this, 'remoteContent'))->isInitialized($this)) {
+            $entity->setRemoteContent($this->remoteContent);
+        }
+        if ((new \ReflectionProperty($this, 'remoteContentHosts'))->isInitialized($this)) {
+            $entity->setRemoteContentHosts(null === $this->remoteContentHosts ? null : array_values(array_unique($this->remoteContentHosts)));
         }
     }
 }

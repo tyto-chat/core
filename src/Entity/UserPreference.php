@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\OpenApi\Model;
 use App\Dto\UserPreference\UpdateUserPreferencesDto;
 use App\Enum\Settings\SupportedLocale;
+use App\Enum\User\RemoteContentLevel;
 use App\Enum\User\UserSubmitKey;
 use App\Enum\User\UserTheme;
 use App\Repository\UserPreferenceRepository;
@@ -102,6 +103,17 @@ class UserPreference
     #[ORM\Column(type: 'json', nullable: true)]
     #[Groups(['user_preference:read'])]
     private ?array $sectionCollapse = null;
+
+    #[ORM\Column(length: 16, nullable: true, enumType: RemoteContentLevel::class)]
+    #[Groups(['user_preference:read'])]
+    private ?RemoteContentLevel $remoteContent = null;
+
+    /**
+     * @var list<string>|null
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    #[Groups(['user_preference:read'])]
+    private ?array $remoteContentHosts = null;
 
     #[ORM\Column]
     #[Groups(['user_preference:read'])]
@@ -229,6 +241,36 @@ class UserPreference
     public function setSectionCollapse(?array $value): self
     {
         $this->sectionCollapse = $value;
+
+        return $this;
+    }
+
+    public function getRemoteContent(): ?RemoteContentLevel
+    {
+        return $this->remoteContent;
+    }
+
+    public function setRemoteContent(?RemoteContentLevel $value): self
+    {
+        $this->remoteContent = $value;
+
+        return $this;
+    }
+
+    /**
+     * @return list<string>|null
+     */
+    public function getRemoteContentHosts(): ?array
+    {
+        return $this->remoteContentHosts;
+    }
+
+    /**
+     * @param list<string>|null $value
+     */
+    public function setRemoteContentHosts(?array $value): self
+    {
+        $this->remoteContentHosts = $value;
 
         return $this;
     }
