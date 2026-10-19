@@ -1,0 +1,7 @@
+<script>
+    document.querySelectorAll("time[datetime]").forEach(function (node) {
+        try {
+            node.textContent = new Intl.DateTimeFormat(navigator.language, { dateStyle: "medium", timeStyle: "short" }).format(new Date(node.getAttribute("datetime")));
+        } catch (e) {}
+    });
+</script>

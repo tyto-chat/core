@@ -36,6 +36,7 @@
         "symfony/expression-language": "7.4.*",
         "symfony/flex": "^2.11",
         "symfony/framework-bundle": "7.4.*",
+        "symfony/html-sanitizer": "7.4.*",
         "symfony/http-client": "7.4.*",
         "symfony/intl": "7.4.*",
         "symfony/mailer": "7.4.*",

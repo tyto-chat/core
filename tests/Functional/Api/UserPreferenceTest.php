@@ -92,6 +92,34 @@ class UserPreferenceTest extends ApiTestCase
         self::assertNull($get['theme']);
     }
 
+    public function testPatchPersistsRemoteContentPreference(): void
+    {
+        $user = UserFactory::createOne();
+        $client = $this->jsonClient($user);
+
+        $client->request('PATCH', '/api/v1/me/preferences', [
+            ...self::MERGE_PATCH,
+            'json' => ['remoteContent' => 'custom', 'remoteContentHosts' => ['cdn.example.com', 'imgur.com', 'cdn.example.com']],
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $body = $client->request('GET', '/api/v1/me/preferences')->toArray();
+        self::assertSame('custom', $body['remoteContent']);
+        self::assertSame(['cdn.example.com', 'imgur.com'], $body['remoteContentHosts']);
+    }
+
+    public function testPatchRejectsHostsThatAreNotBareHostNames(): void
+    {
+        $user = UserFactory::createOne();
+
+        $this->jsonClient($user)->request('PATCH', '/api/v1/me/preferences', [
+            ...self::MERGE_PATCH,
+            'json' => ['remoteContentHosts' => ['https://evil.example/path']],
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+    }
+
     public function testPatchInvalidEnumIs422(): void
     {
         $user = UserFactory::createOne();

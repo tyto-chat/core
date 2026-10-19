@@ -63,6 +63,8 @@ security:
         - { path: ^/token/refresh, roles: PUBLIC_ACCESS }
         - { path: ^/logout, roles: PUBLIC_ACCESS }
         - { path: ^/media/, roles: PUBLIC_ACCESS }
+        - { path: ^/m/, roles: PUBLIC_ACCESS }
+        - { path: ^/embed/, roles: PUBLIC_ACCESS }
         - { path: ^/export-media/, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: IS_AUTHENTICATED_FULLY }
 
