@@ -97,6 +97,9 @@ jobs:
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress
 
+      - name: Audit dependencies
+        run: composer audit --abandoned=report
+
       # phpstan-symfony reads the dev container dump; without it phpstan aborts.
       - name: Warm dev container
         run: php bin/console cache:warmup --env=dev
