@@ -9,6 +9,8 @@ parameters:
         - public/
         - src/
         - tests/
+    excludePaths:
+        - config/reference.php
     treatPhpDocTypesAsCertain: false
     symfony:
         containerXmlPath: var/cache/dev/App_KernelDevDebugContainer.xml
