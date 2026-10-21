@@ -205,7 +205,7 @@ header #logo.tyto-brand {
 .swagger-ui .btn.authorize svg { fill: var(--accent-text); }
 .swagger-ui .btn.execute, #swagger-ui.api-platform .btn.execute,
 #swagger-ui.api-platform .btn.execute:hover {
-  background: var(--grad); border-color: transparent; color: var(--on-accent);
+  background: var(--grad); background-origin: border-box; border-color: transparent; color: var(--on-accent);
 }
 .swagger-ui .btn.execute:hover { filter: brightness(1.07); }
 .swagger-ui .btn.cancel, #swagger-ui.api-platform .btn.cancel {
