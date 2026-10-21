@@ -51,7 +51,7 @@
         .apps { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 22px; position: relative; }
         .btn { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; padding: 9px 16px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--fg); transition: border-color .15s ease, background .15s ease; }
         .btn:hover { border-color: var(--accent); background: var(--raised); }
-        .btn.primary { background: var(--grad); border-color: transparent; color: #fff; box-shadow: var(--shadow); }
+        .btn.primary { background: var(--grad); background-origin: border-box; border-color: transparent; color: #fff; box-shadow: var(--shadow); }
         .btn.primary:hover { filter: brightness(1.06); }
         .apps .hint { flex-basis: 100%; margin: 0; font-size: 12.5px; color: var(--fg-subtle); }
         .section { padding: 12px 0 40px; }
