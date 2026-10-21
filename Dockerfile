@@ -13,7 +13,7 @@ RUN composer dump-autoload --no-dev --optimize --classmap-authoritative
 ###########################################
 # Stage 1b — FrankenPHP + Souin (xcaddy)
 ###########################################
-FROM dunglas/frankenphp:1.12-builder-php8.5 AS caddy-builder
+FROM dunglas/frankenphp:1.13-builder-php8.5 AS caddy-builder
 
 COPY --from=caddy:builder /usr/bin/xcaddy /usr/bin/xcaddy
 
@@ -27,22 +27,22 @@ COPY --from=caddy:builder /usr/bin/xcaddy /usr/bin/xcaddy
 # Bump deliberately, then re-run docker/test/cache-smoke.sh before shipping.
 # Every module is pinned: an unpinned one takes the newest release, which broke the build when Mercure 1.x needed a newer Go.
 # Bump the FrankenPHP module together with the two base image tags.
-ENV CGO_ENABLED=1 XCADDY_SETCAP=1
+ENV CGO_ENABLED=1 XCADDY_SETCAP=1 XCADDY_GO_BUILD_FLAGS="-tags nobadger,nomysql,nopgx,deprecated_claim,deprecated_topic"
 RUN CGO_CFLAGS=$(php-config --includes) \
     CGO_LDFLAGS="$(php-config --ldflags) $(php-config --libs)" \
-    xcaddy build v2.11.4 \
+    xcaddy build v2.11.7 \
     --output /usr/local/bin/frankenphp \
-    --with github.com/dunglas/frankenphp/caddy@v1.12.7 \
+    --with github.com/dunglas/frankenphp/caddy@v1.13.2 \
     --with github.com/dunglas/caddy-cbrotli@v1.0.1 \
-    --with github.com/dunglas/mercure/caddy@v0.24.2 \
-    --with github.com/dunglas/vulcain/caddy@v1.4.3 \
+    --with github.com/dunglas/mercure/caddy@v1.1.4 \
+    --with github.com/dunglas/vulcain/caddy@v1.4.5 \
     --with github.com/darkweak/souin/plugins/caddy@v1.7.8 \
     --with github.com/darkweak/storages/redis/caddy@v0.0.19
 
 ###########################################
 # Stage 2 — runtime (FrankenPHP / PHP 8.5)
 ###########################################
-FROM dunglas/frankenphp:1.12-php8.5 AS runtime
+FROM dunglas/frankenphp:1.13-php8.5 AS runtime
 
 # PHP extensions via the bundled mlocati/install-php-extensions helper —
 # it installs the required system libs and builds reliably (no -j race).
