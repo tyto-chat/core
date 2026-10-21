@@ -17,6 +17,7 @@
         "friendsofsymfony/http-cache-bundle": "^3.3",
         "gesdinet/jwt-refresh-token-bundle": "^2.0",
         "guzzlehttp/promises": "^2.6",
+        "league/commonmark": "^2.7",
         "lexik/jwt-authentication-bundle": "^3.2",
         "liip/imagine-bundle": "^2.17",
         "meilisearch/meilisearch-php": "^1.16",

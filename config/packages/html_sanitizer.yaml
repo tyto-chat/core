@@ -9,4 +9,5 @@ framework:
                     class: ['span', 'img']
                     data-user-id: ['span']
                     data-channel-id: ['span']
+                    data-broadcast: ['span']
                     data-shortcode: ['img']

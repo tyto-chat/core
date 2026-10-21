@@ -26,6 +26,7 @@ final readonly class MessageEmbedPresenter implements MessageEmbedPresenterInter
         private CommunityEmojiServiceInterface $emojiService,
         private NormalizerInterface $normalizer,
         private HtmlSanitizerInterface $messageEmbedSanitizer,
+        private MessageMarkdownRenderer $markdownRenderer,
     ) {
     }
 
@@ -50,7 +51,7 @@ final readonly class MessageEmbedPresenter implements MessageEmbedPresenterInter
         /** @var array<string, mixed> $data */
         $data = $this->normalizer->normalize($message, 'jsonld', ['groups' => ['message:read']]);
         $emojiUrls = $this->emojiUrls($community);
-        $text = is_string($data['text'] ?? null) ? $data['text'] : '';
+        $rendered = $this->markdownRenderer->render(is_string($data['text'] ?? null) ? $data['text'] : null);
 
         $media = [];
         $fileCount = 0;
@@ -92,8 +93,8 @@ final readonly class MessageEmbedPresenter implements MessageEmbedPresenterInter
             authorColor: self::colorIndex(is_string($profile['@id'] ?? null) ? $profile['@id'] : null),
             avatarUrl: is_string($avatar['sm'] ?? null) ? $avatar['sm'] : null,
             createdAt: $message->getCreatedAt() ?? new \DateTimeImmutable(),
-            bodyHtml: $this->decorateEmojis($this->messageEmbedSanitizer->sanitize($text), $emojiUrls),
-            plaintext: MessageDocumentBuilder::toPlaintext($text),
+            bodyHtml: $this->decorateEmojis($this->messageEmbedSanitizer->sanitize($rendered), $emojiUrls),
+            plaintext: MessageDocumentBuilder::toPlaintext(preg_replace('~<(?:br|/p|/li|/h[1-3]|/blockquote|/pre)\b[^>]*>~i', ' ', $rendered) ?? $rendered),
             media: array_slice($media, 0, self::MAX_MEDIA),
             extraMediaCount: max(0, count($media) - self::MAX_MEDIA),
             fileCount: $fileCount,

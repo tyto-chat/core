@@ -302,6 +302,11 @@ services:
     # #[AsDecorator] had nothing concrete to decorate.
     App\Service\Realtime\StructureRealtimePublisherInterface: '@App\Service\Realtime\MercurePublisher'
 
+    # Symfony's autowiring alias is `HtmlSanitizerInterface $messageEmbed`; bind by id so a rename can't silently fall back to the default sanitizer.
+    App\Service\Message\MessageEmbedPresenter:
+        arguments:
+            $messageEmbedSanitizer: '@html_sanitizer.sanitizer.message_embed'
+
     App\Service\HttpCache\SouinCachePurger:
         arguments:
             # env(default::X) resolves to null (not '') when X is unset/empty —
