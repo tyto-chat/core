@@ -13,7 +13,7 @@ RUN composer dump-autoload --no-dev --optimize --classmap-authoritative
 ###########################################
 # Stage 1b — FrankenPHP + Souin (xcaddy)
 ###########################################
-FROM dunglas/frankenphp:1.12-builder-php8.5 AS caddy-builder
+FROM dunglas/frankenphp:1.13-builder-php8.5 AS caddy-builder
 
 COPY --from=caddy:builder /usr/bin/xcaddy /usr/bin/xcaddy
 
@@ -32,7 +32,7 @@ RUN CGO_CFLAGS=$(php-config --includes) \
     CGO_LDFLAGS="$(php-config --ldflags) $(php-config --libs)" \
     xcaddy build v2.11.4 \
     --output /usr/local/bin/frankenphp \
-    --with github.com/dunglas/frankenphp/caddy@v1.12.7 \
+    --with github.com/dunglas/frankenphp/caddy@v1.13.2 \
     --with github.com/dunglas/caddy-cbrotli@v1.0.1 \
     --with github.com/dunglas/mercure/caddy@v0.24.2 \
     --with github.com/dunglas/vulcain/caddy@v1.4.3 \
@@ -42,7 +42,7 @@ RUN CGO_CFLAGS=$(php-config --includes) \
 ###########################################
 # Stage 2 — runtime (FrankenPHP / PHP 8.5)
 ###########################################
-FROM dunglas/frankenphp:1.12-php8.5 AS runtime
+FROM dunglas/frankenphp:1.13-php8.5 AS runtime
 
 # PHP extensions via the bundled mlocati/install-php-extensions helper —
 # it installs the required system libs and builds reliably (no -j race).
