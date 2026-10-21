@@ -83,6 +83,8 @@ case "$ROLE" in
 
     php bin/console cache:clear --no-warmup
     php bin/console cache:warmup
+    # Builds the API Platform metadata + OpenAPI caches now instead of on the first /api/docs visit (tens of seconds on small hosts).
+    php bin/console api:openapi:export --output=/dev/null || echo "entrypoint: openapi warmup failed (non-fatal)"
     # Image builds with --no-scripts, so bundle assets (Swagger UI at /api) land here.
     php bin/console assets:install public --no-interaction
 

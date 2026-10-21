@@ -30,3 +30,7 @@ api_platform:
             JWT:
                 name: Authorization
                 type: header
+        swagger_ui_extra_configuration:
+            docExpansion: none
+            defaultModelsExpandDepth: -1
+            filter: true
