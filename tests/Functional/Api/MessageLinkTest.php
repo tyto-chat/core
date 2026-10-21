@@ -38,7 +38,8 @@ class MessageLinkTest extends ApiTestCase
 
         self::assertResponseIsSuccessful();
         $html = $response->getContent();
-        self::assertStringContainsString('Hello <b>embed</b>', $html);
+        self::assertStringContainsString('Hello embed', $html);
+        self::assertStringNotContainsString('<b>', $html);
         self::assertStringNotContainsString('<script>alert', $html);
         self::assertStringContainsString('href="tyto://open?url=http%3A%2F%2Flocalhost%2Fm%2F'.$uuid.'"', $html);
         self::assertStringContainsString('Open in Tyto desktop', $html);
@@ -139,6 +140,26 @@ class MessageLinkTest extends ApiTestCase
         self::assertMatchesRegularExpression('~yay <img[^>]*alt=":party:"[^>]*class="embed-emoji"~', $html);
         self::assertStringContainsString('<code>:party:</code>', $html);
         self::assertStringContainsString('party.png', $html);
+    }
+
+    public function testMarkdownRendersLikeTheClient(): void
+    {
+        $community = CommunityFactory::new()->withIdentifier('link-md')->create();
+        $channel = ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'open'])->create();
+        $page = MessagePageFactory::new()->forChannel($channel)->create();
+        $message = MessageFactory::new()->inPage($page)
+            ->withText("**bold** hello [@Ann](user:1) in [#open](channel:2)\n\nsee [docs](https://example.com) ~~old~~")
+            ->create();
+
+        $html = static::createClient()->request('GET', '/m/'.$message->getId())->getContent();
+
+        self::assertStringContainsString('<strong>bold</strong> hello <span class="mention-user" data-user-id="1">&#64;Ann</span>', $html);
+        self::assertStringContainsString('<span class="mention-channel" data-channel-id="2">#open</span>', $html);
+        self::assertStringContainsString('see docs old', $html);
+        self::assertStringNotContainsString('**bold**', $html);
+        self::assertStringNotContainsString('(user:1)', $html);
+        self::assertStringNotContainsString('href="https://example.com"', $html);
+        self::assertMatchesRegularExpression('~og:description" content="bold hello @Ann in #open see docs old"~', $html);
     }
 
     public function testCardShowsMediaFilesReactionsAndReplies(): void

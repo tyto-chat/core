@@ -15,6 +15,7 @@ licenses require:
 | `firebase/php-jwt` | BSD-3-Clause | © 2011 Neuman Vong |
 | `google/protobuf` | BSD-3-Clause | © 2019 Protocol Buffers |
 | `lcobucci/jwt` | BSD-3-Clause | © Luís Cobucci |
+| `league/commonmark` | BSD-3-Clause | © Colin O'Dell |
 | `twig/twig` | BSD-3-Clause | © Fabien Potencier, Armin Ronacher, the Twig Team |
 
 BSD-3-Clause requires that the above copyright notices and the license text
