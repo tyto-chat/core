@@ -2,20 +2,16 @@ name: release
 on:
   push:
     tags: ["v*"]
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: ["1.0"]
   schedule:
     - cron: "17 3 * * 1"
   workflow_dispatch:
+  workflow_call:
 
 env:
   IMAGE: ghcr.io/tyto-chat/tyto-core
 
 jobs:
   plan:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -25,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event_name == 'schedule' && '1.0' || github.sha }}
+          ref: ${{ github.event_name == 'schedule' && '1.0' || github.sha }}
       - id: commit
         run: |
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
