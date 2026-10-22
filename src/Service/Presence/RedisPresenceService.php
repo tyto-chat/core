@@ -15,6 +15,7 @@ use App\Service\Channel\ChannelAudioServiceInterface;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Realtime\RealtimePublisherInterface;
 use Predis\ClientInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Service\Attribute\Required;
 
 final class RedisPresenceService implements PresenceServiceInterface
@@ -29,6 +30,7 @@ final class RedisPresenceService implements PresenceServiceInterface
         private readonly CommunityMembershipServiceInterface $communityMembership,
         private readonly ClientInterface $redis,
         private readonly RealtimePublisherInterface $realtime,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -265,6 +267,17 @@ final class RedisPresenceService implements PresenceServiceInterface
 
     private function publishPresence(int $userId, PresenceState $state): void
     {
-        $this->realtime->publishPresenceChanged($userId, $state, $this->communityMembership->findCommunityIdsForUser($userId));
+        try {
+            $communityIds = $this->communityMembership->findCommunityIdsForUser($userId);
+        } catch (\Throwable $e) {
+            $this->logger->error('Presence community lookup failed: {reason}', [
+                'reason' => $e->getMessage(),
+                'userId' => $userId,
+                'exception' => $e,
+            ]);
+            $communityIds = [];
+        }
+
+        $this->realtime->publishPresenceChanged($userId, $state, $communityIds);
     }
 }

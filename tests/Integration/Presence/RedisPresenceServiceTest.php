@@ -16,6 +16,7 @@ use App\Service\Realtime\RealtimePublisherInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\TestCase;
 use Predis\Client;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
 
 #[AllowMockObjectsWithoutExpectations]
@@ -36,6 +37,11 @@ class RedisPresenceServiceTest extends TestCase
     /** @var list<int> */
     private array $memberUserIds = [];
 
+    /** @var list<array<mixed>> */
+    private array $publishedCommunityIds = [];
+
+    private ?\Throwable $membershipFailure = null;
+
     #[\Override]
     protected function setUp(): void
     {
@@ -50,6 +56,9 @@ class RedisPresenceServiceTest extends TestCase
 
         $membership = $this->createMock(CommunityMembershipServiceInterface::class);
         $membership->method('findMemberUserIds')->willReturnCallback(fn (): array => $this->memberUserIds);
+        $membership->method('findCommunityIdsForUser')->willReturnCallback(
+            fn (): array => null !== $this->membershipFailure ? throw $this->membershipFailure : [5],
+        );
 
         $symfonySecurity = $this->createMock(Security::class);
         $symfonySecurity->method('isGranted')->willReturn(true);
@@ -57,8 +66,9 @@ class RedisPresenceServiceTest extends TestCase
 
         $realtime = $this->createMock(RealtimePublisherInterface::class);
         $realtime->method('publishPresenceChanged')->willReturnCallback(
-            function (int $userId, PresenceState $state): void {
+            function (int $userId, PresenceState $state, array $communityIds = []): void {
                 $this->published[] = [$userId, $state];
+                $this->publishedCommunityIds[] = $communityIds;
             },
         );
 
@@ -67,7 +77,7 @@ class RedisPresenceServiceTest extends TestCase
             fn (array $ids): array => array_values(array_intersect($ids, $this->voiceUserIds)),
         );
 
-        $this->service = new RedisPresenceService($security, $membership, $this->redis, $realtime);
+        $this->service = new RedisPresenceService($security, $membership, $this->redis, $realtime, new NullLogger());
         $this->service->setChannelAudioService($audio);
     }
 
@@ -106,6 +116,24 @@ class RedisPresenceServiceTest extends TestCase
         self::assertLessThanOrEqual(180, $ttl);
         self::assertSame([[self::USER_A, PresenceState::Online]], $this->published);
         self::assertSame(PresenceState::Online, $this->stateOf(self::USER_A));
+    }
+
+    public function testTransitionIsPublishedToTheUsersCommunities(): void
+    {
+        $this->service->touch($this->buildUser(self::USER_A));
+
+        self::assertSame([[5]], $this->publishedCommunityIds);
+    }
+
+    public function testMembershipLookupFailureStillPublishesToTheUserTopic(): void
+    {
+        $this->membershipFailure = new \RuntimeException('db down');
+
+        $this->service->touch($this->buildUser(self::USER_A));
+
+        self::assertSame([[self::USER_A, PresenceState::Online]], $this->published);
+        self::assertSame([[]], $this->publishedCommunityIds);
+        self::assertSame('1', $this->redis->get('presence:user:'.self::USER_A.':live'));
     }
 
     public function testSecondTouchWithinThresholdIsThrottled(): void

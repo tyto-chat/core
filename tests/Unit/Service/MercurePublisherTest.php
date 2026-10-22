@@ -327,14 +327,32 @@ final class MercurePublisherTest extends TestCase
         self::assertStringContainsString('"state":"online"', $this->captured->getData());
     }
 
-    public function testPublishPresenceChangedFansOutToEachCommunityInOneUpdate(): void
+    public function testPublishPresenceChangedSendsOneUpdatePerTopic(): void
     {
-        $publisher = $this->makePublisher();
+        $captured = [];
+        $hub = $this->createMock(HubInterface::class);
+        $hub->expects(self::exactly(3))->method('publish')
+            ->willReturnCallback(static function (Update $u) use (&$captured): string {
+                $captured[] = $u;
+
+                return '';
+            });
+        $publisher = new MercurePublisher(
+            $hub,
+            $this->createMock(IriConverterInterface::class),
+            new InMemoryChannelParticipantStore(),
+            $this->createMock(UrlGeneratorInterface::class),
+            $this->createMock(SignedUrlServiceInterface::class),
+            new NullLogger(),
+        );
+
         $publisher->publishPresenceChanged(42, PresenceState::Away, [5, 9]);
 
-        self::assertSame(['u/42/p', 'k/5/p', 'k/9/p'], $this->captured->getTopics());
-        self::assertTrue($this->captured->isPrivate());
-        self::assertStringContainsString('"userId":42', $this->captured->getData());
+        self::assertSame([['u/42/p'], ['k/5/p'], ['k/9/p']], array_map(static fn (Update $u): array => $u->getTopics(), $captured));
+        foreach ($captured as $update) {
+            self::assertTrue($update->isPrivate());
+            self::assertStringContainsString('"userId":42', $update->getData());
+        }
     }
 
     public function testPublishConversationActivityTargetsEachMember(): void
