@@ -88,7 +88,7 @@ api_json() {
 
 # admin_patch_config TOKEN JSON_BODY -> prints HTTP status code
 admin_patch_config() {
-  curl -s -o /dev/null -w '%{http_code}' -X PATCH "$BASE/api/admin/server-config" \
+  curl -s -o /dev/null -w '%{http_code}' -X PATCH "$BASE/api/v1/admin/server-config" \
     -H "Authorization: Bearer $1" -H 'Content-Type: application/merge-patch+json' -d "$2"
 }
 
@@ -101,7 +101,7 @@ get_page() {
   [ -n "$token" ] && auth=(-H "Authorization: Bearer $token")
   curl -s -D- -o "$BODY_FILE" -w 'HTTP_STATUS:%{http_code}\n' \
     "${auth[@]}" -H "$ACCEPT_HEADER" \
-    "$BASE/api/communities/$comm/channels/$chan/pages/$pg"
+    "$BASE/api/v1/communities/$comm/channels/$chan/pages/$pg"
 }
 
 # get_resource TOKEN_OR_EMPTY PATH -> like get_page but for an arbitrary API
@@ -142,6 +142,25 @@ ADMIN_TOKEN="$(login "$ADMIN_EMAIL" "$ADMIN_PASSWORD")"
   exit 1
 }
 
+TOUCHED_CONFIG_KEYS='["rateLoginLimit","rateLoginIntervalSeconds","rateRegisterLimit","rateRegisterIntervalSeconds","rateApiWriteLimit","rateApiWriteIntervalSeconds","registrationEnabled","validateEmails","httpCachePageTtlSeconds","httpCachePresenceTtlSeconds"]'
+ORIGINAL_CONFIG="$(curl -s -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Accept: application/json' "$BASE/api/v1/admin/server-config" \
+  | jq -c --argjson keys "$TOUCHED_CONFIG_KEYS" 'with_entries(select(.key as $k | $keys | index($k)))' 2>/dev/null || true)"
+[ -n "$ORIGINAL_CONFIG" ] && [ "$(jq 'length' <<<"$ORIGINAL_CONFIG")" = "$(jq 'length' <<<"$TOUCHED_CONFIG_KEYS")" ] || {
+  echo "cache-smoke.sh: could not snapshot server-config before changing it" >&2
+  exit 1
+}
+
+restore_config() {
+  local status
+  status="$(admin_patch_config "$ADMIN_TOKEN" "$ORIGINAL_CONFIG")"
+  if [ "$status" = "200" ]; then
+    echo "== server-config restored =="
+  else
+    echo "cache-smoke.sh: FAILED to restore server-config (HTTP $status); restore manually: $ORIGINAL_CONFIG" >&2
+  fi
+}
+trap 'restore_config; rm -f "$BODY_FILE"' EXIT
+
 # Generous rate limits for the duration of this run — the default login
 # (5/60s) / register (3/600s) / api_write (60/60s) budgets are sized for real
 # traffic, not a script that logs in and writes repeatedly in a few seconds.
@@ -150,33 +169,33 @@ status="$(admin_patch_config "$ADMIN_TOKEN" '{"rateLoginLimit":1000,"rateLoginIn
 
 # Public registration normally requires an emailed challenge code; skip it so
 # this script only depends on the public API + an already-created admin.
-status="$(admin_patch_config "$ADMIN_TOKEN" '{"validateEmails":false}')"
-[ "$status" = "200" ] || { echo "cache-smoke.sh: failed to disable validateEmails (HTTP $status)" >&2; exit 1; }
+status="$(admin_patch_config "$ADMIN_TOKEN" '{"registrationEnabled":true,"validateEmails":false}')"
+[ "$status" = "200" ] || { echo "cache-smoke.sh: failed to open registration (HTTP $status)" >&2; exit 1; }
 
 status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":60}')"
 [ "$status" = "200" ] || { echo "cache-smoke.sh: failed to enable httpCachePageTtlSeconds (HTTP $status)" >&2; exit 1; }
 
-COMM1="$(api_json "$ADMIN_TOKEN" POST /api/communities "{\"name\":\"cache-test-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+COMM1="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-test-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM1" ] || { echo "cache-smoke.sh: failed to create public community" >&2; exit 1; }
-CHAN1="$(api_json "$ADMIN_TOKEN" POST /api/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/communities/$COMM1\"}" | jq -r '.identifier // empty')"
+CHAN1="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM1\"}" | jq -r '.identifier // empty')"
 [ -n "$CHAN1" ] || { echo "cache-smoke.sh: failed to create channel in $COMM1" >&2; exit 1; }
 echo "seeded community=$COMM1 channel=$CHAN1"
 
 M1_EMAIL="member1-$RUN_ID@example.com"
 M2_EMAIL="member2-$RUN_ID@example.com"
-M1_ID="$(api_json "" POST /api/users "{\"email\":\"$M1_EMAIL\",\"password\":\"member1pass\",\"displayName\":\"Member One\"}" | jq -r '.id // empty')"
-M2_ID="$(api_json "" POST /api/users "{\"email\":\"$M2_EMAIL\",\"password\":\"member2pass\",\"displayName\":\"Member Two\"}" | jq -r '.id // empty')"
+M1_ID="$(api_json "" POST /api/v1/users "{\"email\":\"$M1_EMAIL\",\"password\":\"member1pass\",\"displayName\":\"Member One\",\"acceptedTerms\":true,\"dateOfBirth\":\"1990-01-01\"}" | jq -r '.id // empty')"
+M2_ID="$(api_json "" POST /api/v1/users "{\"email\":\"$M2_EMAIL\",\"password\":\"member2pass\",\"displayName\":\"Member Two\",\"acceptedTerms\":true,\"dateOfBirth\":\"1990-01-01\"}" | jq -r '.id // empty')"
 [ -n "$M1_ID" ] && [ -n "$M2_ID" ] || { echo "cache-smoke.sh: member registration failed" >&2; exit 1; }
 M1_TOKEN="$(login "$M1_EMAIL" member1pass)"
 M2_TOKEN="$(login "$M2_EMAIL" member2pass)"
 [ -n "$M1_TOKEN" ] && [ -n "$M2_TOKEN" ] || { echo "cache-smoke.sh: member login failed" >&2; exit 1; }
 
-api_json "$ADMIN_TOKEN" POST "/api/communities/$COMM1/members/add" "{\"userId\":$M1_ID}" >/dev/null
-M2_MEMBER_JSON="$(api_json "$ADMIN_TOKEN" POST "/api/communities/$COMM1/members/add" "{\"userId\":$M2_ID}")"
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM1/members/add" "{\"userId\":$M1_ID}" >/dev/null
+M2_MEMBER_JSON="$(api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM1/members/add" "{\"userId\":$M2_ID}")"
 M2_MEMBER_ID="$(jq -r '.id // empty' <<<"$M2_MEMBER_JSON")"
 [ -n "$M2_MEMBER_ID" ] || { echo "cache-smoke.sh: failed to add member2 to $COMM1" >&2; exit 1; }
 
-api_json "$M1_TOKEN" POST "/api/communities/$COMM1/channels/$CHAN1/messages" '{"text":"seed message"}' >/dev/null
+api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM1/channels/$CHAN1/messages" '{"text":"seed message"}' >/dev/null
 
 # =========================================================================
 # T1-T5: bucket isolation / sharing on a fresh page.
@@ -215,12 +234,12 @@ assert_cmd "T5 anonymous GET is a miss (anon bucket separate from standard)" is_
 
 echo "== T6: purge on write =="
 
-COMM_T6="$(api_json "$ADMIN_TOKEN" POST /api/communities "{\"name\":\"cache-t6-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+COMM_T6="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t6-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM_T6" ] || { echo "cache-smoke.sh: failed to create community for T6" >&2; exit 1; }
-CHAN_T6="$(api_json "$ADMIN_TOKEN" POST /api/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/communities/$COMM_T6\"}" | jq -r '.identifier // empty')"
+CHAN_T6="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM_T6\"}" | jq -r '.identifier // empty')"
 [ -n "$CHAN_T6" ] || { echo "cache-smoke.sh: failed to create channel for T6" >&2; exit 1; }
-api_json "$ADMIN_TOKEN" POST "/api/communities/$COMM_T6/members/add" "{\"userId\":$M1_ID}" >/dev/null
-api_json "$M1_TOKEN" POST "/api/communities/$COMM_T6/channels/$CHAN_T6/messages" '{"text":"t6 seed"}' >/dev/null
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T6/members/add" "{\"userId\":$M1_ID}" >/dev/null
+api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM_T6/channels/$CHAN_T6/messages" '{"text":"t6 seed"}' >/dev/null
 
 # Prime the standard, admin (elevated fingerprint), and anon buckets — one
 # fresh store each.
@@ -250,7 +269,7 @@ r="$(get_page "" "$COMM_T6" "$CHAN_T6" 1)"
 cs="$(cache_status_of "$r")"
 assert_cmd "T6 priming: anon-bucket GET is a hit before mutation" is_hit "$cs"
 
-api_json "$M1_TOKEN" POST "/api/communities/$COMM_T6/channels/$CHAN_T6/messages" '{"text":"second message triggers purge"}' >/dev/null
+api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM_T6/channels/$CHAN_T6/messages" '{"text":"second message triggers purge"}' >/dev/null
 
 r="$(get_page "$M1_TOKEN" "$COMM_T6" "$CHAN_T6" 1)"
 cs="$(cache_status_of "$r")"
@@ -277,11 +296,11 @@ echo "== T7: kill switch =="
 status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":0}')"
 [ "$status" = "200" ] || { echo "cache-smoke.sh: failed to disable httpCachePageTtlSeconds" >&2; exit 1; }
 
-COMM_T7="$(api_json "$ADMIN_TOKEN" POST /api/communities "{\"name\":\"cache-t7-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+COMM_T7="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t7-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM_T7" ] || { echo "cache-smoke.sh: failed to create community for T7" >&2; exit 1; }
-CHAN_T7="$(api_json "$ADMIN_TOKEN" POST /api/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/communities/$COMM_T7\"}" | jq -r '.identifier // empty')"
+CHAN_T7="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM_T7\"}" | jq -r '.identifier // empty')"
 [ -n "$CHAN_T7" ] || { echo "cache-smoke.sh: failed to create channel for T7" >&2; exit 1; }
-api_json "$M1_TOKEN" POST "/api/communities/$COMM_T7/channels/$CHAN_T7/messages" '{"text":"t7 seed"}' >/dev/null
+api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM_T7/channels/$CHAN_T7/messages" '{"text":"t7 seed"}' >/dev/null
 
 r="$(get_page "$M1_TOKEN" "$COMM_T7" "$CHAN_T7" 1)"
 cc="$(cache_control_of "$r")"
@@ -308,7 +327,7 @@ echo "== T9: grant-change bucket flip =="
 # of this call's outcome or of purge/TTL history on the standard bucket.
 get_page "$M2_TOKEN" "$COMM1" "$CHAN1" 1 >/dev/null
 
-status="$(curl -s -o /dev/null -w '%{http_code}' -X PATCH "$BASE/api/communities/$COMM1/members/$M2_MEMBER_ID" \
+status="$(curl -s -o /dev/null -w '%{http_code}' -X PATCH "$BASE/api/v1/communities/$COMM1/members/$M2_MEMBER_ID" \
   -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/merge-patch+json' -d '{"role":"moderator"}')"
 assert_eq "T9 promoting member2 to moderator succeeds" "200" "$status"
 
@@ -322,12 +341,12 @@ assert_cmd "T9 member2's next GET is a miss (bucket flipped standard -> fingerpr
 
 echo "== T8: private community anonymous denial =="
 
-COMM2="$(api_json "$ADMIN_TOKEN" POST /api/communities "{\"name\":\"cache-priv-$RUN_ID\",\"isPrivate\":true}" | jq -r '.identifier // empty')"
+COMM2="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-priv-$RUN_ID\",\"isPrivate\":true}" | jq -r '.identifier // empty')"
 [ -n "$COMM2" ] || { echo "cache-smoke.sh: failed to create private community" >&2; exit 1; }
-CHAN2="$(api_json "$ADMIN_TOKEN" POST /api/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/communities/$COMM2\"}" | jq -r '.identifier // empty')"
+CHAN2="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM2\"}" | jq -r '.identifier // empty')"
 [ -n "$CHAN2" ] || { echo "cache-smoke.sh: failed to create channel in $COMM2" >&2; exit 1; }
-api_json "$ADMIN_TOKEN" POST "/api/communities/$COMM2/members/add" "{\"userId\":$M1_ID}" >/dev/null
-api_json "$M1_TOKEN" POST "/api/communities/$COMM2/channels/$CHAN2/messages" '{"text":"private seed"}' >/dev/null
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM2/members/add" "{\"userId\":$M1_ID}" >/dev/null
+api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM2/channels/$CHAN2/messages" '{"text":"private seed"}' >/dev/null
 
 # An anonymous (unauthenticated) caller denied by a voter gets 401, not 403,
 # throughout this app (Symfony's convention: AccessDeniedException against an
@@ -368,19 +387,20 @@ echo "== T11: dark-mode coherency =="
 status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":0}')"
 [ "$status" = "200" ] || { echo "cache-smoke.sh: failed to disable httpCachePageTtlSeconds for T11" >&2; exit 1; }
 
-COMM3="$(api_json "$ADMIN_TOKEN" POST /api/communities "{\"name\":\"cache-dark-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+COMM3="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-dark-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM3" ] || { echo "cache-smoke.sh: failed to create community for T11" >&2; exit 1; }
-CHAN3="$(api_json "$ADMIN_TOKEN" POST /api/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/communities/$COMM3\"}" | jq -r '.identifier // empty')"
+CHAN3="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM3\"}" | jq -r '.identifier // empty')"
 [ -n "$CHAN3" ] || { echo "cache-smoke.sh: failed to create channel for T11" >&2; exit 1; }
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM3/members/add" "{\"userId\":$M1_ID}" >/dev/null
 
-api_json "$M1_TOKEN" POST "/api/communities/$COMM3/channels/$CHAN3/messages" "{\"text\":\"dark-msg-A-$RUN_ID\"}" >/dev/null
+api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM3/channels/$CHAN3/messages" "{\"text\":\"dark-msg-A-$RUN_ID\"}" >/dev/null
 
 r="$(get_page "$M1_TOKEN" "$COMM3" "$CHAN3" 1)"
 cs="$(cache_status_of "$r")"
 assert_cmd "T11 dark-mode GET after message A is never a hit" is_not_hit "$cs"
 assert_cmd "T11 dark-mode GET returns message A" body_contains "dark-msg-A-$RUN_ID"
 
-api_json "$M1_TOKEN" POST "/api/communities/$COMM3/channels/$CHAN3/messages" "{\"text\":\"dark-msg-B-$RUN_ID\"}" >/dev/null
+api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM3/channels/$CHAN3/messages" "{\"text\":\"dark-msg-B-$RUN_ID\"}" >/dev/null
 
 r="$(get_page "$M1_TOKEN" "$COMM3" "$CHAN3" 1)"
 cs="$(cache_status_of "$r")"
@@ -399,14 +419,14 @@ admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":60}' >/dev/null
 
 echo "== T12: current =="
 
-COMM_T12="$(api_json "$ADMIN_TOKEN" POST /api/communities "{\"name\":\"cache-t12-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+COMM_T12="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t12-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM_T12" ] || { echo "cache-smoke.sh: failed to create community for T12" >&2; exit 1; }
-CHAN_T12="$(api_json "$ADMIN_TOKEN" POST /api/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/communities/$COMM_T12\"}" | jq -r '.identifier // empty')"
+CHAN_T12="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM_T12\"}" | jq -r '.identifier // empty')"
 [ -n "$CHAN_T12" ] || { echo "cache-smoke.sh: failed to create channel for T12" >&2; exit 1; }
-api_json "$ADMIN_TOKEN" POST "/api/communities/$COMM_T12/members/add" "{\"userId\":$M1_ID}" >/dev/null
-api_json "$M1_TOKEN" POST "/api/communities/$COMM_T12/channels/$CHAN_T12/messages" '{"text":"t12 seed"}' >/dev/null
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T12/members/add" "{\"userId\":$M1_ID}" >/dev/null
+api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM_T12/channels/$CHAN_T12/messages" '{"text":"t12 seed"}' >/dev/null
 
-CURRENT_PATH_T12="/api/communities/$COMM_T12/channels/$CHAN_T12/messages/current"
+CURRENT_PATH_T12="/api/v1/communities/$COMM_T12/channels/$CHAN_T12/messages/current"
 
 r="$(get_resource "$M1_TOKEN" "$CURRENT_PATH_T12")"
 cs="$(cache_status_of "$r")"
@@ -417,7 +437,7 @@ r="$(get_resource "$M1_TOKEN" "$CURRENT_PATH_T12")"
 cs="$(cache_status_of "$r")"
 assert_cmd "T12 member second GET /messages/current is a hit" is_hit "$cs"
 
-api_json "$M1_TOKEN" POST "/api/communities/$COMM_T12/channels/$CHAN_T12/messages" '{"text":"t12 second message"}' >/dev/null
+api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM_T12/channels/$CHAN_T12/messages" '{"text":"t12 second message"}' >/dev/null
 
 r="$(get_resource "$M1_TOKEN" "$CURRENT_PATH_T12")"
 cs="$(cache_status_of "$r")"
@@ -433,17 +453,17 @@ assert_cmd "T12 refreshed /messages/current contains the new message" body_conta
 
 echo "== T13: current-coherency (reaction purge) =="
 
-COMM_T13="$(api_json "$ADMIN_TOKEN" POST /api/communities "{\"name\":\"cache-t13-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+COMM_T13="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t13-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM_T13" ] || { echo "cache-smoke.sh: failed to create community for T13" >&2; exit 1; }
-CHAN_T13="$(api_json "$ADMIN_TOKEN" POST /api/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/communities/$COMM_T13\"}" | jq -r '.identifier // empty')"
+CHAN_T13="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM_T13\"}" | jq -r '.identifier // empty')"
 [ -n "$CHAN_T13" ] || { echo "cache-smoke.sh: failed to create channel for T13" >&2; exit 1; }
-api_json "$ADMIN_TOKEN" POST "/api/communities/$COMM_T13/members/add" "{\"userId\":$M1_ID}" >/dev/null
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T13/members/add" "{\"userId\":$M1_ID}" >/dev/null
 
-MSG_T13_JSON="$(api_json "$M1_TOKEN" POST "/api/communities/$COMM_T13/channels/$CHAN_T13/messages" '{"text":"t13 seed"}')"
+MSG_T13_JSON="$(api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM_T13/channels/$CHAN_T13/messages" '{"text":"t13 seed"}')"
 MSG_T13_ID="$(jq -r '.["@id"] // empty' <<<"$MSG_T13_JSON" | sed 's#.*/##')"
 [ -n "$MSG_T13_ID" ] || { echo "cache-smoke.sh: failed to capture message id for T13" >&2; exit 1; }
 
-CURRENT_PATH_T13="/api/communities/$COMM_T13/channels/$CHAN_T13/messages/current"
+CURRENT_PATH_T13="/api/v1/communities/$COMM_T13/channels/$CHAN_T13/messages/current"
 
 r="$(get_resource "$M1_TOKEN" "$CURRENT_PATH_T13")"
 cs="$(cache_status_of "$r")"
@@ -453,7 +473,7 @@ r="$(get_resource "$M1_TOKEN" "$CURRENT_PATH_T13")"
 cs="$(cache_status_of "$r")"
 assert_cmd "T13 priming GET /messages/current is a hit before the reaction" is_hit "$cs"
 
-status="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/messages/$MSG_T13_ID/reactions" \
+status="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/v1/messages/$MSG_T13_ID/reactions" \
   -H "Authorization: Bearer $M1_TOKEN" -H 'Content-Type: application/ld+json' -H "$ACCEPT_HEADER" -d '{"emoji":"👍"}')"
 assert_eq "T13 reacting to the message succeeds" "201" "$status"
 
@@ -470,17 +490,17 @@ assert_cmd "T13 GET /messages/current after reacting is a miss (extras-purge inv
 
 echo "== T14: pinned =="
 
-COMM_T14="$(api_json "$ADMIN_TOKEN" POST /api/communities "{\"name\":\"cache-t14-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+COMM_T14="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t14-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM_T14" ] || { echo "cache-smoke.sh: failed to create community for T14" >&2; exit 1; }
-CHAN_T14="$(api_json "$ADMIN_TOKEN" POST /api/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/communities/$COMM_T14\"}" | jq -r '.identifier // empty')"
+CHAN_T14="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM_T14\"}" | jq -r '.identifier // empty')"
 [ -n "$CHAN_T14" ] || { echo "cache-smoke.sh: failed to create channel for T14" >&2; exit 1; }
-api_json "$ADMIN_TOKEN" POST "/api/communities/$COMM_T14/members/add" "{\"userId\":$M1_ID}" >/dev/null
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T14/members/add" "{\"userId\":$M1_ID}" >/dev/null
 
-MSG_T14_JSON="$(api_json "$M1_TOKEN" POST "/api/communities/$COMM_T14/channels/$CHAN_T14/messages" '{"text":"t14 seed"}')"
+MSG_T14_JSON="$(api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM_T14/channels/$CHAN_T14/messages" '{"text":"t14 seed"}')"
 MSG_T14_ID="$(jq -r '.["@id"] // empty' <<<"$MSG_T14_JSON" | sed 's#.*/##')"
 [ -n "$MSG_T14_ID" ] || { echo "cache-smoke.sh: failed to capture message id for T14" >&2; exit 1; }
 
-PINNED_PATH_T14="/api/communities/$COMM_T14/channels/$CHAN_T14/pinned-messages"
+PINNED_PATH_T14="/api/v1/communities/$COMM_T14/channels/$CHAN_T14/pinned-messages"
 
 r="$(get_resource "$M1_TOKEN" "$PINNED_PATH_T14")"
 cs="$(cache_status_of "$r")"
@@ -491,7 +511,7 @@ r="$(get_resource "$M1_TOKEN" "$PINNED_PATH_T14")"
 cs="$(cache_status_of "$r")"
 assert_cmd "T14 member second GET /pinned-messages is a hit" is_hit "$cs"
 
-status="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/messages/$MSG_T14_ID/pin" \
+status="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/v1/messages/$MSG_T14_ID/pin" \
   -H "Authorization: Bearer $ADMIN_TOKEN" -H "$ACCEPT_HEADER")"
 assert_cmd "T14 pinning the message succeeds (HTTP $status)" [ "${status:0:1}" = "2" ]
 
@@ -516,11 +536,11 @@ done
 
 echo "== T15: emojis =="
 
-COMM_T15="$(api_json "$ADMIN_TOKEN" POST /api/communities "{\"name\":\"cache-t15-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+COMM_T15="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t15-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM_T15" ] || { echo "cache-smoke.sh: failed to create community for T15" >&2; exit 1; }
-api_json "$ADMIN_TOKEN" POST "/api/communities/$COMM_T15/members/add" "{\"userId\":$M1_ID}" >/dev/null
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T15/members/add" "{\"userId\":$M1_ID}" >/dev/null
 
-EMOJIS_PATH_T15="/api/communities/$COMM_T15/emojis"
+EMOJIS_PATH_T15="/api/v1/communities/$COMM_T15/emojis"
 
 r="$(get_resource "" "$EMOJIS_PATH_T15")"
 cs="$(cache_status_of "$r")"
@@ -537,7 +557,7 @@ base64 -d >"$EMOJI_PNG" <<'PNGB64'
 iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA
 60e6kgAAAABJRU5ErkJggg==
 PNGB64
-status="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/communities/$COMM_T15/emojis/custom" \
+status="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/v1/communities/$COMM_T15/emojis/custom" \
   -H "Authorization: Bearer $ADMIN_TOKEN" -H "$ACCEPT_HEADER" \
   -F "shortcode=:cachet15:" -F "file=@$EMOJI_PNG;type=image/png")"
 assert_eq "T15 uploading a custom emoji succeeds" "201" "$status"
@@ -563,17 +583,17 @@ echo "== T16: kill switch still global (current/pinned/emojis) =="
 status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":0}')"
 [ "$status" = "200" ] || { echo "cache-smoke.sh: failed to disable httpCachePageTtlSeconds for T16" >&2; exit 1; }
 
-COMM_T16="$(api_json "$ADMIN_TOKEN" POST /api/communities "{\"name\":\"cache-t16-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+COMM_T16="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t16-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM_T16" ] || { echo "cache-smoke.sh: failed to create community for T16" >&2; exit 1; }
-CHAN_T16="$(api_json "$ADMIN_TOKEN" POST /api/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/communities/$COMM_T16\"}" | jq -r '.identifier // empty')"
+CHAN_T16="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM_T16\"}" | jq -r '.identifier // empty')"
 [ -n "$CHAN_T16" ] || { echo "cache-smoke.sh: failed to create channel for T16" >&2; exit 1; }
-api_json "$ADMIN_TOKEN" POST "/api/communities/$COMM_T16/members/add" "{\"userId\":$M1_ID}" >/dev/null
-api_json "$M1_TOKEN" POST "/api/communities/$COMM_T16/channels/$CHAN_T16/messages" '{"text":"t16 seed"}' >/dev/null
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T16/members/add" "{\"userId\":$M1_ID}" >/dev/null
+api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM_T16/channels/$CHAN_T16/messages" '{"text":"t16 seed"}' >/dev/null
 
 for label in current pinned; do
   case "$label" in
-    current) path="/api/communities/$COMM_T16/channels/$CHAN_T16/messages/current" ;;
-    pinned) path="/api/communities/$COMM_T16/channels/$CHAN_T16/pinned-messages" ;;
+    current) path="/api/v1/communities/$COMM_T16/channels/$CHAN_T16/messages/current" ;;
+    pinned) path="/api/v1/communities/$COMM_T16/channels/$CHAN_T16/pinned-messages" ;;
   esac
   r="$(get_resource "$M1_TOKEN" "$path")"
   cc="$(cache_control_of "$r")"
@@ -585,12 +605,12 @@ for label in current pinned; do
   assert_cmd "T16 $label repeat GET under ttl=0 stays non-hit" is_not_hit "$cs"
 done
 
-r="$(get_resource "" "/api/communities/$COMM_T16/emojis")"
+r="$(get_resource "" "/api/v1/communities/$COMM_T16/emojis")"
 cc="$(cache_control_of "$r")"
 cs="$(cache_status_of "$r")"
 assert_cmd "T16 emojis carries no s-maxage once ttl=0" has_no_smaxage "$cc"
 assert_cmd "T16 emojis first GET under ttl=0 is not a hit" is_not_hit "$cs"
-r="$(get_resource "" "/api/communities/$COMM_T16/emojis")"
+r="$(get_resource "" "/api/v1/communities/$COMM_T16/emojis")"
 cs="$(cache_status_of "$r")"
 assert_cmd "T16 emojis repeat GET under ttl=0 stays non-hit" is_not_hit "$cs"
 
@@ -623,7 +643,7 @@ status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":60}')"
 
 echo "== T17: dot-segment probe =="
 
-DOTSEG_PATH="/api/communities/$COMM1/emojis/%2e%2e/emojis"
+DOTSEG_PATH="/api/v1/communities/$COMM1/emojis/%2e%2e/emojis"
 
 for attempt in 1 2; do
   r="$(curl -s --path-as-is -D- -o "$BODY_FILE" -w 'HTTP_STATUS:%{http_code}\n' -H "$ACCEPT_HEADER" "$BASE$DOTSEG_PATH")"
@@ -648,21 +668,21 @@ done
 
 echo "== T18: thread =="
 
-COMM_T18="$(api_json "$ADMIN_TOKEN" POST /api/communities "{\"name\":\"cache-t18-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+COMM_T18="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t18-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM_T18" ] || { echo "cache-smoke.sh: failed to create community for T18" >&2; exit 1; }
-CHAN_T18="$(api_json "$ADMIN_TOKEN" POST /api/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/communities/$COMM_T18\"}" | jq -r '.identifier // empty')"
+CHAN_T18="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM_T18\"}" | jq -r '.identifier // empty')"
 [ -n "$CHAN_T18" ] || { echo "cache-smoke.sh: failed to create channel for T18" >&2; exit 1; }
-api_json "$ADMIN_TOKEN" POST "/api/communities/$COMM_T18/members/add" "{\"userId\":$M1_ID}" >/dev/null
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T18/members/add" "{\"userId\":$M1_ID}" >/dev/null
 
-ROOT_T18_JSON="$(api_json "$M1_TOKEN" POST "/api/communities/$COMM_T18/channels/$CHAN_T18/messages" '{"text":"t18 root"}')"
+ROOT_T18_JSON="$(api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM_T18/channels/$CHAN_T18/messages" '{"text":"t18 root"}')"
 ROOT_T18_ID="$(jq -r '.["@id"] // empty' <<<"$ROOT_T18_JSON" | sed 's#.*/##')"
 [ -n "$ROOT_T18_ID" ] || { echo "cache-smoke.sh: failed to capture root id for T18" >&2; exit 1; }
 
-REPLY1_T18_JSON="$(api_json "$M1_TOKEN" POST "/api/messages/$ROOT_T18_ID/replies" '{"text":"t18 reply one"}')"
+REPLY1_T18_JSON="$(api_json "$M1_TOKEN" POST "/api/v1/messages/$ROOT_T18_ID/replies" '{"text":"t18 reply one"}')"
 REPLY1_T18_ID="$(jq -r '.["@id"] // empty' <<<"$REPLY1_T18_JSON" | sed 's#.*/##')"
 [ -n "$REPLY1_T18_ID" ] || { echo "cache-smoke.sh: failed to capture reply id for T18" >&2; exit 1; }
 
-THREAD_PATH_T18="/api/messages/$ROOT_T18_ID/thread"
+THREAD_PATH_T18="/api/v1/messages/$ROOT_T18_ID/thread"
 
 r="$(get_resource "$M1_TOKEN" "$THREAD_PATH_T18")"
 cs="$(cache_status_of "$r")"
@@ -673,7 +693,7 @@ r="$(get_resource "$M1_TOKEN" "$THREAD_PATH_T18")"
 cs="$(cache_status_of "$r")"
 assert_cmd "T18 member second GET thread is a hit" is_hit "$cs"
 
-api_json "$M1_TOKEN" POST "/api/messages/$ROOT_T18_ID/replies" '{"text":"t18 reply two"}' >/dev/null
+api_json "$M1_TOKEN" POST "/api/v1/messages/$ROOT_T18_ID/replies" '{"text":"t18 reply two"}' >/dev/null
 
 r="$(get_resource "$M1_TOKEN" "$THREAD_PATH_T18")"
 cs="$(cache_status_of "$r")"
@@ -684,7 +704,7 @@ r="$(get_resource "$M1_TOKEN" "$THREAD_PATH_T18")"
 cs="$(cache_status_of "$r")"
 assert_cmd "T18 GET thread is a hit again before the reaction" is_hit "$cs"
 
-status="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/messages/$REPLY1_T18_ID/reactions" \
+status="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/v1/messages/$REPLY1_T18_ID/reactions" \
   -H "Authorization: Bearer $M1_TOKEN" -H 'Content-Type: application/ld+json' -H "$ACCEPT_HEADER" -d '{"emoji":"👍"}')"
 assert_eq "T18 reacting to the reply succeeds" "201" "$status"
 
@@ -707,12 +727,12 @@ echo "== T19: presence =="
 status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePresenceTtlSeconds":15}')"
 [ "$status" = "200" ] || { echo "cache-smoke.sh: failed to enable httpCachePresenceTtlSeconds" >&2; exit 1; }
 
-COMM_T19="$(api_json "$ADMIN_TOKEN" POST /api/communities "{\"name\":\"cache-t19-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+COMM_T19="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t19-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM_T19" ] || { echo "cache-smoke.sh: failed to create community for T19" >&2; exit 1; }
-api_json "$ADMIN_TOKEN" POST "/api/communities/$COMM_T19/members/add" "{\"userId\":$M1_ID}" >/dev/null
-api_json "$ADMIN_TOKEN" POST "/api/communities/$COMM_T19/members/add" "{\"userId\":$M2_ID}" >/dev/null
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T19/members/add" "{\"userId\":$M1_ID}" >/dev/null
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T19/members/add" "{\"userId\":$M2_ID}" >/dev/null
 
-PRESENCE_PATH_T19="/api/communities/$COMM_T19/presence/summary"
+PRESENCE_PATH_T19="/api/v1/communities/$COMM_T19/presence/summary"
 
 r="$(get_resource "$M1_TOKEN" "$PRESENCE_PATH_T19")"
 cs="$(cache_status_of "$r")"
@@ -752,11 +772,11 @@ assert_cmd "T19 admin GET summary is a miss (elevated fingerprint bucket, never 
 
 echo "== T20: thread fail-closed =="
 
-PRIVATE_SEED_JSON="$(api_json "$M1_TOKEN" GET "/api/communities/$COMM2/channels/$CHAN2/messages/current")"
+PRIVATE_SEED_JSON="$(api_json "$M1_TOKEN" GET "/api/v1/communities/$COMM2/channels/$CHAN2/messages/current")"
 PRIVATE_ROOT_ID="$(jq -r '.messages[0]["@id"] // empty' <<<"$PRIVATE_SEED_JSON" | sed 's#.*/##')"
 [ -n "$PRIVATE_ROOT_ID" ] || { echo "cache-smoke.sh: failed to locate T8's private seed message for T20" >&2; exit 1; }
 
-PRIVATE_THREAD_PATH="/api/messages/$PRIVATE_ROOT_ID/thread"
+PRIVATE_THREAD_PATH="/api/v1/messages/$PRIVATE_ROOT_ID/thread"
 
 for attempt in 1 2; do
   r="$(get_resource "" "$PRIVATE_THREAD_PATH")"
@@ -793,7 +813,7 @@ done
 
 echo "== T21: community detail =="
 
-DETAIL_PATH_T21="/api/communities/$COMM1"
+DETAIL_PATH_T21="/api/v1/communities/$COMM1"
 
 r="$(get_resource "$M1_TOKEN" "$DETAIL_PATH_T21")"
 cs="$(cache_status_of "$r")"
@@ -809,7 +829,7 @@ MEMBER_BODY_T21="$(cat "$BODY_FILE")"
 # non-member of a PUBLIC community, distinct from every user used elsewhere
 # in this script (member1/member2 are both members of COMM1).
 NONMEMBER_EMAIL_T21="cache-t21-nonmember-$RUN_ID@example.com"
-NONMEMBER_ID_T21="$(api_json "" POST /api/users "{\"email\":\"$NONMEMBER_EMAIL_T21\",\"password\":\"nonmemberpass\",\"displayName\":\"T21 Nonmember\"}" | jq -r '.id // empty')"
+NONMEMBER_ID_T21="$(api_json "" POST /api/v1/users "{\"email\":\"$NONMEMBER_EMAIL_T21\",\"password\":\"nonmemberpass\",\"displayName\":\"T21 Nonmember\",\"acceptedTerms\":true,\"dateOfBirth\":\"1990-01-01\"}" | jq -r '.id // empty')"
 [ -n "$NONMEMBER_ID_T21" ] || { echo "cache-smoke.sh: failed to register T21 non-member" >&2; exit 1; }
 NONMEMBER_TOKEN_T21="$(login "$NONMEMBER_EMAIL_T21" nonmemberpass)"
 [ -n "$NONMEMBER_TOKEN_T21" ] || { echo "cache-smoke.sh: failed to log in T21 non-member" >&2; exit 1; }
@@ -827,7 +847,7 @@ assert_cmd "T21 admin GET community detail is a miss (elevated fingerprint bucke
 # Structure mutation (channel rename), not a message send -- must purge the
 # cached community detail via CachePurgingStructurePublisher, not the
 # message-page purge path.
-status="$(curl -s -o /dev/null -w '%{http_code}' -X PATCH "$BASE/api/communities/$COMM1/channels/$CHAN1" \
+status="$(curl -s -o /dev/null -w '%{http_code}' -X PATCH "$BASE/api/v1/communities/$COMM1/channels/$CHAN1" \
   -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/merge-patch+json' -d "{\"name\":\"renamed-$RUN_ID\"}")"
 assert_eq "T21 renaming a channel succeeds" "200" "$status"
 
@@ -838,7 +858,7 @@ assert_cmd "T21 GET community detail after channel rename is a miss (structure p
 # GET .../membership carries the per-viewer state the cached detail payload
 # no longer does -- it must never itself be cached, or that state goes
 # stale/shared right back into the leak this whole batch removed.
-MEMBERSHIP_PATH_T21="/api/communities/$COMM1/membership"
+MEMBERSHIP_PATH_T21="/api/v1/communities/$COMM1/membership"
 for attempt in 1 2; do
   r="$(get_resource "$M1_TOKEN" "$MEMBERSHIP_PATH_T21")"
   # membership is outside the Caddy @cacheable matcher entirely, so unlike
