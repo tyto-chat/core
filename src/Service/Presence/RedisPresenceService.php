@@ -101,7 +101,7 @@ final class RedisPresenceService implements PresenceServiceInterface
         $next = self::compute(true, $manual, $inVoice);
 
         if ($prior !== $next) {
-            $this->realtime->publishPresenceChanged($userId, $next);
+            $this->publishPresence($userId, $next);
         }
     }
 
@@ -131,7 +131,7 @@ final class RedisPresenceService implements PresenceServiceInterface
         $next = self::compute($ttl > 0, $status, $inVoice);
 
         if ($prior !== $next) {
-            $this->realtime->publishPresenceChanged($userId, $next);
+            $this->publishPresence($userId, $next);
         }
     }
 
@@ -155,7 +155,7 @@ final class RedisPresenceService implements PresenceServiceInterface
         $next = self::compute(false, $manual, $inVoice);
 
         if ($prior !== $next) {
-            $this->realtime->publishPresenceChanged($userId, $next);
+            $this->publishPresence($userId, $next);
         }
     }
 
@@ -166,7 +166,7 @@ final class RedisPresenceService implements PresenceServiceInterface
             return;
         }
 
-        $this->realtime->publishPresenceChanged($userId, $this->resolveState($userId));
+        $this->publishPresence($userId, $this->resolveState($userId));
     }
 
     public function get(User $user): PresenceSnapshot
@@ -261,5 +261,10 @@ final class RedisPresenceService implements PresenceServiceInterface
     private static function manualKey(int $userId): string
     {
         return 'presence:user:'.$userId.':manual';
+    }
+
+    private function publishPresence(int $userId, PresenceState $state): void
+    {
+        $this->realtime->publishPresenceChanged($userId, $state, $this->communityMembership->findCommunityIdsForUser($userId));
     }
 }

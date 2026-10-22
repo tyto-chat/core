@@ -56,7 +56,7 @@ final class RealtimeTopicResolverTest extends TestCase
         ] : []);
 
         self::assertSame(
-            ['u/42/n', 'u/42/e', 'u/42/d', 'u/{userId}/p', 'k/5', 'k/5/a', 'k/5/e', 'c/12', 'c/12/t', 'c/13', 'c/13/t', 'c/13/p'],
+            ['u/42/n', 'u/42/e', 'u/42/d', 'u/{userId}/p', 'k/5', 'k/5/a', 'k/5/e', 'k/5/p', 'c/12', 'c/12/t', 'c/13', 'c/13/t', 'c/13/p'],
             $this->resolver->forUser($this->user(42), 'acme', null),
         );
     }

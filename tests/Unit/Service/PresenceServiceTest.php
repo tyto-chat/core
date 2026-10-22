@@ -32,18 +32,21 @@ class PresenceServiceTest extends TestCase
     }
 
     /**
-     * @param int[] $voiceUserIds
+     * @param int[]     $voiceUserIds
+     * @param list<int> $communityIds
      */
     private function buildService(
         RealtimePublisherInterface $realtime,
         array $voiceUserIds = [],
+        array $communityIds = [],
     ): InMemoryPresenceService {
         /** @var ChannelAudioServiceInterface&MockObject $audio */
         $audio = $this->createMock(ChannelAudioServiceInterface::class);
         $audio->method('filterActiveVoiceUserIds')
             ->willReturnCallback(static fn (array $ids): array => array_values(array_intersect($ids, $voiceUserIds)));
 
-        $membership = $this->createMock(\App\Service\Community\CommunityMembershipServiceInterface::class);
+        $membership = self::createStub(\App\Service\Community\CommunityMembershipServiceInterface::class);
+        $membership->method('findCommunityIdsForUser')->willReturn($communityIds);
         $service = new InMemoryPresenceService($realtime, $membership);
         $service->setChannelAudioService($audio);
 
@@ -58,6 +61,17 @@ class PresenceServiceTest extends TestCase
             ->with(42, PresenceState::Online);
 
         $service = $this->buildService($realtime);
+        $service->touch($this->buildUser(42));
+    }
+
+    public function testTransitionIsPublishedToTheUsersCommunities(): void
+    {
+        $realtime = $this->createMock(RealtimePublisherInterface::class);
+        $realtime->expects(self::once())
+            ->method('publishPresenceChanged')
+            ->with(42, PresenceState::Online, [5, 9]);
+
+        $service = $this->buildService($realtime, communityIds: [5, 9]);
         $service->touch($this->buildUser(42));
     }
 

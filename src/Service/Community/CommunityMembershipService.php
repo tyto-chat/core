@@ -42,6 +42,11 @@ class CommunityMembershipService implements CommunityMembershipServiceInterface
         return $this->communityMemberRepository->isMember($user, $community);
     }
 
+    public function findCommunityIdsForUser(int $userId): array
+    {
+        return $this->communityMemberRepository->findCommunityIdsForUser($userId);
+    }
+
     public function isAdmin(User $user, Community $community): bool
     {
         return $this->communityMemberRepository->isAdmin($user, $community);

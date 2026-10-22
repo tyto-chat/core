@@ -38,9 +38,10 @@ class MercurePublisher implements RealtimePublisherInterface
      *
      * Never rethrows a hub failure: async handlers flush before publishing, so messenger retries would duplicate their rows.
      *
+     * @param string|list<string>  $topic
      * @param array<string, mixed> $data
      */
-    private function publish(string $topic, array $data): void
+    private function publish(string|array $topic, array $data): void
     {
         $payload = json_encode($data, \JSON_THROW_ON_ERROR);
 
@@ -331,9 +332,10 @@ class MercurePublisher implements RealtimePublisherInterface
         }
     }
 
-    public function publishPresenceChanged(int $userId, PresenceState $state): void
+    public function publishPresenceChanged(int $userId, PresenceState $state, array $communityIds = []): void
     {
-        $this->publish(Topics::userPresence($userId), [
+        $topics = [Topics::userPresence($userId), ...array_map(Topics::communityPresence(...), $communityIds)];
+        $this->publish($topics, [
             'type' => 'presence',
             'userId' => $userId,
             'state' => $state->value,
