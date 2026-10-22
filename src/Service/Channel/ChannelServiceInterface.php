@@ -64,4 +64,9 @@ interface ChannelServiceInterface
      * @return Channel[]
      */
     public function getViewableTextChannels(Community $community): array;
+
+    /**
+     * @return Channel[]
+     */
+    public function getViewableInCommunity(Community $community): array;
 }

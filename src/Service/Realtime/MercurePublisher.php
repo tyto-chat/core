@@ -55,21 +55,15 @@ class MercurePublisher implements RealtimePublisherInterface
         }
     }
 
-    /** IriConverter IRIs are versioned in-request but topics must stay unversioned — strip here; payload '@id' stays versioned. */
-    private function topic(string $iri): string
-    {
-        return preg_replace('#^/api/v\d+/#', '/api/', $iri) ?? $iri;
-    }
-
     public function publishChannelActivity(Channel $channel): void
     {
-        $community = $channel->getCommunity();
-        if (null === $community) {
+        $communityId = $channel->getCommunity()?->getId();
+        if (null === $communityId) {
             return;
         }
 
         $this->publish(
-            $this->topic($this->iriConverter->getIriFromResource($community)).'/activity',
+            Topics::communityActivity($communityId),
             [
                 'type' => 'channel.activity',
                 'channelIdentifier' => $channel->getIdentifier(),
@@ -80,17 +74,22 @@ class MercurePublisher implements RealtimePublisherInterface
 
     public function publishChannelTyping(Channel $channel, int $userId, string $name): void
     {
-        $topic = Topics::channel($channel->getCommunity()?->getIdentifier(), $channel->getIdentifier());
-        if (Topics::channel(null, null) === $topic) {
+        $channelId = $channel->getId();
+        if (null === $channelId) {
             return;
         }
 
-        $this->publishTyping($topic, $userId, $name);
+        $this->publishTyping(Topics::channel($channelId), $userId, $name);
     }
 
     public function publishConversationTyping(Conversation $conversation, int $userId, string $name): void
     {
-        $this->publishTyping($conversation->getConversationIri(), $userId, $name);
+        $topic = $conversation->getTopic();
+        if ('' === $topic) {
+            return;
+        }
+
+        $this->publishTyping($topic, $userId, $name);
     }
 
     private function publishTyping(string $topic, int $userId, string $name): void
@@ -134,7 +133,7 @@ class MercurePublisher implements RealtimePublisherInterface
 
     public function publishMessagePinned(Message $message): void
     {
-        $topic = $message->getContainerIri();
+        $topic = $message->getContainerTopic();
         if ('' === $topic) {
             return;
         }
@@ -149,7 +148,7 @@ class MercurePublisher implements RealtimePublisherInterface
 
     public function publishMessageThreadMeta(Message $root): void
     {
-        $topic = $root->getContainerIri();
+        $topic = $root->getContainerTopic();
         if ('' === $topic) {
             return;
         }
@@ -178,18 +177,22 @@ class MercurePublisher implements RealtimePublisherInterface
 
     public function publishNotification(Notification $notification): void
     {
-        $this->publish(
-            $this->topic($this->iriConverter->getIriFromResource($notification->getRecipient())).'/notifications',
-            $this->notificationPayload($notification, 'notification'),
-        );
+        $topic = $notification->getRecipientNotificationTopic();
+        if ('' === $topic) {
+            return;
+        }
+
+        $this->publish($topic, $this->notificationPayload($notification, 'notification'));
     }
 
     public function publishNotificationUpdated(Notification $notification): void
     {
-        $this->publish(
-            $this->topic($this->iriConverter->getIriFromResource($notification->getRecipient())).'/notifications',
-            $this->notificationPayload($notification, 'notification.update'),
-        );
+        $topic = $notification->getRecipientNotificationTopic();
+        if ('' === $topic) {
+            return;
+        }
+
+        $this->publish($topic, $this->notificationPayload($notification, 'notification.update'));
     }
 
     /** @return array<string, mixed> */
@@ -217,6 +220,11 @@ class MercurePublisher implements RealtimePublisherInterface
 
     public function publishAudioChannelParticipants(Channel $channel): void
     {
+        $channelId = $channel->getId();
+        if (null === $channelId) {
+            return;
+        }
+
         $participants = $this->participantStore->findByChannel($channel);
         $generatedAt = microtime(true);
 
@@ -231,12 +239,11 @@ class MercurePublisher implements RealtimePublisherInterface
             ];
         }, $participants);
 
-        $community = $channel->getCommunity();
         $this->publish(
-            Topics::channelParticipants($community?->getIdentifier(), $channel->getIdentifier()),
+            Topics::channelParticipants($channelId),
             [
                 'type' => 'channel.participants',
-                'channelId' => $channel->getId(),
+                'channelId' => $channelId,
                 'participants' => $data,
                 'generatedAt' => $generatedAt,
             ],
@@ -280,7 +287,7 @@ class MercurePublisher implements RealtimePublisherInterface
     public function publishCommunityEmojisUpdated(Community $community): void
     {
         $this->publish(
-            $this->topic($this->iriConverter->getIriFromResource($community)).'/emojis',
+            Topics::communityEmojis($community->getId()),
             [
                 'type' => 'community.emojis.updated',
                 'communityIdentifier' => $community->getIdentifier(),
@@ -291,7 +298,7 @@ class MercurePublisher implements RealtimePublisherInterface
     public function publishCommunityStructureChanged(Community $community): void
     {
         $this->publish(
-            $this->topic($this->iriConverter->getIriFromResource($community)),
+            Topics::community($community->getId()),
             [
                 'type' => 'community.structure',
                 'communityIdentifier' => $community->getIdentifier(),

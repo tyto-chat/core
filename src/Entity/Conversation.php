@@ -19,6 +19,7 @@ use App\State\Conversation\Processor\MuteConversationProcessor;
 use App\State\Conversation\Processor\PublishConversationTypingProcessor;
 use App\State\Conversation\Provider\ConversationProvider;
 use App\State\Conversation\Provider\ConversationsProvider;
+use App\Utils\Topics;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -34,7 +35,7 @@ use Symfony\Component\Uid\Ulid;
     description: 'A direct-message conversation between a fixed set of users; the participant set is immutable and has at most one conversation.',
     normalizationContext: ['groups' => ['conversation:read']],
     denormalizationContext: ['groups' => ['conversation:create', 'conversation:mute']],
-    mercure: ['topics' => ['@=object.getConversationIri()'], 'private' => true],
+    mercure: ['topics' => ['@=object.getTopic()'], 'private' => true],
 )]
 #[GetCollection(
     uriTemplate: '/conversations',
@@ -212,9 +213,9 @@ class Conversation
         return $this;
     }
 
-    public function getConversationIri(): string
+    public function getTopic(): string
     {
-        return '/api/conversations/'.$this->identifier;
+        return null !== $this->id ? Topics::conversation($this->id) : '';
     }
 
     /**

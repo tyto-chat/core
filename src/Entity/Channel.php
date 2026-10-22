@@ -50,7 +50,6 @@ use Symfony\Component\Validator\Constraints as Assert;
     description: 'A text or audio channel belonging to a community.',
     normalizationContext: ['groups' => ['channel:read']],
     denormalizationContext: ['groups' => ['channel:create', 'channel:update']],
-    mercure: ['topics' => ['@=object.getCommunityIri()'], 'private' => true],
 )]
 #[Post(
     security: "is_granted('ROLE_USER')",
@@ -572,15 +571,5 @@ class Channel
         }
 
         return $this;
-    }
-
-    public function getCommunityIri(): string
-    {
-        return '/api/communities/'.($this->community?->getIdentifier() ?? '');
-    }
-
-    public function getTopicIri(): string
-    {
-        return $this->getCommunityIri().'/channels/'.($this->getIdentifier() ?? '');
     }
 }

@@ -129,7 +129,9 @@ class AnonymousBrowsingTest extends ApiTestCase
         $community = CommunityFactory::new()->withIdentifier('realtime-com')->create();
         ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'realtime-ch'])->create();
 
-        $response = $this->jsonClient()->request('GET', '/api/v1/realtime/public-token');
+        $response = $this->jsonClient()->request('GET', '/api/v1/realtime/public-token', [
+            'query' => ['community' => 'realtime-com'],
+        ]);
 
         self::assertResponseIsSuccessful();
         $data = $response->toArray(false);
@@ -144,7 +146,9 @@ class AnonymousBrowsingTest extends ApiTestCase
         $community = CommunityFactory::new()->private()->withIdentifier('no-pub-com')->create();
         ChannelFactory::new()->inCommunity($community)->private()->with(['identifier' => 'no-pub-ch'])->create();
 
-        $response = $this->jsonClient()->request('GET', '/api/v1/realtime/public-token');
+        $response = $this->jsonClient()->request('GET', '/api/v1/realtime/public-token', [
+            'query' => ['community' => 'no-pub-com'],
+        ]);
 
         self::assertResponseIsSuccessful();
         $data = $response->toArray(false);
@@ -158,10 +162,41 @@ class AnonymousBrowsingTest extends ApiTestCase
         $community = CommunityFactory::new()->private()->withIdentifier('priv-pub-token-com')->create();
         ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'pub-but-priv-com'])->create();
 
-        $response = $this->jsonClient()->request('GET', '/api/v1/realtime/public-token');
+        $response = $this->jsonClient()->request('GET', '/api/v1/realtime/public-token', [
+            'query' => ['community' => 'priv-pub-token-com'],
+        ]);
 
         self::assertResponseIsSuccessful();
         self::assertNull($response->toArray(false)['token']);
+    }
+
+    public function testPublicRealtimeTokenCoversOnlyTheRequestedCommunity(): void
+    {
+        $viewed = CommunityFactory::new()->withIdentifier('anon-viewed')->create();
+        $channel = ChannelFactory::new()->inCommunity($viewed)->with(['identifier' => 'gen'])->create();
+        $other = CommunityFactory::new()->withIdentifier('anon-other')->create();
+        ChannelFactory::new()->inCommunity($other)->with(['identifier' => 'gen'])->create();
+
+        $response = $this->jsonClient()->request('GET', '/api/v1/realtime/public-token', [
+            'query' => ['community' => 'anon-viewed'],
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $payload = json_decode(
+            (string) base64_decode(strtr(explode('.', (string) $response->toArray(false)['token'])[1], '-_', '+/'), true),
+            true,
+            512,
+            \JSON_THROW_ON_ERROR,
+        );
+        $topics = $payload['mercure']['subscribe'];
+        self::assertContains('k/'.$viewed->getId(), $topics);
+        self::assertContains('k/'.$viewed->getId().'/e', $topics);
+        self::assertContains('c/'.$channel->getId(), $topics);
+        self::assertContains('c/'.$channel->getId().'/t', $topics);
+        self::assertNotContains('k/'.$other->getId(), $topics);
+        foreach ($topics as $topic) {
+            self::assertStringNotContainsString('/api/', $topic);
+        }
     }
 
     public function testAnonymousCannotPostMessage(): void

@@ -23,9 +23,15 @@ use App\State\Realtime\Provider\RealtimeTokenProvider;
             provider: RealtimeTokenProvider::class,
             openapi: new Model\Operation(
                 summary: 'Get a realtime subscriber token',
-                description: 'Mints a Mercure subscriber JWT covering every topic the authenticated caller may read: viewable '
-                    .'channels and their threads, community activity and structure, their notifications and conversations, '
-                    .'plus the presence topic template. The token expires after one hour (`expiresAt` is epoch seconds).',
+                description: 'Mints a Mercure subscriber JWT for the caller\'s own topics (notifications, events, conversation '
+                    .'activity) and the presence topic template, plus the scopes requested: `community` adds that '
+                    .'community\'s structure, activity, emojis and every channel the caller can view in it (with threads and '
+                    .'voice participants); `conversation` adds that conversation and its threads. Scopes the caller cannot '
+                    .'view are silently left out. The token expires after one hour (`expiresAt` is epoch seconds).',
+                parameters: [
+                    new Model\Parameter('community', 'query', 'Identifier of the community being viewed.', false, false, true, ['type' => 'string']),
+                    new Model\Parameter('conversation', 'query', 'Identifier of the conversation being viewed.', false, false, true, ['type' => 'string']),
+                ],
             ),
         ),
         new Get(
@@ -34,9 +40,12 @@ use App\State\Realtime\Provider\RealtimeTokenProvider;
             provider: PublicRealtimeTokenProvider::class,
             openapi: new Model\Operation(
                 summary: 'Get an anonymous realtime subscriber token',
-                description: 'Anonymous endpoint. Mints a Mercure subscriber JWT limited to public text channels, their '
-                    .'communities\' structure and emoji topics, and public-channel threads. Both `token` and `expiresAt` are '
-                    .'`null` when the server has no public text channels.',
+                description: 'Anonymous endpoint. Mints a Mercure subscriber JWT for the requested `community`: its public '
+                    .'text channels and their threads, plus its structure and emoji topics. Both `token` and `expiresAt` are '
+                    .'`null` when the community is missing, not public, or has no public text channels.',
+                parameters: [
+                    new Model\Parameter('community', 'query', 'Identifier of the community being viewed.', false, false, true, ['type' => 'string']),
+                ],
             ),
         ),
     ],

@@ -348,11 +348,16 @@ class ChannelService extends AbstractDoctrineService implements ChannelServiceIn
     #[\Override]
     public function getViewableTextChannels(Community $community): array
     {
-        $text = array_filter(
-            $this->channelRepository->findByCommunityWithCommunity($community),
+        return array_values(array_filter(
+            $this->getViewableInCommunity($community),
             static fn (Channel $channel): bool => ChannelType::Text === $channel->getType(),
-        );
+        ));
+    }
 
-        return $this->voterFilterView(array_values($text));
+    /** @return Channel[] */
+    #[\Override]
+    public function getViewableInCommunity(Community $community): array
+    {
+        return $this->voterFilterView($this->channelRepository->findByCommunityWithCommunity($community));
     }
 }

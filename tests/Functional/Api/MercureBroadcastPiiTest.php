@@ -10,6 +10,7 @@ use App\Tests\Factory\CommunityFactory;
 use App\Tests\Factory\CommunityMemberFactory;
 use App\Tests\Factory\MessageFactory;
 use App\Tests\Factory\MessagePageFactory;
+use App\Tests\Factory\NotificationFactory;
 use App\Tests\Factory\UserFactory;
 use App\Tests\Functional\ApiTestCase;
 use App\Tests\Stub\RecordingMercureHub;
@@ -107,5 +108,58 @@ class MercureBroadcastPiiTest extends ApiTestCase
             'The author email must never ride the Mercure message-edit broadcast.',
         );
         self::assertStringNotContainsString('"email"', $allData);
+    }
+
+    public function testNotificationsAreNeverPublishedPublicly(): void
+    {
+        $recipient = UserFactory::createOne();
+        $notification = NotificationFactory::createOne(['recipient' => $recipient]);
+        $notification->setIsRead(true);
+        self::getContainer()->get('doctrine')->getManager()->flush();
+
+        $topic = 'u/'.$recipient->getId().'/n';
+        $publicOnTopic = array_filter(
+            RecordingMercureHub::updates(),
+            static fn ($update) => \in_array($topic, $update->getTopics(), true) && !$update->isPrivate(),
+        );
+
+        self::assertSame([], array_values($publicOnTopic));
+    }
+
+    public function testPrivateChannelDetailsAreNeverBroadcastToTheCommunity(): void
+    {
+        $admin = UserFactory::new()->admin()->create();
+        $community = CommunityFactory::new()->withIdentifier('mercure-pii-ch')->create();
+
+        $response = $this->jsonClient($admin)->request('POST', '/api/v1/channels', ['json' => [
+            'name' => 'Staff Salaries',
+            'description' => 'Compensation planning',
+            'type' => 'text',
+            'isPrivate' => true,
+            'community' => '/api/v1/communities/mercure-pii-ch',
+        ]]);
+        self::assertResponseStatusCodeSame(201);
+        $identifier = $response->toArray()['identifier'];
+
+        $this->jsonClient($admin)->request('PATCH', '/api/v1/communities/mercure-pii-ch/channels/'.$identifier, [
+            'headers' => ['Content-Type' => 'application/merge-patch+json'],
+            'json' => ['name' => 'Board Bonuses'],
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $communityTopic = 'k/'.$community->getId();
+        $onCommunityTopic = array_values(array_filter(
+            RecordingMercureHub::updates(),
+            static fn ($update) => \in_array($communityTopic, $update->getTopics(), true),
+        ));
+        self::assertNotEmpty($onCommunityTopic);
+
+        $allData = $this->capturedPayloads();
+        foreach (['Staff Salaries', 'Board Bonuses', 'Compensation planning', $identifier] as $secret) {
+            self::assertStringNotContainsString($secret, $allData);
+        }
+        foreach ($onCommunityTopic as $update) {
+            self::assertSame('community.structure', json_decode($update->getData(), true, 512, \JSON_THROW_ON_ERROR)['type'] ?? null);
+        }
     }
 }

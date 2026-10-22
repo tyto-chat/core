@@ -15,6 +15,7 @@ use App\Repository\NotificationRepository;
 use App\State\Notification\Processor\UpdateNotificationProcessor;
 use App\State\Notification\Provider\DmNotificationProvider;
 use App\State\Notification\Provider\NotificationProvider;
+use App\Utils\Topics;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
@@ -26,7 +27,6 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ApiResource(
     description: 'An in-app notification (mention, reply, DM, moderation notice or coalesced channel activity) addressed to a single recipient.',
     normalizationContext: ['groups' => ['notification:read']],
-    mercure: ['topics' => ['@=object.getRecipientNotificationTopic()']],
     paginationItemsPerPage: 30,
     paginationMaximumItemsPerPage: 50,
 )]
@@ -385,6 +385,8 @@ class Notification
 
     public function getRecipientNotificationTopic(): string
     {
-        return '/api/users/'.($this->recipient?->getId() ?? '').'/notifications';
+        $recipientId = $this->recipient?->getId();
+
+        return null !== $recipientId ? Topics::userNotifications($recipientId) : '';
     }
 }

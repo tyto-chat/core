@@ -15,7 +15,7 @@ final class MercureSubscriberTokenFactory
         $this->factory = new LcobucciFactory($subscriberJwtKey, 'hmac.sha256', $tokenTtl);
     }
 
-    /** @param string[] $topics e.g. ['/api/communities/my-community/channels/general'] */
+    /** @param string[] $topics e.g. ['c/12', 'm/3'] */
     public function create(array $topics): string
     {
         return $this->factory->create(subscribe: $topics, publish: []);
