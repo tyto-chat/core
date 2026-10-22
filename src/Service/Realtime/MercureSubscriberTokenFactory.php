@@ -10,7 +10,7 @@ final class MercureSubscriberTokenFactory
 {
     private LcobucciFactory $factory;
 
-    public function __construct(string $subscriberJwtKey, int $tokenTtl)
+    public function __construct(string $subscriberJwtKey, public readonly int $tokenTtl)
     {
         $this->factory = new LcobucciFactory($subscriberJwtKey, 'hmac.sha256', $tokenTtl);
     }

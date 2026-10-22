@@ -295,15 +295,17 @@ class MercurePublisher implements RealtimePublisherInterface
         );
     }
 
-    public function publishCommunityStructureChanged(Community $community): void
+    public function publishCommunityStructureChanged(Community $community, bool $grantsChanged = false): void
     {
-        $this->publish(
-            Topics::community($community->getId()),
-            [
-                'type' => 'community.structure',
-                'communityIdentifier' => $community->getIdentifier(),
-            ],
-        );
+        $data = [
+            'type' => 'community.structure',
+            'communityIdentifier' => $community->getIdentifier(),
+        ];
+        if ($grantsChanged) {
+            $data['grantsChanged'] = true;
+        }
+
+        $this->publish(Topics::community($community->getId()), $data);
     }
 
     public function publishUserEvent(int $userId, string $event, array $payload = []): void

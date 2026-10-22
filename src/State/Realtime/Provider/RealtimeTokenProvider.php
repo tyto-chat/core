@@ -11,7 +11,6 @@ use App\Entity\User;
 use App\Service\Realtime\MercureSubscriberTokenFactory;
 use App\Service\Realtime\RealtimeTopicResolver;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
@@ -24,8 +23,6 @@ final readonly class RealtimeTokenProvider implements ProviderInterface
         private RealtimeTopicResolver $topicResolver,
         private RequestStack $requestStack,
         private Security $security,
-        #[Autowire(param: 'lexik_jwt_authentication.token_ttl')]
-        private int $tokenTtl,
     ) {
     }
 
@@ -45,7 +42,7 @@ final readonly class RealtimeTokenProvider implements ProviderInterface
 
         $dto = new RealtimeTokenDto();
         $dto->token = $this->tokenFactory->create($topics);
-        $dto->expiresAt = time() + $this->tokenTtl;
+        $dto->expiresAt = time() + $this->tokenFactory->tokenTtl;
 
         return $dto;
     }

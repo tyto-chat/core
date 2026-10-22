@@ -67,13 +67,13 @@ final class RealtimeTokenProviderTest extends TestCase
         $security = self::createStub(Security::class);
         $security->method('getUser')->willReturn($user);
 
-        return new RealtimeTokenProvider($this->factory(), $this->resolver(), $this->requests($query), $security, 3600);
+        return new RealtimeTokenProvider($this->factory(), $this->resolver(), $this->requests($query), $security);
     }
 
     /** @param array<string, string> $query */
     private function publicProvider(array $query): PublicRealtimeTokenProvider
     {
-        return new PublicRealtimeTokenProvider($this->factory(), $this->resolver(), $this->requests($query), 3600);
+        return new PublicRealtimeTokenProvider($this->factory(), $this->resolver(), $this->requests($query));
     }
 
     private function factory(): MercureSubscriberTokenFactory

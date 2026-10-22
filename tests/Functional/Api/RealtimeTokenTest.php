@@ -33,6 +33,43 @@ class RealtimeTokenTest extends ApiTestCase
         self::assertNotEmpty($data['token']);
     }
 
+    public function testTokenLivesTenMinutesSoRevokedGrantsStopStreaming(): void
+    {
+        $user = UserFactory::createOne();
+
+        $before = time();
+        $data = $this->jsonClient($user)->request('GET', '/api/v1/realtime/token')->toArray(false);
+
+        $payload = json_decode(
+            (string) base64_decode(strtr(explode('.', $data['token'])[1], '-_', '+/'), true),
+            true,
+            512,
+            \JSON_THROW_ON_ERROR,
+        );
+        self::assertEqualsWithDelta($before + 600, $payload['exp'], 5);
+        self::assertEqualsWithDelta($before + 600, $data['expiresAt'], 5);
+    }
+
+    public function testPublicTokenLivesTenMinutesToo(): void
+    {
+        $community = CommunityFactory::new()->withIdentifier('ttl-public')->create();
+        ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'ttl-ch'])->create();
+
+        $before = time();
+        $data = $this->jsonClient()->request('GET', '/api/v1/realtime/public-token', [
+            'query' => ['community' => 'ttl-public'],
+        ])->toArray(false);
+
+        $payload = json_decode(
+            (string) base64_decode(strtr(explode('.', $data['token'])[1], '-_', '+/'), true),
+            true,
+            512,
+            \JSON_THROW_ON_ERROR,
+        );
+        self::assertEqualsWithDelta($before + 600, $payload['exp'], 5);
+        self::assertEqualsWithDelta($before + 600, $data['expiresAt'], 5);
+    }
+
     public function testAnonymousCannotGetRealtimeToken(): void
     {
         $this->jsonClient()->request('GET', '/api/v1/realtime/token');

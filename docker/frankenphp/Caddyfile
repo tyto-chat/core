@@ -21,7 +21,14 @@
 # app:8890 covers the worker/scheduler containers. Same site block = same
 # Mercure hub instance; the port is never published by compose.
 {$CADDY_SITE_ADDRESS:localhost}, http://localhost:8890, http://app:8890 {
-	log
+	log {
+		format filter {
+			request>uri query {
+				replace authorization REDACTED
+				replace access_token REDACTED
+			}
+		}
+	}
 
 	# HSTS at the edge (ignored by browsers over plain HTTP, so safe in :80 mode).
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
@@ -34,6 +41,9 @@
 			subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY}
 			cors_origins {$MERCURE_CORS_ORIGINS:*}
 			anonymous
+			transport bolt {
+				size 1000
+			}
 		}
 	}
 

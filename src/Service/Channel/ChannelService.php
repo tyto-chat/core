@@ -71,7 +71,7 @@ class ChannelService extends AbstractDoctrineService implements ChannelServiceIn
         }
 
         $saved = $this->save($channel, $createChannelDto);
-        $this->realtimePublisher->publishCommunityStructureChanged($createChannelDto->community);
+        $this->realtimePublisher->publishCommunityStructureChanged($createChannelDto->community, grantsChanged: true);
 
         return $saved;
     }
@@ -94,7 +94,7 @@ class ChannelService extends AbstractDoctrineService implements ChannelServiceIn
 
         $community = $updated->getCommunity();
         if (null !== $community) {
-            $this->realtimePublisher->publishCommunityStructureChanged($community);
+            $this->realtimePublisher->publishCommunityStructureChanged($community, grantsChanged: true);
         }
 
         return $updated;
@@ -169,7 +169,7 @@ class ChannelService extends AbstractDoctrineService implements ChannelServiceIn
         $this->removeAndFlush($channel);
         $this->searchService->removeChannelDocuments($channelId);
         if (null !== $community) {
-            $this->realtimePublisher->publishCommunityStructureChanged($community);
+            $this->realtimePublisher->publishCommunityStructureChanged($community, grantsChanged: true);
         }
     }
 
@@ -209,7 +209,7 @@ class ChannelService extends AbstractDoctrineService implements ChannelServiceIn
         $this->save($channel);
 
         if (null !== $community) {
-            $this->realtimePublisher->publishCommunityStructureChanged($community);
+            $this->realtimePublisher->publishCommunityStructureChanged($community, grantsChanged: true);
         }
     }
 
@@ -227,7 +227,7 @@ class ChannelService extends AbstractDoctrineService implements ChannelServiceIn
 
         $community = $channel->getCommunity();
         if (null !== $community) {
-            $this->realtimePublisher->publishCommunityStructureChanged($community);
+            $this->realtimePublisher->publishCommunityStructureChanged($community, grantsChanged: true);
         }
     }
 

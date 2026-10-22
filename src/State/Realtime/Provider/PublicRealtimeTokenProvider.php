@@ -9,7 +9,6 @@ use ApiPlatform\State\ProviderInterface;
 use App\Dto\Realtime\RealtimeTokenDto;
 use App\Service\Realtime\MercureSubscriberTokenFactory;
 use App\Service\Realtime\RealtimeTopicResolver;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
@@ -21,8 +20,6 @@ final readonly class PublicRealtimeTokenProvider implements ProviderInterface
         private MercureSubscriberTokenFactory $tokenFactory,
         private RealtimeTopicResolver $topicResolver,
         private RequestStack $requestStack,
-        #[Autowire(param: 'lexik_jwt_authentication.token_ttl')]
-        private int $tokenTtl,
     ) {
     }
 
@@ -37,7 +34,7 @@ final readonly class PublicRealtimeTokenProvider implements ProviderInterface
         }
 
         $dto->token = $this->tokenFactory->create($topics);
-        $dto->expiresAt = time() + $this->tokenTtl;
+        $dto->expiresAt = time() + $this->tokenFactory->tokenTtl;
 
         return $dto;
     }

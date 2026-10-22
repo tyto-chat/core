@@ -8,7 +8,7 @@ use App\Entity\Community;
 
 interface StructureRealtimePublisherInterface
 {
-    public function publishCommunityStructureChanged(Community $community): void;
+    public function publishCommunityStructureChanged(Community $community, bool $grantsChanged = false): void;
 
     /**
      * @param array<string, mixed> $payload

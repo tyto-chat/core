@@ -13,6 +13,7 @@ use App\Tests\Factory\CommunityFactory;
 use App\Tests\Factory\CommunityMemberFactory;
 use App\Tests\Factory\UserFactory;
 use App\Tests\Functional\ApiTestCase;
+use App\Tests\Stub\RecordingMercureHub;
 use Doctrine\ORM\EntityManagerInterface;
 use Zenstruck\Foundry\Test\Factories;
 use Zenstruck\Foundry\Test\ResetDatabase;
@@ -137,6 +138,38 @@ class AdminCommunitiesTest extends ApiTestCase
         $oldRow = $repo->findOneBy(['user' => $oldAdmin->getId()]);
         self::assertSame(CommunityRole::Admin, $newRow?->getRole());
         self::assertSame(CommunityRole::Member, $oldRow?->getRole());
+    }
+
+    public function testTransferTellsEveryAffectedUserTheirRoleChanged(): void
+    {
+        $admin = UserFactory::new()->admin()->create();
+        $community = CommunityFactory::new()->withIdentifier('transfer-events')->create();
+        $oldAdmin = UserFactory::createOne();
+        $newAdmin = UserFactory::createOne();
+        $bystander = UserFactory::createOne();
+        CommunityMemberFactory::createAdminForCommunity($oldAdmin, $community);
+        CommunityMemberFactory::createForUserAndCommunity($newAdmin, $community);
+        CommunityMemberFactory::createForUserAndCommunity($bystander, $community);
+
+        RecordingMercureHub::reset();
+
+        $this->plainJsonClient($admin)->request('POST', '/api/v1/admin/communities/transfer-events/transfer', [
+            'json' => ['newAdminUserId' => $newAdmin->getId(), 'demoteOthers' => true],
+        ]);
+
+        $roleChanged = [];
+        foreach (RecordingMercureHub::updates() as $update) {
+            if (str_contains($update->getData(), '"role.changed"')) {
+                foreach ($update->getTopics() as $topic) {
+                    $roleChanged[] = (int) explode('/', $topic)[1];
+                }
+            }
+        }
+        self::assertResponseStatusCodeSame(200);
+        sort($roleChanged);
+        $expected = [(int) $newAdmin->getId(), (int) $oldAdmin->getId()];
+        sort($expected);
+        self::assertSame($expected, $roleChanged);
     }
 
     public function testTransferWithoutDemoteKeepsExistingAdmin(): void
