@@ -17,7 +17,8 @@ interface RealtimePublisherInterface extends MessageRealtimePublisherInterface, 
 
     public function publishAudioChannelParticipants(Channel $channel): void;
 
-    public function publishPresenceChanged(int $userId, PresenceState $state): void;
+    /** @param list<int> $communityIds communities the user belongs to; each gets the change on its presence topic */
+    public function publishPresenceChanged(int $userId, PresenceState $state, array $communityIds = []): void;
 
     public function publishChannelTyping(Channel $channel, int $userId, string $name): void;
 

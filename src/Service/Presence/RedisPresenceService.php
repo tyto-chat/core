@@ -15,6 +15,7 @@ use App\Service\Channel\ChannelAudioServiceInterface;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Realtime\RealtimePublisherInterface;
 use Predis\ClientInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Service\Attribute\Required;
 
 final class RedisPresenceService implements PresenceServiceInterface
@@ -29,6 +30,7 @@ final class RedisPresenceService implements PresenceServiceInterface
         private readonly CommunityMembershipServiceInterface $communityMembership,
         private readonly ClientInterface $redis,
         private readonly RealtimePublisherInterface $realtime,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -101,7 +103,7 @@ final class RedisPresenceService implements PresenceServiceInterface
         $next = self::compute(true, $manual, $inVoice);
 
         if ($prior !== $next) {
-            $this->realtime->publishPresenceChanged($userId, $next);
+            $this->publishPresence($userId, $next);
         }
     }
 
@@ -131,7 +133,7 @@ final class RedisPresenceService implements PresenceServiceInterface
         $next = self::compute($ttl > 0, $status, $inVoice);
 
         if ($prior !== $next) {
-            $this->realtime->publishPresenceChanged($userId, $next);
+            $this->publishPresence($userId, $next);
         }
     }
 
@@ -155,7 +157,7 @@ final class RedisPresenceService implements PresenceServiceInterface
         $next = self::compute(false, $manual, $inVoice);
 
         if ($prior !== $next) {
-            $this->realtime->publishPresenceChanged($userId, $next);
+            $this->publishPresence($userId, $next);
         }
     }
 
@@ -166,7 +168,7 @@ final class RedisPresenceService implements PresenceServiceInterface
             return;
         }
 
-        $this->realtime->publishPresenceChanged($userId, $this->resolveState($userId));
+        $this->publishPresence($userId, $this->resolveState($userId));
     }
 
     public function get(User $user): PresenceSnapshot
@@ -261,5 +263,21 @@ final class RedisPresenceService implements PresenceServiceInterface
     private static function manualKey(int $userId): string
     {
         return 'presence:user:'.$userId.':manual';
+    }
+
+    private function publishPresence(int $userId, PresenceState $state): void
+    {
+        try {
+            $communityIds = $this->communityMembership->findCommunityIdsForUser($userId);
+        } catch (\Throwable $e) {
+            $this->logger->error('Presence community lookup failed: {reason}', [
+                'reason' => $e->getMessage(),
+                'userId' => $userId,
+                'exception' => $e,
+            ]);
+            $communityIds = [];
+        }
+
+        $this->realtime->publishPresenceChanged($userId, $state, $communityIds);
     }
 }

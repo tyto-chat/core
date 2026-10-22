@@ -80,7 +80,7 @@ final class InMemoryPresenceService implements PresenceServiceInterface
         $next = self::compute(true, $this->manual[$userId] ?? null, $inVoice);
 
         if ($prior !== $next) {
-            $this->realtime->publishPresenceChanged($userId, $next);
+            $this->publishPresence($userId, $next);
         }
     }
 
@@ -104,7 +104,7 @@ final class InMemoryPresenceService implements PresenceServiceInterface
         $next = self::compute($live, $this->manual[$userId] ?? null, $inVoice);
 
         if ($prior !== $next) {
-            $this->realtime->publishPresenceChanged($userId, $next);
+            $this->publishPresence($userId, $next);
         }
     }
 
@@ -122,7 +122,7 @@ final class InMemoryPresenceService implements PresenceServiceInterface
         $next = self::compute(false, $this->manual[$userId] ?? null, $inVoice);
 
         if ($prior !== $next) {
-            $this->realtime->publishPresenceChanged($userId, $next);
+            $this->publishPresence($userId, $next);
         }
     }
 
@@ -138,7 +138,7 @@ final class InMemoryPresenceService implements PresenceServiceInterface
             $this->manual[$userId] ?? null,
             $this->isInVoice($userId),
         );
-        $this->realtime->publishPresenceChanged($userId, $state);
+        $this->publishPresence($userId, $state);
     }
 
     public function get(User $user): PresenceSnapshot
@@ -198,5 +198,10 @@ final class InMemoryPresenceService implements PresenceServiceInterface
         }
 
         return PresenceState::Offline;
+    }
+
+    private function publishPresence(int $userId, PresenceState $state): void
+    {
+        $this->realtime->publishPresenceChanged($userId, $state, $this->communityMembership->findCommunityIdsForUser($userId));
     }
 }

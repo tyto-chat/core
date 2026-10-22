@@ -23,6 +23,9 @@ interface CommunityMembershipServiceInterface
 
     public function isMember(User $user, Community $community): bool;
 
+    /** @return list<int> ids of the communities the user is a member of */
+    public function findCommunityIdsForUser(int $userId): array;
+
     public function isAdmin(User $user, Community $community): bool;
 
     public function isModerator(User $user, Community $community): bool;

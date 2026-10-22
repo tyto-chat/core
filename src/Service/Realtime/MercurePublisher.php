@@ -331,13 +331,18 @@ class MercurePublisher implements RealtimePublisherInterface
         }
     }
 
-    public function publishPresenceChanged(int $userId, PresenceState $state): void
+    public function publishPresenceChanged(int $userId, PresenceState $state, array $communityIds = []): void
     {
-        $this->publish(Topics::userPresence($userId), [
+        $data = [
             'type' => 'presence',
             'userId' => $userId,
             'state' => $state->value,
-        ]);
+        ];
+
+        // One Update per topic: the hub delivers a private Update if any of its topics is granted.
+        foreach ([Topics::userPresence($userId), ...array_map(Topics::communityPresence(...), $communityIds)] as $topic) {
+            $this->publish($topic, $data);
+        }
     }
 
     private function resolveAvatarUrl(?MediaObject $avatar): ?string

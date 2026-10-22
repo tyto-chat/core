@@ -123,6 +123,20 @@ class CommunityMemberRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    /** @return list<int> */
+    public function findCommunityIdsForUser(int $userId): array
+    {
+        /** @var list<int|string> $rows */
+        $rows = $this->createQueryBuilder('cm')
+            ->select('IDENTITY(cm.community) AS communityId')
+            ->where('IDENTITY(cm.user) = :user')
+            ->setParameter('user', $userId)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map(intval(...), $rows);
+    }
+
     public function existsSharedCommunity(User $a, User $b): bool
     {
         if ($a->getId() === $b->getId()) {
