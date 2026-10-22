@@ -171,21 +171,9 @@ parameters:
 			path: src/Entity/MediaObject.php
 
 		-
-			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\Channel\|null given\.$#'
-			identifier: booleanNot.exprNotBoolean
-			count: 1
-			path: src/Entity/Message.php
-
-		-
-			message: '#^Only booleans are allowed in a negated boolean, App\\Entity\\Conversation\|null given\.$#'
-			identifier: booleanNot.exprNotBoolean
-			count: 1
-			path: src/Entity/Message.php
-
-		-
 			message: '#^Short ternary operator is not allowed\. Use null coalesce operator if applicable or consider using long ternary\.$#'
 			identifier: ternary.shortNotAllowed
-			count: 2
+			count: 1
 			path: src/Entity/Message.php
 
 		-

@@ -4,66 +4,70 @@ declare(strict_types=1);
 
 namespace App\Utils;
 
-/** Topics are unversioned /api/... — IriConverter output used in topic position must pass through MercurePublisher::topic(). */
 final class Topics
 {
-    public static function community(?string $communityIdentifier): string
+    public static function userNotifications(int $userId): string
     {
-        return '/api/communities/'.$communityIdentifier;
+        return 'u/'.$userId.'/n';
     }
 
-    public static function communityActivity(?string $communityIdentifier): string
+    public static function userEvents(int $userId): string
     {
-        return self::community($communityIdentifier).'/activity';
+        return 'u/'.$userId.'/e';
     }
 
-    public static function communityEmojis(?string $communityIdentifier): string
+    public static function userConversationActivity(int $userId): string
     {
-        return self::community($communityIdentifier).'/emojis';
+        return 'u/'.$userId.'/d';
     }
 
-    public static function channel(?string $communityIdentifier, ?string $channelIdentifier): string
+    public static function userPresence(int $userId): string
     {
-        return self::community($communityIdentifier).'/channels/'.$channelIdentifier;
-    }
-
-    public static function channelParticipants(?string $communityIdentifier, ?string $channelIdentifier): string
-    {
-        return self::channel($communityIdentifier, $channelIdentifier).'/participants';
-    }
-
-    public static function channelThreads(?string $communityIdentifier, ?string $channelIdentifier): string
-    {
-        return self::channel($communityIdentifier, $channelIdentifier).'/messages/{messageId}/thread';
-    }
-
-    public static function conversationThreads(string $conversationIri): string
-    {
-        return $conversationIri.'/messages/{messageId}/thread';
-    }
-
-    public static function userNotifications(?int $userId): string
-    {
-        return '/api/users/'.$userId.'/notifications';
-    }
-
-    public static function userEvents(?int $userId): string
-    {
-        return '/api/users/'.$userId.'/events';
-    }
-
-    public static function userConversationActivity(?int $userId): string
-    {
-        return '/api/users/'.$userId.'/conversation-activity';
-    }
-
-    public static function userPresence(?int $userId): string
-    {
-        return '/api/users/'.$userId.'/presence';
+        return 'u/'.$userId.'/p';
     }
 
     public static function presenceTemplate(): string
     {
-        return '/api/users/{userId}/presence';
+        return 'u/{userId}/p';
+    }
+
+    public static function community(int $communityId): string
+    {
+        return 'k/'.$communityId;
+    }
+
+    public static function communityActivity(int $communityId): string
+    {
+        return self::community($communityId).'/a';
+    }
+
+    public static function communityEmojis(int $communityId): string
+    {
+        return self::community($communityId).'/e';
+    }
+
+    public static function channel(int $channelId): string
+    {
+        return 'c/'.$channelId;
+    }
+
+    public static function channelThreads(int $channelId): string
+    {
+        return self::channel($channelId).'/t';
+    }
+
+    public static function channelParticipants(int $channelId): string
+    {
+        return self::channel($channelId).'/p';
+    }
+
+    public static function conversation(int $conversationId): string
+    {
+        return 'm/'.$conversationId;
+    }
+
+    public static function conversationThreads(int $conversationId): string
+    {
+        return self::conversation($conversationId).'/t';
     }
 }

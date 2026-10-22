@@ -40,59 +40,147 @@ class RealtimeTokenTest extends ApiTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testPublicCommunityChannelIncludedForAnyUser(): void
+    public function testTokenWithoutScopeCoversOnlyTheCallersOwnTopics(): void
     {
         $user = UserFactory::createOne();
-        $community = CommunityFactory::new()->withIdentifier('rt-public')->create();
-        ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'open'])->create();
+        $community = CommunityFactory::new()->withIdentifier('rt-none')->create();
+        ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'gen'])->create();
+        CommunityMemberFactory::createForUserAndCommunity($user, $community);
 
         $topics = $this->subscribeTopicsFor($user);
 
-        self::assertContains('/api/communities/rt-public/channels/open', $topics);
+        self::assertEqualsCanonicalizing([
+            'u/'.$user->getId().'/n',
+            'u/'.$user->getId().'/e',
+            'u/'.$user->getId().'/d',
+            'u/{userId}/p',
+        ], $topics);
     }
 
-    public function testPrivateCommunityChannelExcludedFromNonMemberToken(): void
+    public function testCommunityScopeCoversThatCommunityOnly(): void
+    {
+        $user = UserFactory::createOne();
+        $active = CommunityFactory::new()->withIdentifier('rt-active')->create();
+        $channel = ChannelFactory::new()->inCommunity($active)->with(['identifier' => 'gen'])->create();
+        $other = CommunityFactory::new()->withIdentifier('rt-other')->create();
+        $otherChannel = ChannelFactory::new()->inCommunity($other)->with(['identifier' => 'gen'])->create();
+
+        $topics = $this->subscribeTopicsFor($user, ['community' => 'rt-active']);
+
+        self::assertContains('k/'.$active->getId(), $topics);
+        self::assertContains('k/'.$active->getId().'/a', $topics);
+        self::assertContains('k/'.$active->getId().'/e', $topics);
+        self::assertContains('c/'.$channel->getId(), $topics);
+        self::assertContains('c/'.$channel->getId().'/t', $topics);
+        self::assertNotContains('k/'.$other->getId(), $topics);
+        self::assertNotContains('k/'.$other->getId().'/a', $topics);
+        self::assertNotContains('k/'.$other->getId().'/e', $topics);
+        self::assertNotContains('c/'.$otherChannel->getId(), $topics);
+        self::assertNotContains('c/'.$otherChannel->getId().'/t', $topics);
+    }
+
+    public function testCommunityScopeGrantsVoiceParticipantsForAudioChannels(): void
+    {
+        $user = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('rt-voice')->create();
+        $lounge = ChannelFactory::new()->inCommunity($community)->audio()->with(['identifier' => 'lounge'])->create();
+
+        $topics = $this->subscribeTopicsFor($user, ['community' => 'rt-voice']);
+
+        self::assertContains('c/'.$lounge->getId().'/p', $topics);
+    }
+
+    public function testPrivateCommunityIsLeftOutForNonMembers(): void
     {
         $outsider = UserFactory::createOne();
         $community = CommunityFactory::new()->private()->withIdentifier('rt-priv')->create();
-        ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'secret-general'])->create();
+        $channel = ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'secret-general'])->create();
 
-        $topics = $this->subscribeTopicsFor($outsider);
+        $topics = $this->subscribeTopicsFor($outsider, ['community' => 'rt-priv']);
 
-        self::assertNotContains('/api/communities/rt-priv/channels/secret-general', $topics);
+        self::assertNotContains('k/'.$community->getId(), $topics);
+        self::assertNotContains('c/'.$channel->getId(), $topics);
+        self::assertCount(4, $topics);
     }
 
-    public function testPrivateCommunityChannelIncludedForMemberToken(): void
+    public function testPrivateCommunityIsCoveredForMembers(): void
     {
         $member = UserFactory::createOne();
         $community = CommunityFactory::new()->private()->withIdentifier('rt-priv-ok')->create();
-        ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'members-general'])->create();
+        $channel = ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'members-general'])->create();
         CommunityMemberFactory::createForUserAndCommunity($member, $community);
 
-        $topics = $this->subscribeTopicsFor($member);
+        $topics = $this->subscribeTopicsFor($member, ['community' => 'rt-priv-ok']);
 
-        self::assertContains('/api/communities/rt-priv-ok/channels/members-general', $topics);
+        self::assertContains('c/'.$channel->getId(), $topics);
     }
 
-    public function testNoGlobalThreadTemplateIsGranted(): void
+    public function testPrivateChannelIsLeftOutForMembersWithoutAccess(): void
+    {
+        $member = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('rt-pch')->create();
+        $staff = ChannelFactory::new()->inCommunity($community)->private()->with(['identifier' => 'staff'])->create();
+        CommunityMemberFactory::createForUserAndCommunity($member, $community);
+
+        $topics = $this->subscribeTopicsFor($member, ['community' => 'rt-pch']);
+
+        self::assertContains('k/'.$community->getId(), $topics);
+        self::assertNotContains('c/'.$staff->getId(), $topics);
+    }
+
+    public function testUnknownCommunityIsIgnored(): void
     {
         $user = UserFactory::createOne();
 
-        self::assertNotContains('/api/messages/{messageId}/thread', $this->subscribeTopicsFor($user));
+        $topics = $this->subscribeTopicsFor($user, ['community' => 'does-not-exist']);
+
+        self::assertCount(4, $topics);
     }
 
-    public function testChannelThreadTemplateScopedToViewableChannel(): void
+    public function testNoWildcardOrTemplateTopicBeyondPresenceIsGranted(): void
     {
         $user = UserFactory::createOne();
-        $community = CommunityFactory::new()->withIdentifier('rt-thr')->create();
+        $community = CommunityFactory::new()->withIdentifier('rt-glob')->create();
         ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'gen'])->create();
 
-        $topics = $this->subscribeTopicsFor($user);
+        $templated = array_values(array_filter(
+            $this->subscribeTopicsFor($user, ['community' => 'rt-glob']),
+            static fn (string $topic): bool => str_contains($topic, '{') || str_contains($topic, '*'),
+        ));
 
-        self::assertContains('/api/communities/rt-thr/channels/gen/messages/{messageId}/thread', $topics);
+        self::assertSame(['u/{userId}/p'], $templated);
     }
 
-    public function testDmThreadTemplateGrantedOnlyToParticipants(): void
+    public function testTokenTopicsContainNoIdentifiers(): void
+    {
+        $user = UserFactory::createOne();
+        $other = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('rt-noident')->create();
+        $channel = ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'noident-general'])->create();
+        $audio = ChannelFactory::new()->inCommunity($community)->audio()->with(['identifier' => 'noident-lounge'])->create();
+        CommunityMemberFactory::createForUserAndCommunity($user, $community);
+        $conversation = ConversationFactory::new()->withParticipants([$user, $other])->create();
+        ConversationMemberFactory::createForUserAndConversation($user, $conversation);
+        ConversationMemberFactory::createForUserAndConversation($other, $conversation);
+
+        $topics = $this->subscribeTopicsFor($user, [
+            'community' => 'rt-noident',
+            'conversation' => $conversation->getIdentifier(),
+        ]);
+
+        self::assertContains('c/'.$channel->getId(), $topics);
+        self::assertContains('c/'.$audio->getId().'/p', $topics);
+        self::assertContains('m/'.$conversation->getId(), $topics);
+        foreach ($topics as $topic) {
+            self::assertStringNotContainsString($community->getIdentifier(), $topic);
+            self::assertStringNotContainsString($channel->getIdentifier(), $topic);
+            self::assertStringNotContainsString($audio->getIdentifier(), $topic);
+            self::assertStringNotContainsString($conversation->getIdentifier(), $topic);
+            self::assertStringNotContainsString('/api/', $topic);
+        }
+    }
+
+    public function testConversationScopeCoversItForParticipantsOnly(): void
     {
         $alice = UserFactory::createOne();
         $stranger = UserFactory::createOne();
@@ -100,14 +188,19 @@ class RealtimeTokenTest extends ApiTestCase
         $conversation = ConversationFactory::new()->withParticipants([$alice, $bob])->create();
         ConversationMemberFactory::createForUserAndConversation($alice, $conversation);
         ConversationMemberFactory::createForUserAndConversation($bob, $conversation);
+        $scope = ['conversation' => $conversation->getIdentifier()];
+        $topic = 'm/'.$conversation->getId();
 
-        $threadTemplate = '/api/conversations/'.$conversation->getIdentifier().'/messages/{messageId}/thread';
+        $aliceTopics = $this->subscribeTopicsFor($alice, $scope);
+        self::assertContains($topic, $aliceTopics);
+        self::assertContains($topic.'/t', $aliceTopics);
 
-        self::assertContains($threadTemplate, $this->subscribeTopicsFor($alice));
-        self::assertNotContains($threadTemplate, $this->subscribeTopicsFor($stranger));
+        $strangerTopics = $this->subscribeTopicsFor($stranger, $scope);
+        self::assertNotContains($topic, $strangerTopics);
+        self::assertNotContains($topic.'/t', $strangerTopics);
     }
 
-    public function testTokenCoversAConversationThatHasNoMessagesYet(): void
+    public function testConversationIsLeftOutWhenNotRequested(): void
     {
         $alice = UserFactory::createOne();
         $bob = UserFactory::createOne();
@@ -115,30 +208,19 @@ class RealtimeTokenTest extends ApiTestCase
         ConversationMemberFactory::createForUserAndConversation($alice, $conversation);
         ConversationMemberFactory::createForUserAndConversation($bob, $conversation);
 
-        self::assertNull($conversation->getLastMessageAt());
-        self::assertContains($conversation->getConversationIri(), $this->subscribeTopicsFor($bob));
-    }
-
-    public function testTokenSubscribesToCommunityIriAndUserEvents(): void
-    {
-        $user = UserFactory::createOne();
-        $community = CommunityFactory::new()->withIdentifier('rt-com')->create();
-        CommunityMemberFactory::createForUserAndCommunity($user, $community);
-
-        $topics = $this->subscribeTopicsFor($user);
-
-        self::assertContains('/api/communities/rt-com', $topics);
-        self::assertContains('/api/users/'.$user->getId().'/events', $topics);
+        self::assertNotContains('m/'.$conversation->getId(), $this->subscribeTopicsFor($alice));
     }
 
     /**
      * Fetch a realtime token for the user and return its Mercure subscribe topics.
      *
+     * @param array<string, string> $scope
+     *
      * @return string[]
      */
-    private function subscribeTopicsFor(User $user): array
+    private function subscribeTopicsFor(User $user, array $scope = []): array
     {
-        $response = $this->jsonClient($user)->request('GET', '/api/v1/realtime/token');
+        $response = $this->jsonClient($user)->request('GET', '/api/v1/realtime/token', ['query' => $scope]);
         self::assertResponseIsSuccessful();
 
         $jwt = $response->toArray(false)['token'];

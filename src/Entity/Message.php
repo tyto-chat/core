@@ -29,6 +29,7 @@ use App\State\Message\Provider\PinnedMessagesProvider;
 use App\State\Message\Provider\ThreadRepliesProvider;
 use App\State\MessagePage\Provider\CurrentChannelMessagePageProvider;
 use App\State\MessagePage\Provider\CurrentConversationMessagePageProvider;
+use App\Utils\Topics;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -600,30 +601,16 @@ class Message
         return $this->getConversation()?->getIdentifier();
     }
 
-    public function getChannelIri(): string
+    public function getContainerTopic(): string
     {
-        $channel = $this->getChannel();
-        if (!$channel) {
-            return '';
-        }
-        $communityIdentifier = $channel->getCommunity()?->getIdentifier() ?? '';
-
-        return '/api/communities/'.$communityIdentifier.'/channels/'.$channel->getIdentifier();
-    }
-
-    public function getConversationIri(): string
-    {
-        $conversation = $this->getConversation();
-        if (!$conversation) {
-            return '';
+        $channelId = $this->getChannel()?->getId();
+        if (null !== $channelId) {
+            return Topics::channel($channelId);
         }
 
-        return '/api/conversations/'.$conversation->getIdentifier();
-    }
+        $conversationId = $this->getConversation()?->getId();
 
-    public function getContainerIri(): string
-    {
-        return $this->getChannelIri() ?: $this->getConversationIri();
+        return null !== $conversationId ? Topics::conversation($conversationId) : '';
     }
 
     public function getThreadTopic(): string
@@ -633,15 +620,20 @@ class Message
             return '';
         }
 
-        $containerIri = $root->getContainerIri();
+        $channelId = $root->getChannel()?->getId();
+        if (null !== $channelId) {
+            return Topics::channelThreads($channelId);
+        }
 
-        return '' !== $containerIri ? $containerIri.'/messages/'.$root->getId().'/thread' : '';
+        $conversationId = $root->getConversation()?->getId();
+
+        return null !== $conversationId ? Topics::conversationThreads($conversationId) : '';
     }
 
     /** Must return a single string (array crashes Mercure's QueryBuilder); replies publish only to the thread topic, never the timeline. */
     public function getPublishTopic(): string
     {
-        return null !== $this->parent ? $this->getThreadTopic() : $this->getContainerIri();
+        return null !== $this->parent ? $this->getThreadTopic() : $this->getContainerTopic();
     }
 
     /**
