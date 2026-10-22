@@ -90,11 +90,12 @@ class ChannelService extends AbstractDoctrineService implements ChannelServiceIn
             throw new InvalidChannelSectionException();
         }
 
+        $wasPrivate = $channel->isPrivate();
         $updated = $this->save($channel, $updateChannelDto);
 
         $community = $updated->getCommunity();
         if (null !== $community) {
-            $this->realtimePublisher->publishCommunityStructureChanged($community, grantsChanged: true);
+            $this->realtimePublisher->publishCommunityStructureChanged($community, grantsChanged: $updated->isPrivate() !== $wasPrivate);
         }
 
         return $updated;
@@ -169,7 +170,7 @@ class ChannelService extends AbstractDoctrineService implements ChannelServiceIn
         $this->removeAndFlush($channel);
         $this->searchService->removeChannelDocuments($channelId);
         if (null !== $community) {
-            $this->realtimePublisher->publishCommunityStructureChanged($community, grantsChanged: true);
+            $this->realtimePublisher->publishCommunityStructureChanged($community);
         }
     }
 
@@ -209,7 +210,7 @@ class ChannelService extends AbstractDoctrineService implements ChannelServiceIn
         $this->save($channel);
 
         if (null !== $community) {
-            $this->realtimePublisher->publishCommunityStructureChanged($community, grantsChanged: true);
+            $this->realtimePublisher->publishCommunityStructureChanged($community);
         }
     }
 
@@ -227,7 +228,7 @@ class ChannelService extends AbstractDoctrineService implements ChannelServiceIn
 
         $community = $channel->getCommunity();
         if (null !== $community) {
-            $this->realtimePublisher->publishCommunityStructureChanged($community, grantsChanged: true);
+            $this->realtimePublisher->publishCommunityStructureChanged($community);
         }
     }
 
