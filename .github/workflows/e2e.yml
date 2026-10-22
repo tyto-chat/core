@@ -5,6 +5,7 @@ on:
     branches: [master, "1.0"]
   pull_request:
     branches: [master, "1.0"]
+    types: [opened, synchronize, reopened, edited]
 
 env:
   MERCURE_PUBLISHER_KEY: ci_mercure_publisher_secret_at_least_32_bytes_long
@@ -12,6 +13,7 @@ env:
 
 jobs:
   e2e:
+    if: github.event.action != 'edited' || github.event.changes.body != null
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -45,12 +47,25 @@ jobs:
           - 8443:8443
 
     steps:
-      - name: Resolve client ref (same-name branch, else base-branch pairing)
+      - name: Resolve client ref (E2E-pair line, same-name branch, else base-branch pairing)
         id: clientref
+        env:
+          PAIR_REPO: client
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          BASE: ${{ github.base_ref || github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          BRANCH="${{ github.head_ref || github.ref_name }}"
-          BASE="${{ github.base_ref || github.ref_name }}"
-          if git ls-remote --exit-code --heads https://github.com/tyto-chat/client.git "refs/heads/$BRANCH" >/dev/null 2>&1; then
+          pair=$(printf '%s\n' "$PR_BODY" | tr -d '\r' | grep -iE "^E2E-pair:[[:space:]]*tyto-chat/$PAIR_REPO#[0-9]{1,6}[[:space:]]*$" | head -n1 | grep -oE '[0-9]+[[:space:]]*$' | tr -d '[:space:]' || true)
+          if [ -n "$pair" ]; then
+            sha=$(gh api "repos/tyto-chat/$PAIR_REPO/pulls/$pair" --jq "select(.state == \"open\" and .head.repo.full_name == \"tyto-chat/$PAIR_REPO\") | .head.sha" 2>/dev/null || true)
+            if ! printf '%s' "$sha" | grep -qE '^[0-9a-f]{40}$'; then
+              echo "::error::E2E-pair names tyto-chat/$PAIR_REPO#$pair, which is not an open PR from a tyto-chat/$PAIR_REPO branch"
+              exit 1
+            fi
+            echo "Pairing with tyto-chat/$PAIR_REPO#$pair at $sha"
+            echo "ref=$sha" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --exit-code --heads "https://github.com/tyto-chat/$PAIR_REPO.git" "refs/heads/$BRANCH" >/dev/null 2>&1; then
             echo "ref=$BRANCH" >> "$GITHUB_OUTPUT"
           elif [ "$BASE" = "1.0" ]; then
             echo "ref=1.0" >> "$GITHUB_OUTPUT"
