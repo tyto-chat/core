@@ -255,6 +255,36 @@ final class CommunitySearchTest extends ApiTestCase
         self::assertSame([], $body['hits']);
     }
 
+    public function testHitAuthorNameComesFromTheLiveProfile(): void
+    {
+        $caller = UserFactory::createOne();
+        $author = UserFactory::new()
+            ->afterInstantiate(function (\App\Entity\User $u): void {
+                $u->getProfile()->setName('Deleted user');
+            })
+            ->create();
+        $community = CommunityFactory::new()->withIdentifier('cw-live')->create();
+        CommunityMemberFactory::createForUserAndCommunity($caller, $community);
+        $channel = ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'general'])->create();
+        $page = MessagePageFactory::new()->forChannel($channel)->create();
+        $msg = MessageFactory::new()->inPage($page)->byUser($author)->withText('needle stale')->create();
+
+        $this->search()->injectDocument([
+            'id' => $msg->getId(),
+            'text' => 'needle stale',
+            'authorId' => $author->getId(),
+            'authorName' => 'Real Name Before Deletion',
+            'createdAt' => 100,
+            'channelId' => $channel->getId(),
+            'conversationId' => null,
+            'pageNumber' => 1,
+        ]);
+
+        $body = $this->jsonClient($caller)->request('GET', '/api/v1/communities/cw-live/search?q=needle')->toArray();
+
+        self::assertSame('Deleted user', $body['hits'][0]['authorName'] ?? null);
+    }
+
     public function testCommunityAdminSeesPrivateChannelHitsWithoutMembership(): void
     {
         // ChannelVoter::VIEW grants community admins full access regardless of

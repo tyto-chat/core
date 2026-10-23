@@ -88,7 +88,7 @@ class MessageVoter extends Voter
         if (null !== $channel) {
             return match ($attribute) {
                 self::VIEW => $this->accessDecisionManager->decide($token, [ChannelVoter::VIEW], $channel),
-                self::UPDATE, self::DELETE => $this->canUpdateChannelMessage($subject, $user, $token),
+                self::UPDATE, self::DELETE => $this->canUpdateChannelMessage($subject, $user, $token, $attribute),
                 default => false,
             };
         }
@@ -96,13 +96,19 @@ class MessageVoter extends Voter
         return false;
     }
 
-    private function canUpdateChannelMessage(Message $message, User $user, TokenInterface $token): bool
+    private function canUpdateChannelMessage(Message $message, User $user, TokenInterface $token, string $attribute): bool
     {
-        if ($message->getCreatedBy()?->getId() === $user->getId()) {
-            return true;
-        }
-
         $channel = $message->getChannel();
+
+        if ($message->getCreatedBy()?->getId() === $user->getId()) {
+            if (self::DELETE === $attribute || null === $channel) {
+                return true;
+            }
+            $write = null === $message->getParent() ? ChannelVoter::POST : ChannelVoter::REPLY;
+            if ($this->accessDecisionManager->decide($token, [$write], $channel)) {
+                return true;
+            }
+        }
 
         return null !== $channel && $this->accessDecisionManager->decide($token, [ChannelVoter::MODERATE], $channel);
     }

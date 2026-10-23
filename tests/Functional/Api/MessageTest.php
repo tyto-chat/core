@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api;
 
+use App\Entity\CommunityMember;
+use App\Enum\Community\BroadcastMentionRole;
 use App\Tests\Factory\ChannelFactory;
 use App\Tests\Factory\ChannelMemberFactory;
 use App\Tests\Factory\CommunityFactory;
@@ -12,6 +14,7 @@ use App\Tests\Factory\MessageFactory;
 use App\Tests\Factory\MessagePageFactory;
 use App\Tests\Factory\UserFactory;
 use App\Tests\Functional\ApiTestCase;
+use Doctrine\ORM\EntityManagerInterface;
 use Zenstruck\Foundry\Test\Factories;
 use Zenstruck\Foundry\Test\ResetDatabase;
 
@@ -177,6 +180,93 @@ class MessageTest extends ApiTestCase
 
         self::assertResponseIsSuccessful();
         self::assertJsonContains(['text' => 'Replaced text']);
+    }
+
+    public function testAuthorRemovedFromCommunityCannotEditMessage(): void
+    {
+        $user = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('edit-gone')->create();
+        $membership = CommunityMemberFactory::createForUserAndCommunity($user, $community);
+        $channel = ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'edit-gone-ch'])->create();
+        $page = MessagePageFactory::new()->forChannel($channel)->create();
+        $message = MessageFactory::new()->inPage($page)->byUser($user)->create();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        \assert($em instanceof EntityManagerInterface);
+        $em->remove($em->find(CommunityMember::class, $membership->getId()));
+        $em->flush();
+
+        $this->jsonClient($user)->request('PATCH', '/api/v1/messages/'.$message->getId(), [
+            'headers' => ['Content-Type' => 'application/merge-patch+json'],
+            'json' => ['text' => 'Rewritten after leaving'],
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testTimedOutAuthorCannotEditMessage(): void
+    {
+        $user = UserFactory::createOne();
+        $mod = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('edit-to')->create();
+        CommunityMemberFactory::createForUserAndCommunity($user, $community);
+        CommunityMemberFactory::createModeratorForCommunity($mod, $community);
+        $channel = ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'edit-to-ch'])->create();
+        $page = MessagePageFactory::new()->forChannel($channel)->create();
+        $message = MessageFactory::new()->inPage($page)->byUser($user)->create();
+
+        $this->jsonClient($mod)->request('POST', '/api/v1/communities/edit-to/moderation', ['json' => [
+            'targetUserId' => $user->getId(),
+            'type' => 'timeout',
+            'expiresAt' => (new \DateTimeImmutable('+1 hour'))->format(\DateTimeInterface::ATOM),
+        ]]);
+        self::assertResponseStatusCodeSame(201);
+
+        $this->jsonClient($user)->request('PATCH', '/api/v1/messages/'.$message->getId(), [
+            'headers' => ['Content-Type' => 'application/merge-patch+json'],
+            'json' => ['text' => 'Rewritten while timed out'],
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testEditCannotAddBroadcastWithoutPermission(): void
+    {
+        $user = UserFactory::createOne();
+        $community = CommunityFactory::new()
+            ->withIdentifier('edit-bc')
+            ->with(['broadcastMentionMinRole' => BroadcastMentionRole::Moderator])
+            ->create();
+        CommunityMemberFactory::createForUserAndCommunity($user, $community);
+        $channel = ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'edit-bc-ch'])->create();
+        $page = MessagePageFactory::new()->forChannel($channel)->create();
+        $message = MessageFactory::new()->inPage($page)->byUser($user)->withText('hello')->create();
+
+        $this->jsonClient($user)->request('PATCH', '/api/v1/messages/'.$message->getId(), [
+            'headers' => ['Content-Type' => 'application/merge-patch+json'],
+            'json' => ['text' => 'hello [@channel](broadcast:channel)'],
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testEditKeepingExistingBroadcastIsAllowed(): void
+    {
+        $user = UserFactory::createOne();
+        $community = CommunityFactory::new()
+            ->withIdentifier('edit-bc-keep')
+            ->with(['broadcastMentionMinRole' => BroadcastMentionRole::Moderator])
+            ->create();
+        CommunityMemberFactory::createForUserAndCommunity($user, $community);
+        $channel = ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'edit-bc-keep-ch'])->create();
+        $page = MessagePageFactory::new()->forChannel($channel)->create();
+        $message = MessageFactory::new()->inPage($page)->byUser($user)->withText('hi [@channel](broadcast:channel)')->create();
+
+        $this->jsonClient($user)->request('PATCH', '/api/v1/messages/'.$message->getId(), [
+            'headers' => ['Content-Type' => 'application/merge-patch+json'],
+            'json' => ['text' => 'hi again [@channel](broadcast:channel)'],
+        ]);
+
+        self::assertResponseIsSuccessful();
     }
 
     public function testNonAuthorCannotEditMessage(): void

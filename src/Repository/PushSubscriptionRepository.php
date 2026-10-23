@@ -34,6 +34,25 @@ class PushSubscriptionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /** @return list<string> */
+    public function findEndpointsBeyondNewest(User $user, int $keep, string $exceptEndpoint): array
+    {
+        /** @var list<string> $endpoints */
+        $endpoints = $this->createQueryBuilder('s')
+            ->select('s.endpoint')
+            ->where('s.user = :user')
+            ->andWhere('s.endpoint != :except')
+            ->setParameter('user', $user)
+            ->setParameter('except', $exceptEndpoint)
+            ->orderBy('s.createdAt', 'DESC')
+            ->addOrderBy('s.id', 'DESC')
+            ->setFirstResult($keep)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return $endpoints;
+    }
+
     public function countByUser(User $user): int
     {
         return $this->count(['user' => $user]);

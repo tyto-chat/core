@@ -13,6 +13,8 @@ use App\Service\AbstractDoctrineService;
 
 class PushSubscriptionService extends AbstractDoctrineService implements PushSubscriptionServiceInterface
 {
+    private const int MAX_PER_USER = 10;
+
     public function __construct(
         private readonly SecurityContext $security,
         private readonly PushSubscriptionRepository $repository,
@@ -32,6 +34,8 @@ class PushSubscriptionService extends AbstractDoctrineService implements PushSub
         $subscription->setLocale(in_array($locale, SupportedLocale::values(), true) ? $locale : 'en');
 
         $this->save($subscription);
+
+        $this->repository->deleteByEndpoints($this->repository->findEndpointsBeyondNewest($caller, self::MAX_PER_USER - 1, $endpoint));
     }
 
     #[\Override]

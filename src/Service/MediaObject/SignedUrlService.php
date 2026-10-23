@@ -9,6 +9,8 @@ use App\Settings\Settings;
 
 final class SignedUrlService implements SignedUrlServiceInterface
 {
+    private const string EXPORT_PURPOSE = 'export:';
+
     private const int MIN_SIGNING_KEY_LENGTH = 32;
 
     public function __construct(
@@ -45,6 +47,9 @@ final class SignedUrlService implements SignedUrlServiceInterface
         }
 
         [$givenHmac, $expiryStr] = $parts;
+        if (1 !== preg_match('/^[1-9]\d{0,18}$/', $expiryStr)) {
+            return false;
+        }
         $expiry = (int) $expiryStr;
 
         if ($expiry <= time()) {
@@ -54,5 +59,17 @@ final class SignedUrlService implements SignedUrlServiceInterface
         $expectedHmac = hash_hmac('sha256', $relativePath.':'.$expiry, $this->signingKey);
 
         return hash_equals($expectedHmac, $givenHmac);
+    }
+
+    #[\Override]
+    public function signExport(string $relativePath, int $ttl): string
+    {
+        return $this->sign(self::EXPORT_PURPOSE.$relativePath, $ttl);
+    }
+
+    #[\Override]
+    public function verifyExport(string $relativePath, string $token): bool
+    {
+        return $this->verify(self::EXPORT_PURPOSE.$relativePath, $token);
     }
 }

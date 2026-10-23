@@ -205,6 +205,17 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
 
         $text = MarkdownSanitizer::sanitize($updateMessageDto->text);
 
+        $channel = $message->getChannel();
+        $community = $channel?->getCommunity();
+        if (null !== $channel && null !== $community) {
+            if ($this->moderationService->isTimedOut($community, $channel, $this->security->currentUser())) {
+                throw new TimedOutException('You are timed out and cannot edit messages.');
+            }
+            $this->hydrateText($message);
+            $added = array_diff(MentionExtractor::extractBroadcasts($text), MentionExtractor::extractBroadcasts($message->getText() ?? ''));
+            $this->assertCanBroadcast($channel, array_values($added));
+        }
+
         $revision = new MessageRevision();
         $revision->setText($text);
         $this->persist($revision);

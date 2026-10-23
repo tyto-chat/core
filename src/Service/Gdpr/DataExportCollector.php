@@ -201,7 +201,7 @@ class DataExportCollector
         return $this->urlGenerator->generate(
             'app_media_serve_export',
             [
-                'token' => $this->signedUrlService->sign($mo->filePath, $ttlSeconds),
+                'token' => $this->signedUrlService->signExport($mo->filePath, $ttlSeconds),
                 'filename' => $mo->filePath,
             ],
             UrlGeneratorInterface::ABSOLUTE_URL,

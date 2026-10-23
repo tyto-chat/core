@@ -12,4 +12,8 @@ interface SignedUrlServiceInterface
     public function signStable(string $relativePath, int $ttl): string;
 
     public function verify(string $relativePath, string $token): bool;
+
+    public function signExport(string $relativePath, int $ttl): string;
+
+    public function verifyExport(string $relativePath, string $token): bool;
 }

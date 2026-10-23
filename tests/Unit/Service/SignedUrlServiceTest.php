@@ -108,6 +108,27 @@ class SignedUrlServiceTest extends TestCase
         self::assertFalse($service->verify('p', $expiredToken));
     }
 
+    public function testExportTokensAndMediaTokensAreNotInterchangeable(): void
+    {
+        $service = $this->buildService();
+        $media = $service->sign('file.png', 3600);
+        $export = $service->signExport('file.png', 3600);
+
+        self::assertTrue($service->verifyExport('file.png', $export));
+        self::assertFalse($service->verifyExport('file.png', $media));
+        self::assertFalse($service->verify('file.png', $export));
+    }
+
+    public function testVerifyRejectsNonCanonicalExpiry(): void
+    {
+        $service = $this->buildService();
+        [$hmac, $expiry] = explode('.', $service->sign('file.png', 3600));
+
+        self::assertFalse($service->verify('file.png', $hmac.'.'.$expiry.'a'));
+        self::assertFalse($service->verify('file.png', $hmac.'.0'.$expiry));
+        self::assertFalse($service->verify('file.png', $hmac.'.+'.$expiry));
+    }
+
     public function testConstructorRejectsShortKey(): void
     {
         $settings = self::createStub(SettingsServiceInterface::class);

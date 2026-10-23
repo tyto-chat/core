@@ -165,11 +165,44 @@ class MessageVoterTest extends TestCase
     public function testGrantsUpdateToMessageAuthor(): void
     {
         $author = $this->user(5);
-        $message = $this->messageInChannel(new Channel(), author: $author);
+        $channel = new Channel();
+        $message = $this->messageInChannel($channel, author: $author);
+
+        $this->accessDecisionManager
+            ->expects(self::once())
+            ->method('decide')
+            ->with(self::anything(), [ChannelVoter::POST], $channel)
+            ->willReturn(true);
 
         self::assertSame(
             VoterInterface::ACCESS_GRANTED,
             $this->voter->vote($this->tokenFor($author), $message, [MessageVoter::UPDATE])
+        );
+    }
+
+    public function testDeniesUpdateToAuthorWhoCanNoLongerPost(): void
+    {
+        $author = $this->user(5);
+        $message = $this->messageInChannel(new Channel(), author: $author);
+
+        $this->accessDecisionManager->method('decide')->willReturn(false);
+
+        self::assertSame(
+            VoterInterface::ACCESS_DENIED,
+            $this->voter->vote($this->tokenFor($author), $message, [MessageVoter::UPDATE])
+        );
+    }
+
+    public function testGrantsDeleteToAuthorWhoCanNoLongerPost(): void
+    {
+        $author = $this->user(5);
+        $message = $this->messageInChannel(new Channel(), author: $author);
+
+        $this->accessDecisionManager->method('decide')->willReturn(false);
+
+        self::assertSame(
+            VoterInterface::ACCESS_GRANTED,
+            $this->voter->vote($this->tokenFor($author), $message, [MessageVoter::DELETE])
         );
     }
 
