@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service;
 
 use App\Async\DisconnectVoiceParticipantMessage;
+use App\Dto\Community\UpdateCommunityDto;
 use App\Entity\Community;
 use App\Entity\CommunityMember;
 use App\Entity\MediaObject;
@@ -490,6 +491,31 @@ class CommunityServiceTest extends TestCase
         $this->realtimePublisher->expects(self::never())->method('publishCommunityStructureChanged');
 
         $this->service->setLogo($community, $logo);
+    }
+
+    public function testUpdateWithoutPrivacyChangeDoesNotFlagGrants(): void
+    {
+        $community = new Community()->setPrivate(false);
+        $dto = new UpdateCommunityDto();
+        $dto->name = 'Renamed';
+        $dto->isPrivate = false;
+        $this->security->method('isGranted')->willReturn(true);
+
+        $this->realtimePublisher->expects(self::once())->method('publishCommunityStructureChanged')->with($community, false);
+
+        $this->service->update($community, $dto);
+    }
+
+    public function testUpdatePrivacyFlipFlagsGrants(): void
+    {
+        $community = new Community()->setPrivate(false);
+        $dto = new UpdateCommunityDto();
+        $dto->isPrivate = true;
+        $this->security->method('isGranted')->willReturn(true);
+
+        $this->realtimePublisher->expects(self::once())->method('publishCommunityStructureChanged')->with($community, true);
+
+        $this->service->update($community, $dto);
     }
 
     public function testUpdateMemberRolePublishesStructureAndRoleEvent(): void

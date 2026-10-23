@@ -224,6 +224,9 @@ class ServerConfigDto
     public int $invitationExpiryHours = 0;
 
     #[Groups(['admin_server_config:read'])]
+    public int $realtimeTokenTtlMinutes = 0;
+
+    #[Groups(['admin_server_config:read'])]
     public int $digestHour = 0;
 
     #[Groups(['admin_server_config:read'])]
@@ -322,6 +325,7 @@ class ServerConfigDto
         $dto->resetPasswordCodeExpiryMinutes = $s->get(Settings::resetPasswordCodeExpiryMinutes());
         $dto->emailChallengeExpiryMinutes = $s->get(Settings::emailChallengeExpiryMinutes());
         $dto->invitationExpiryHours = $s->get(Settings::invitationExpiryHours());
+        $dto->realtimeTokenTtlMinutes = $s->get(Settings::realtimeTokenTtlMinutes());
         $dto->digestHour = $s->get(Settings::digestHour());
         $dto->validateEmails = $s->get(Settings::validateEmails());
         $dto->mediaTokenTtlSeconds = $s->get(Settings::mediaTokenTtlSeconds());

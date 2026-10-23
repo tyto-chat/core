@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Api;
 
 use App\Tests\Functional\ApiTestCase;
+use Zenstruck\Foundry\Test\ResetDatabase;
 
 final class SecurityHeadersTest extends ApiTestCase
 {
+    use ResetDatabase;
+
     public function testPublicResponseCarriesSecurityHeaders(): void
     {
         $client = self::createClient();

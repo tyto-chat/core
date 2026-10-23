@@ -7,9 +7,12 @@ namespace App\Tests\Functional\Api;
 use App\DependencyInjection\CorsOriginEnvVarProcessor;
 use App\Tests\Functional\ApiTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Zenstruck\Foundry\Test\ResetDatabase;
 
 class CorsDesktopOriginTest extends ApiTestCase
 {
+    use ResetDatabase;
+
     public function testPreflightFromTheDesktopAppIsAnswered(): void
     {
         $response = static::createClient()->request('OPTIONS', '/api/versions', [

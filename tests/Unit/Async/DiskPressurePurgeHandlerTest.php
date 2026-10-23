@@ -25,7 +25,7 @@ final class DiskPressurePurgeHandlerTest extends TestCase
 
     public function testStaysSilentWhenValveClosed(): void
     {
-        $service = $this->createMock(DiskPressurePurgeServiceInterface::class);
+        $service = self::createStub(DiskPressurePurgeServiceInterface::class);
         $service->method('purge')->willReturn(null);
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects(self::never())->method('info');

@@ -8,6 +8,7 @@ use ApiPlatform\OpenApi\Factory\OpenApiFactoryInterface;
 use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\PathItem;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Zenstruck\Foundry\Test\ResetDatabase;
 
 /**
  * Drift guard for the published API contract. Snapshots the surface — every
@@ -22,6 +23,8 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  */
 final class OpenApiContractTest extends KernelTestCase
 {
+    use ResetDatabase;
+
     private const string SNAPSHOT = __DIR__.'/../Fixtures/openapi-surface.txt';
 
     public function testSecuritySchemesAreDocumented(): void

@@ -442,8 +442,9 @@ class CommunityService extends AbstractDoctrineService implements CommunityServi
             }
         }
 
+        $wasPrivate = $community->isPrivate();
         $saved = $this->save($community, $updateCommunityDto);
-        $this->realtimePublisher->publishCommunityStructureChanged($saved);
+        $this->realtimePublisher->publishCommunityStructureChanged($saved, grantsChanged: $saved->isPrivate() !== $wasPrivate);
 
         return $saved;
     }
@@ -484,27 +485,29 @@ class CommunityService extends AbstractDoctrineService implements CommunityServi
 
         $member->setRole(CommunityRole::Admin);
 
-        $demoted = 0;
+        $demotedUserIds = [];
         if ($demoteOthers) {
             foreach ($this->communityMembership->findByCommunity($community) as $existing) {
                 if ($existing->getId() === $member->getId() || CommunityRole::Admin !== $existing->getRole()) {
                     continue;
                 }
                 $existing->setRole(CommunityRole::Member);
-                ++$demoted;
+                $demotedUserIds[] = (int) $existing->getUser()->getId();
             }
         }
 
         $this->flush();
 
         $this->realtimePublisher->publishCommunityStructureChanged($community);
-        $this->realtimePublisher->publishUserEvent(
-            (int) $newAdmin->getId(),
-            'role.changed',
-            ['communityIdentifier' => (string) $community->getIdentifier()],
-        );
+        foreach ([(int) $newAdmin->getId(), ...$demotedUserIds] as $userId) {
+            $this->realtimePublisher->publishUserEvent(
+                $userId,
+                'role.changed',
+                ['communityIdentifier' => (string) $community->getIdentifier()],
+            );
+        }
 
-        return $demoted;
+        return \count($demotedUserIds);
     }
 
     #[\Override]

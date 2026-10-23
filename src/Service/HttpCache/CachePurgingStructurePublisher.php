@@ -21,9 +21,9 @@ final class CachePurgingStructurePublisher implements StructureRealtimePublisher
     }
 
     #[\Override]
-    public function publishCommunityStructureChanged(Community $community): void
+    public function publishCommunityStructureChanged(Community $community, bool $grantsChanged = false): void
     {
-        $this->inner->publishCommunityStructureChanged($community);
+        $this->inner->publishCommunityStructureChanged($community, $grantsChanged);
         $this->purger->purgeCommunityDetail((string) $community->getIdentifier());
     }
 

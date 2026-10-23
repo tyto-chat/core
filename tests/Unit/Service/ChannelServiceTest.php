@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service;
 
 use App\Async\DisconnectVoiceParticipantMessage;
+use App\Dto\Channel\UpdateChannelDto;
 use App\Entity\Channel;
 use App\Entity\Community;
 use App\Entity\MessagePage;
 use App\Entity\User;
+use App\Enum\Channel\ChannelType;
 use App\Exception\Channel\ChannelNotFoundException;
 use App\Exception\Message\MessagePageNotFoundException;
 use App\Repository\ChannelRepository;
@@ -119,6 +121,42 @@ class ChannelServiceTest extends TestCase
         $this->service->get(1);
     }
 
+    public function testUpdateWithoutPrivacyChangeDoesNotFlagGrants(): void
+    {
+        $channel = $this->channel(private: false);
+        $dto = new UpdateChannelDto();
+        $dto->name = 'renamed';
+        $dto->isPrivate = false;
+
+        $this->expectStructureChange(grantsChanged: false);
+        $this->service->update($channel, $dto);
+    }
+
+    public function testUpdatePrivacyFlipFlagsGrants(): void
+    {
+        $channel = $this->channel(private: false);
+        $dto = new UpdateChannelDto();
+        $dto->isPrivate = true;
+
+        $this->expectStructureChange(grantsChanged: true);
+        $this->service->update($channel, $dto);
+    }
+
+    public function testArchiveDoesNotFlagGrants(): void
+    {
+        $this->expectStructureChange(grantsChanged: false);
+        $this->service->archive($this->channel(private: false));
+    }
+
+    public function testUnarchiveDoesNotFlagGrants(): void
+    {
+        $channel = $this->channel(private: false);
+        $channel->setArchivedAt(new \DateTimeImmutable());
+
+        $this->expectStructureChange(grantsChanged: false);
+        $this->service->unarchive($channel);
+    }
+
     public function testDeleteDispatchesVoiceDisconnectPerParticipant(): void
     {
         $community = $this->createMock(Community::class);
@@ -171,5 +209,23 @@ class ChannelServiceTest extends TestCase
         $result = $this->service->getChannelPage($channel, 1);
 
         self::assertSame(0, $result->getMessageCount());
+    }
+
+    private function channel(bool $private): Channel
+    {
+        $this->security->method('isGranted')->willReturn(true);
+        $channel = new Channel();
+        $channel->setType(ChannelType::Text);
+        $channel->setPrivate($private);
+        $channel->setCommunity(new Community());
+        new \ReflectionProperty(Channel::class, 'id')->setValue($channel, 42);
+
+        return $channel;
+    }
+
+    private function expectStructureChange(bool $grantsChanged): void
+    {
+        $this->realtimePublisher->expects(self::once())->method('publishCommunityStructureChanged')
+            ->with(self::isInstanceOf(Community::class), $grantsChanged);
     }
 }

@@ -27,7 +27,8 @@ use App\State\Realtime\Provider\RealtimeTokenProvider;
                     .'activity) and the presence topic template, plus the scopes requested: `community` adds that '
                     .'community\'s structure, activity, emojis and every channel the caller can view in it (with threads and '
                     .'voice participants); `conversation` adds that conversation and its threads. Scopes the caller cannot '
-                    .'view are silently left out. The token expires after one hour (`expiresAt` is epoch seconds).',
+                    .'view are silently left out. The token lifetime is the admin setting `realtimeTokenTtlMinutes` (30 by default): `expiresIn` is that lifetime in '
+                    .'seconds, `expiresAt` the expiry as epoch seconds.',
                 parameters: [
                     new Model\Parameter('community', 'query', 'Identifier of the community being viewed.', false, false, true, ['type' => 'string']),
                     new Model\Parameter('conversation', 'query', 'Identifier of the conversation being viewed.', false, false, true, ['type' => 'string']),
@@ -41,7 +42,7 @@ use App\State\Realtime\Provider\RealtimeTokenProvider;
             openapi: new Model\Operation(
                 summary: 'Get an anonymous realtime subscriber token',
                 description: 'Anonymous endpoint. Mints a Mercure subscriber JWT for the requested `community`: its public '
-                    .'text channels and their threads, plus its structure and emoji topics. Both `token` and `expiresAt` are '
+                    .'text channels and their threads, plus its structure and emoji topics. `token`, `expiresAt` and `expiresIn` are '
                     .'`null` when the community is missing, not public, or has no public text channels.',
                 parameters: [
                     new Model\Parameter('community', 'query', 'Identifier of the community being viewed.', false, false, true, ['type' => 'string']),

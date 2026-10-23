@@ -52,7 +52,6 @@ services:
     App\Service\Realtime\MercureSubscriberTokenFactory:
         arguments:
             $subscriberJwtKey: '%env(hmac_key:MERCURE_SUBSCRIBER_JWT_KEY)%'
-            $tokenTtl: '%lexik_jwt_authentication.token_ttl%'
 
     App\Service\Voice\LiveKitVoiceService:
         arguments:

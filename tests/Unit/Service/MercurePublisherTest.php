@@ -132,6 +132,15 @@ final class MercurePublisherTest extends TestCase
         self::assertTrue($this->captured->isPrivate());
         self::assertStringContainsString('"type":"community.structure"', $this->captured->getData());
         self::assertStringContainsString('"communityIdentifier":"my-community"', $this->captured->getData());
+        self::assertStringNotContainsString('grantsChanged', $this->captured->getData());
+    }
+
+    public function testStructureChangeThatAltersGrantsIsFlagged(): void
+    {
+        $publisher = $this->makePublisher();
+        $publisher->publishCommunityStructureChanged($this->community(), grantsChanged: true);
+
+        self::assertStringContainsString('"grantsChanged":true', $this->captured->getData());
     }
 
     public function testPublishChannelActivity(): void

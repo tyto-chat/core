@@ -13,4 +13,7 @@ class RealtimeTokenDto
 
     #[Groups(['realtime_token:read'])]
     public ?int $expiresAt = null;
+
+    #[Groups(['realtime_token:read'])]
+    public ?int $expiresIn = null;
 }

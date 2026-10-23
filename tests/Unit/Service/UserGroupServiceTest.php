@@ -7,17 +7,22 @@ namespace App\Tests\Unit\Service;
 use App\Dto\UserGroup\CreateUserGroupDto;
 use App\Entity\Channel;
 use App\Entity\Community;
+use App\Entity\GroupChannelPermission;
 use App\Entity\User;
 use App\Entity\UserGroup;
+use App\Entity\UserGroupMember;
 use App\Enum\Channel\ChannelRole;
+use App\Enum\Community\CommunityRole;
 use App\Exception\UserGroup\ChannelNotInGroupCommunityException;
 use App\Exception\UserGroup\UserGroupNotFoundException;
 use App\Repository\GroupChannelPermissionRepository;
 use App\Repository\UserGroupMemberRepository;
 use App\Repository\UserGroupRepository;
 use App\Security\SecurityContext;
+use App\Service\Channel\ChannelMembershipServiceInterface;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Notification\NotificationServiceInterface;
+use App\Service\Realtime\RealtimePublisherInterface;
 use App\Service\UserGroup\UserGroupService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -53,11 +58,62 @@ class UserGroupServiceTest extends TestCase
             $this->memberRepo,
             $this->createMock(GroupChannelPermissionRepository::class),
             $this->createMock(NotificationServiceInterface::class),
-            $this->createMock(\App\Service\Realtime\RealtimePublisherInterface::class),
-            $this->createMock(\App\Service\Channel\ChannelMembershipServiceInterface::class),
+            $this->createMock(RealtimePublisherInterface::class),
+            $this->createMock(ChannelMembershipServiceInterface::class),
         );
         $this->service->setEntityManager($this->entityManager);
         $this->service->setLogger(new NullLogger());
+    }
+
+    public function testDeletePublishesRevocationToMembersOfPrivateChannelGroups(): void
+    {
+        $this->deleteGroupWithMemberHavingCommunityRole(null, 1);
+    }
+
+    public function testDeleteDoesNotEvictModeratorsWhoStillSeeTheChannel(): void
+    {
+        $this->deleteGroupWithMemberHavingCommunityRole(CommunityRole::Moderator, 0);
+    }
+
+    private function deleteGroupWithMemberHavingCommunityRole(?CommunityRole $role, int $revocations): void
+    {
+        $community = (new Community())->setIdentifier('acme');
+        $channel = (new Channel())->setPrivate(true)->setIdentifier('secret');
+        $channel->setCommunity($community);
+        $user = $this->createMock(User::class);
+        $user->method('getId')->willReturn(7);
+        $group = $this->createMock(UserGroup::class);
+        $group->method('getCommunity')->willReturn($community);
+        $perm = $this->createMock(GroupChannelPermission::class);
+        $perm->method('getChannel')->willReturn($channel);
+        $member = $this->createMock(UserGroupMember::class);
+        $member->method('getUser')->willReturn($user);
+
+        $perms = $this->createMock(GroupChannelPermissionRepository::class);
+        $perms->method('findByGroup')->willReturn([$perm]);
+        $perms->method('findHighestRoleForUserInChannel')->willReturn(null);
+        $this->memberRepo->method('findByGroup')->willReturn([$member]);
+        $this->security->method('isGranted')->willReturn(true);
+        $this->membership->method('findRole')->willReturn($role);
+        $publisher = $this->createMock(RealtimePublisherInterface::class);
+        $publisher->expects(self::once())->method('publishCommunityStructureChanged')->with($community);
+        $publisher->expects(self::exactly($revocations))->method('publishUserEvent')
+            ->with(7, 'channel.access.revoked', ['communityIdentifier' => 'acme', 'channelIdentifier' => 'secret']);
+
+        $service = new UserGroupService(
+            new SecurityContext($this->security, $this->membership),
+            $this->membership,
+            $this->groupRepo,
+            $this->memberRepo,
+            $perms,
+            $this->createMock(NotificationServiceInterface::class),
+            $publisher,
+            $this->createMock(ChannelMembershipServiceInterface::class),
+        );
+        $service->setEntityManager($this->entityManager);
+        $service->setLogger(new NullLogger());
+
+        $service->delete($group);
     }
 
     public function testNewDeniesNonCommunityAdmin(): void

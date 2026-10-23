@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Mailer;
 
 use App\Mailer\DbConfiguredTransport;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Zenstruck\Foundry\Test\ResetDatabase;
 
 /**
  * Guards the decoration target. Mailer, the messenger send handler, and
@@ -16,6 +17,8 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  */
 final class MailerTransportWiringTest extends KernelTestCase
 {
+    use ResetDatabase;
+
     public function testMailerTransportsIsDecoratedByDbConfiguredTransport(): void
     {
         self::bootKernel();

@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Api;
 
 use App\Tests\Functional\ApiTestCase;
+use Zenstruck\Foundry\Test\ResetDatabase;
 
 class ApiDocsUiTest extends ApiTestCase
 {
+    use ResetDatabase;
+
     public function testSwaggerUiStartsCollapsedWithoutTheModelsSection(): void
     {
         $html = static::createClient()->request('GET', '/api/v1/docs', [

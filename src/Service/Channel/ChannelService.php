@@ -71,7 +71,7 @@ class ChannelService extends AbstractDoctrineService implements ChannelServiceIn
         }
 
         $saved = $this->save($channel, $createChannelDto);
-        $this->realtimePublisher->publishCommunityStructureChanged($createChannelDto->community);
+        $this->realtimePublisher->publishCommunityStructureChanged($createChannelDto->community, grantsChanged: true);
 
         return $saved;
     }
@@ -90,11 +90,12 @@ class ChannelService extends AbstractDoctrineService implements ChannelServiceIn
             throw new InvalidChannelSectionException();
         }
 
+        $wasPrivate = $channel->isPrivate();
         $updated = $this->save($channel, $updateChannelDto);
 
         $community = $updated->getCommunity();
         if (null !== $community) {
-            $this->realtimePublisher->publishCommunityStructureChanged($community);
+            $this->realtimePublisher->publishCommunityStructureChanged($community, grantsChanged: $updated->isPrivate() !== $wasPrivate);
         }
 
         return $updated;

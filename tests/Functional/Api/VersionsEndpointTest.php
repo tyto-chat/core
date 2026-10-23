@@ -6,9 +6,12 @@ namespace App\Tests\Functional\Api;
 
 use App\Utils\ApiVersions;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Zenstruck\Foundry\Test\ResetDatabase;
 
 final class VersionsEndpointTest extends WebTestCase
 {
+    use ResetDatabase;
+
     public function testVersionsEndpointIsAnonymousAndMirrorsRegistry(): void
     {
         $client = static::createClient();
