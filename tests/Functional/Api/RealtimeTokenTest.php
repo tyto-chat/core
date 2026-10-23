@@ -128,7 +128,8 @@ class RealtimeTokenTest extends ApiTestCase
         $topics = $this->subscribeTopicsFor($user, ['community' => 'rt-active']);
 
         self::assertContains('k/'.$active->getId(), $topics);
-        self::assertContains('k/'.$active->getId().'/a', $topics);
+        self::assertNotContains('k/'.$active->getId().'/a', $topics);
+        self::assertContains('c/'.$channel->getId().'/a', $topics);
         self::assertContains('k/'.$active->getId().'/e', $topics);
         self::assertContains('c/'.$channel->getId(), $topics);
         self::assertContains('c/'.$channel->getId().'/t', $topics);
@@ -137,6 +138,7 @@ class RealtimeTokenTest extends ApiTestCase
         self::assertNotContains('k/'.$other->getId().'/e', $topics);
         self::assertNotContains('c/'.$otherChannel->getId(), $topics);
         self::assertNotContains('c/'.$otherChannel->getId().'/t', $topics);
+        self::assertNotContains('c/'.$otherChannel->getId().'/a', $topics);
     }
 
     public function testCommunityScopeGrantsVoiceParticipantsForAudioChannels(): void

@@ -15,6 +15,7 @@ use App\Repository\NotificationRepository;
 use App\Service\Notification\ChannelUserPreferenceServiceInterface;
 use App\Service\UserContextServiceInterface;
 use App\Tests\Factory\ChannelFactory;
+use App\Tests\Factory\ChannelMemberFactory;
 use App\Tests\Factory\CommunityFactory;
 use App\Tests\Factory\CommunityMemberFactory;
 use App\Tests\Factory\UserFactory;
@@ -234,6 +235,26 @@ class NotificationPreferenceTest extends ApiTestCase
         $this->send($author, 'np10', 'general', "hey [@o](user:{$outsider->getId()})");
 
         self::assertResponseIsSuccessful();
+        self::assertSame([], $this->notifSummary($outsider, $community));
+    }
+
+    public function testMentionInPrivateChannelSkipsMembersWithoutAccess(): void
+    {
+        $author = UserFactory::createOne();
+        $insider = UserFactory::createOne();
+        $outsider = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('np-priv')->create();
+        foreach ([$author, $insider, $outsider] as $u) {
+            CommunityMemberFactory::createForUserAndCommunity($u, $community);
+        }
+        $channel = ChannelFactory::new()->inCommunity($community)->private()->with(['identifier' => 'secret'])->create();
+        ChannelMemberFactory::createForUserAndChannel($author, $channel);
+        ChannelMemberFactory::createForUserAndChannel($insider, $channel);
+
+        $this->send($author, 'np-priv', 'secret', "hey [@i](user:{$insider->getId()}) [@o](user:{$outsider->getId()})");
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('mention', $this->notifSummary($insider, $community)[0]['type'] ?? null);
         self::assertSame([], $this->notifSummary($outsider, $community));
     }
 

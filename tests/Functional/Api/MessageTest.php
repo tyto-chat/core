@@ -162,6 +162,23 @@ class MessageTest extends ApiTestCase
         self::assertJsonContains(['text' => 'Edited text']);
     }
 
+    public function testAuthorCanReplaceMessageTextWithPut(): void
+    {
+        $user = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('put-c')->create();
+        CommunityMemberFactory::createForUserAndCommunity($user, $community);
+        $channel = ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'put-ch'])->create();
+        $page = MessagePageFactory::new()->forChannel($channel)->create();
+        $message = MessageFactory::new()->inPage($page)->byUser($user)->create();
+
+        $this->jsonClient($user)->request('PUT', '/api/v1/messages/'.$message->getId(), [
+            'json' => ['text' => 'Replaced text'],
+        ]);
+
+        self::assertResponseIsSuccessful();
+        self::assertJsonContains(['text' => 'Replaced text']);
+    }
+
     public function testNonAuthorCannotEditMessage(): void
     {
         $author = UserFactory::createOne();

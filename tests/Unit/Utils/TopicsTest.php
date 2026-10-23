@@ -20,6 +20,7 @@ final class TopicsTest extends TestCase
         yield 'presence template' => [Topics::presenceTemplate(), 'u/{userId}/p'];
         yield 'community' => [Topics::community(7), 'k/7'];
         yield 'community activity' => [Topics::communityActivity(7), 'k/7/a'];
+        yield 'channel activity' => [Topics::channelActivity(12), 'c/12/a'];
         yield 'community emojis' => [Topics::communityEmojis(7), 'k/7/e'];
         yield 'channel' => [Topics::channel(12), 'c/12'];
         yield 'channel threads' => [Topics::channelThreads(12), 'c/12/t'];

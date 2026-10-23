@@ -11,6 +11,7 @@ use App\Exception\Profile\InvalidAvatarException;
 use App\Exception\Profile\ProfileNotFoundException;
 use App\Repository\ProfileRepository;
 use App\Security\SecurityContext;
+use App\Security\Voter\MediaObjectVoter;
 use App\Security\Voter\ProfileVoter;
 use App\Service\AbstractDoctrineService;
 
@@ -39,11 +40,15 @@ class ProfileService extends AbstractDoctrineService implements ProfileServiceIn
     {
         $this->security->throwAccessDeniedUnlessGranted(ProfileVoter::UPDATE, $profile, 'You do not have permission to update this profile.');
 
-        if ($updateProfileDto->isProvided('avatar')
-            && null !== $updateProfileDto->avatar
-            && 'avatar' !== $updateProfileDto->avatar->type
-        ) {
-            throw new InvalidAvatarException('The referenced media object is not an avatar.');
+        $avatar = $updateProfileDto->isProvided('avatar') ? $updateProfileDto->avatar : null;
+        if (null !== $avatar) {
+            if ('avatar' !== $avatar->type) {
+                throw new InvalidAvatarException('The referenced media object is not an avatar.');
+            }
+            $inUseBy = $this->profileRepository->findByAvatar($avatar);
+            if (!$this->security->isGranted(MediaObjectVoter::LINK, $avatar) || (null !== $inUseBy && $inUseBy !== $profile)) {
+                throw new InvalidAvatarException('The referenced media object is not your avatar.');
+            }
         }
 
         return $this->save($profile, $updateProfileDto);

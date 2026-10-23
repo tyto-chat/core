@@ -97,6 +97,7 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
             $this->assertCanBroadcast($channel, MentionExtractor::extractBroadcasts($text));
         }
 
+        $this->assertChannelAcceptsAttachments($channel, $attachmentIris);
         $attachments = $this->resolveAttachments($attachmentIris);
 
         $page = $this->channelService->findLatestPage($channel);
@@ -311,6 +312,7 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
             }
 
             $this->assertCanBroadcast($channel, MentionExtractor::extractBroadcasts($text));
+            $this->assertChannelAcceptsAttachments($channel, $attachmentIris);
         } else {
             $this->security->throwAccessDeniedUnlessGranted(ConversationVoter::WRITE, $conversation, 'You are not a member of this conversation.');
             if (!$this->conversationService->isMember($conversation, $user)) {
@@ -374,6 +376,14 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
         }
 
         return $reply;
+    }
+
+    /**
+     * @param list<string> $attachmentIris
+     */
+    private function assertChannelAcceptsAttachments(Channel $channel, array $attachmentIris): void
+    {
+        $this->security->throwAccessDeniedIf([] !== $attachmentIris && !$channel->getAllowAttachments(), 'Attachments are disabled for this channel.');
     }
 
     /**

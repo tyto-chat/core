@@ -51,6 +51,11 @@ final class Topics
         return self::community($communityId).'/p';
     }
 
+    public static function channelActivity(int $channelId): string
+    {
+        return self::channel($channelId).'/a';
+    }
+
     public static function channel(int $channelId): string
     {
         return 'c/'.$channelId;

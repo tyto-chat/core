@@ -8,6 +8,8 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Entity\CommunityEmoji;
 use App\Entity\MediaObject;
+use App\Security\SecurityContext;
+use App\Security\Voter\CommunityEmojiVoter;
 use App\Service\Community\CommunityEmojiServiceInterface;
 use App\Service\Community\CommunityServiceInterface;
 use App\Service\MediaObject\MediaObjectServiceInterface;
@@ -27,6 +29,7 @@ final readonly class UploadCustomEmojiProcessor implements ProcessorInterface
         private CommunityEmojiServiceInterface $communityEmojiService,
         private MediaObjectServiceInterface $mediaObjectService,
         private RequestStack $requestStack,
+        private SecurityContext $security,
     ) {
     }
 
@@ -34,6 +37,7 @@ final readonly class UploadCustomEmojiProcessor implements ProcessorInterface
     {
         $request = $this->requestStack->getCurrentRequest();
         $community = $this->communityService->getByIdentifier((string) $request?->attributes->get('community', ''));
+        $this->security->throwAccessDeniedUnlessGranted(CommunityEmojiVoter::MANAGE, $community, 'You do not have permission to manage emojis for this community.');
 
         $shortcode = (string) $request?->request->get('shortcode', '');
         $rawName = trim((string) $request?->request->get('name', ''));

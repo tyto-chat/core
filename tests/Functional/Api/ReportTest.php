@@ -201,4 +201,23 @@ class ReportTest extends ApiTestCase
         $list = $this->jsonClient($admin)->request('GET', '/api/v1/admin/reports')->toArray();
         self::assertGreaterThanOrEqual(1, \count($list['member'] ?? $list['hydra:member']));
     }
+
+    public function testCannotFileUserReportIntoCommunityReporterIsNotIn(): void
+    {
+        $reporter = UserFactory::createOne();
+        $target = UserFactory::createOne();
+        $shared = CommunityFactory::new()->withIdentifier('rep-shared')->create();
+        $foreign = CommunityFactory::new()->withIdentifier('rep-foreign')->create();
+        CommunityMemberFactory::createForUserAndCommunity($reporter, $shared);
+        CommunityMemberFactory::createForUserAndCommunity($target, $shared);
+        CommunityMemberFactory::createForUserAndCommunity($target, $foreign);
+
+        $this->jsonClient($reporter)->request('POST', '/api/v1/reports', ['json' => [
+            'userId' => $target->getId(),
+            'communityIdentifier' => 'rep-foreign',
+            'category' => 'spam',
+        ]]);
+
+        self::assertResponseStatusCodeSame(422);
+    }
 }

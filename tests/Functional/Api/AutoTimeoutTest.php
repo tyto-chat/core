@@ -12,6 +12,7 @@ use App\Exception\User\UserNotFoundException;
 use App\Service\Settings\SettingsServiceInterface;
 use App\Settings\Settings;
 use App\Tests\Factory\CommunityFactory;
+use App\Tests\Factory\CommunityMemberFactory;
 use App\Tests\Factory\UserFactory;
 use App\Tests\Functional\ApiTestCase;
 use Doctrine\ORM\EntityManagerInterface;
@@ -103,7 +104,8 @@ class AutoTimeoutTest extends ApiTestCase
     {
         $user = UserFactory::createOne();
         $botUser = UserFactory::new()->bot()->with(['email' => 'bot@tyto.test'])->create();
-        CommunityFactory::new()->withIdentifier('auto-timeout-test')->create();
+        $community = CommunityFactory::new()->withIdentifier('auto-timeout-test')->create();
+        CommunityMemberFactory::createForUserAndCommunity($user, $community);
 
         $botService = $this->createMock(\App\Service\User\BotUserServiceInterface::class);
         $botService->method('getAutoModeratorBot')->willReturn($botUser);

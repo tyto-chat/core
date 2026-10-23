@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Api;
 
 use App\Tests\Factory\ChannelFactory;
 use App\Tests\Factory\ChannelMemberFactory;
+use App\Tests\Factory\ChannelSectionFactory;
 use App\Tests\Factory\CommunityFactory;
 use App\Tests\Factory\CommunityMemberFactory;
 use App\Tests\Factory\MessageFactory;
@@ -130,6 +131,7 @@ class MercureBroadcastPiiTest extends ApiTestCase
     {
         $admin = UserFactory::new()->admin()->create();
         $community = CommunityFactory::new()->withIdentifier('mercure-pii-ch')->create();
+        $section = ChannelSectionFactory::new()->inCommunity($community)->create();
 
         $response = $this->jsonClient($admin)->request('POST', '/api/v1/channels', ['json' => [
             'name' => 'Staff Salaries',
@@ -137,6 +139,7 @@ class MercureBroadcastPiiTest extends ApiTestCase
             'type' => 'text',
             'isPrivate' => true,
             'community' => '/api/v1/communities/mercure-pii-ch',
+            'section' => '/api/v1/communities/mercure-pii-ch/sections/'.$section->getId(),
         ]]);
         self::assertResponseStatusCodeSame(201);
         $identifier = $response->toArray()['identifier'];

@@ -10,7 +10,7 @@ use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 
 final readonly class UserContextService implements UserContextServiceInterface
 {
-    private const string FIREWALL_NAME = 'main';
+    public const string FIREWALL_NAME = 'main';
 
     public function __construct(
         private TokenStorageInterface $tokenStorage,

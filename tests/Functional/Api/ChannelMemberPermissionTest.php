@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api;
 
+use App\Enum\Channel\ChannelRole;
 use App\Tests\Factory\ChannelFactory;
 use App\Tests\Factory\ChannelMemberFactory;
 use App\Tests\Factory\CommunityFactory;
@@ -132,5 +133,57 @@ class ChannelMemberPermissionTest extends ApiTestCase
         ]);
 
         self::assertResponseStatusCodeSame(401);
+    }
+
+    public function testChannelModCannotPromoteMemberToModeratorViaAdd(): void
+    {
+        $channelMod = UserFactory::createOne();
+        $target = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('cmp-promote')->create();
+        CommunityMemberFactory::createForUserAndCommunity($channelMod, $community);
+        CommunityMemberFactory::createForUserAndCommunity($target, $community);
+        $channel = ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'cmp-promote-ch'])->create();
+        ChannelMemberFactory::createForUserAndChannel($channelMod, $channel, ChannelRole::Moderator);
+
+        $this->jsonClient($channelMod)->request('POST', '/api/v1/communities/cmp-promote/channels/cmp-promote-ch/members', [
+            'json' => ['userId' => $target->getId(), 'role' => 'moderator'],
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testChannelModCannotDemoteModeratorViaAdd(): void
+    {
+        $channelMod = UserFactory::createOne();
+        $otherMod = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('cmp-demote')->create();
+        CommunityMemberFactory::createForUserAndCommunity($channelMod, $community);
+        CommunityMemberFactory::createForUserAndCommunity($otherMod, $community);
+        $channel = ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'cmp-demote-ch'])->create();
+        ChannelMemberFactory::createForUserAndChannel($channelMod, $channel, ChannelRole::Moderator);
+        ChannelMemberFactory::createForUserAndChannel($otherMod, $channel, ChannelRole::Moderator);
+
+        $this->jsonClient($channelMod)->request('POST', '/api/v1/communities/cmp-demote/channels/cmp-demote-ch/members', [
+            'json' => ['userId' => $otherMod->getId(), 'role' => 'member'],
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testChannelModCanStillAddPlainMember(): void
+    {
+        $channelMod = UserFactory::createOne();
+        $target = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('cmp-plain')->create();
+        CommunityMemberFactory::createForUserAndCommunity($channelMod, $community);
+        CommunityMemberFactory::createForUserAndCommunity($target, $community);
+        $channel = ChannelFactory::new()->inCommunity($community)->private()->with(['identifier' => 'cmp-plain-ch'])->create();
+        ChannelMemberFactory::createForUserAndChannel($channelMod, $channel, ChannelRole::Moderator);
+
+        $this->jsonClient($channelMod)->request('POST', '/api/v1/communities/cmp-plain/channels/cmp-plain-ch/members', [
+            'json' => ['userId' => $target->getId()],
+        ]);
+
+        self::assertResponseIsSuccessful();
     }
 }

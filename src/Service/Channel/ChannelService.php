@@ -65,10 +65,13 @@ class ChannelService extends AbstractDoctrineService implements ChannelServiceIn
             throw new VoiceDisabledException('Voice is disabled on this server; audio channels cannot be created.');
         }
 
-        $channel = new Channel();
-        if (null !== $createChannelDto->section) {
-            $channel->setPosition($this->channelRepository->findMaxPositionInSection($createChannelDto->section) + 1);
+        $section = $createChannelDto->section;
+        if (null === $section || $section->getCommunity() !== $createChannelDto->community) {
+            throw new InvalidChannelSectionException();
         }
+
+        $channel = new Channel();
+        $channel->setPosition($this->channelRepository->findMaxPositionInSection($section) + 1);
 
         $saved = $this->save($channel, $createChannelDto);
         $this->realtimePublisher->publishCommunityStructureChanged($createChannelDto->community, grantsChanged: true);

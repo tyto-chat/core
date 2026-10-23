@@ -434,4 +434,53 @@ class ModerationPermissionTest extends ApiTestCase
 
         self::assertResponseStatusCodeSame(403);
     }
+
+    public function testCommunityModCannotWarnUserOutsideTheCommunity(): void
+    {
+        $mod = UserFactory::createOne();
+        $outsider = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('mod-warn-outsider')->create();
+        CommunityMemberFactory::createModeratorForCommunity($mod, $community);
+        $elsewhere = CommunityFactory::new()->withIdentifier('mod-warn-elsewhere')->create();
+        CommunityMemberFactory::createForUserAndCommunity($outsider, $elsewhere);
+
+        $this->jsonClient($mod)->request('POST', $this->modUrl('mod-warn-outsider'), ['json' => [
+            'targetUserId' => $outsider->getId(),
+            'type' => 'warn',
+            'reason' => 'spam',
+        ]]);
+
+        self::assertResponseStatusCodeSame(422);
+    }
+
+    public function testCommunityModCannotTimeOutUserOutsideTheCommunity(): void
+    {
+        $mod = UserFactory::createOne();
+        $outsider = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('mod-to-outsider')->create();
+        CommunityMemberFactory::createModeratorForCommunity($mod, $community);
+
+        $this->jsonClient($mod)->request('POST', $this->modUrl('mod-to-outsider'), ['json' => [
+            'targetUserId' => $outsider->getId(),
+            'type' => 'timeout',
+            'expiresAt' => (new \DateTimeImmutable('+1 hour'))->format(\DateTimeInterface::ATOM),
+        ]]);
+
+        self::assertResponseStatusCodeSame(422);
+    }
+
+    public function testCommunityAdminCanStillBanUserOutsideTheCommunity(): void
+    {
+        $admin = UserFactory::createOne();
+        $outsider = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('mod-ban-outsider')->create();
+        CommunityMemberFactory::createAdminForCommunity($admin, $community);
+
+        $this->jsonClient($admin)->request('POST', $this->modUrl('mod-ban-outsider'), ['json' => [
+            'targetUserId' => $outsider->getId(),
+            'type' => 'ban',
+        ]]);
+
+        self::assertResponseStatusCodeSame(201);
+    }
 }

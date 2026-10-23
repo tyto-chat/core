@@ -38,11 +38,11 @@ final readonly class RealtimeTopicResolver
         if (null !== $community) {
             $communityId = $community->getId();
             $topics[] = Topics::community($communityId);
-            $topics[] = Topics::communityActivity($communityId);
             $topics[] = Topics::communityEmojis($communityId);
             $topics[] = Topics::communityPresence($communityId);
             foreach ($this->channelService->getViewableInCommunity($community) as $channel) {
                 array_push($topics, ...$this->channelTopics($channel));
+                $topics[] = Topics::channelActivity((int) $channel->getId());
                 if (ChannelType::Audio === $channel->getType()) {
                     $topics[] = Topics::channelParticipants((int) $channel->getId());
                 }

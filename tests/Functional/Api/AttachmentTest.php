@@ -198,6 +198,46 @@ class AttachmentTest extends ApiTestCase
         self::assertArrayHasKey('contentUrl', $data['attachments'][0]);
     }
 
+    public function testSendMessageWithAttachmentToChannelWithAttachmentsDisabledReturns403(): void
+    {
+        [$user, $community] = $this->setupCommunityAndChannel();
+        $locked = ChannelFactory::new()
+            ->inCommunity($community)
+            ->with(['identifier' => 'att-locked', 'allowAttachments' => false])
+            ->create();
+        ChannelMemberFactory::createForUserAndChannel($user, $locked);
+        $iri = $this->uploadAttachment($user);
+
+        $this->jsonClient($user)->request('POST', '/api/v1/communities/att-c/channels/att-locked/messages', [
+            'json' => ['text' => 'Smuggled', 'attachmentIris' => [$iri]],
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testReplyWithAttachmentInChannelWithAttachmentsDisabledReturns403(): void
+    {
+        [$user, $community] = $this->setupCommunityAndChannel();
+        $locked = ChannelFactory::new()
+            ->inCommunity($community)
+            ->with(['identifier' => 'att-locked', 'allowAttachments' => false])
+            ->create();
+        ChannelMemberFactory::createForUserAndChannel($user, $locked);
+        $iri = $this->uploadAttachment($user);
+
+        $root = $this->jsonClient($user)->request('POST', '/api/v1/communities/att-c/channels/att-locked/messages', [
+            'json' => ['text' => 'Root'],
+        ]);
+        self::assertResponseStatusCodeSame(201);
+        $rootId = $root->toArray()['@id'];
+
+        $this->jsonClient($user)->request('POST', $rootId.'/replies', [
+            'json' => ['text' => 'Smuggled reply', 'attachmentIris' => [$iri]],
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
     public function testSendMessageWithAnotherUsersAttachmentReturns403(): void
     {
         $owner = UserFactory::createOne();

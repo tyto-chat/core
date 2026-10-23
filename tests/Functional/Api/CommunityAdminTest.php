@@ -8,6 +8,7 @@ use App\Entity\ChannelSection;
 use App\Entity\Community;
 use App\Tests\Factory\ChannelFactory;
 use App\Tests\Factory\ChannelMemberFactory;
+use App\Tests\Factory\ChannelSectionFactory;
 use App\Tests\Factory\CommunityFactory;
 use App\Tests\Factory\CommunityMemberFactory;
 use App\Tests\Factory\GroupChannelPermissionFactory;
@@ -99,10 +100,12 @@ class CommunityAdminTest extends ApiTestCase
         $user = UserFactory::createOne();
         $community = CommunityFactory::new()->withIdentifier('ca-ch-create')->create();
         CommunityMemberFactory::createAdminForCommunity($user, $community);
+        $section = ChannelSectionFactory::new()->inCommunity($community)->create();
 
         $this->jsonClient($user)->request('POST', '/api/v1/channels', ['json' => [
             'name' => 'New Channel',
             'community' => '/api/v1/communities/ca-ch-create',
+            'section' => '/api/v1/communities/ca-ch-create/sections/'.$section->getId(),
         ]]);
 
         self::assertResponseStatusCodeSame(201);
