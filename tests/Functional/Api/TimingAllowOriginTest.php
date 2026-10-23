@@ -6,9 +6,12 @@ namespace App\Tests\Functional\Api;
 
 use App\DependencyInjection\CorsOriginEnvVarProcessor;
 use App\Tests\Functional\ApiTestCase;
+use Zenstruck\Foundry\Test\ResetDatabase;
 
 class TimingAllowOriginTest extends ApiTestCase
 {
+    use ResetDatabase;
+
     public function testAllowedCrossOriginResponsesExposeResourceTiming(): void
     {
         $response = static::createClient()->request('GET', '/api/versions', [

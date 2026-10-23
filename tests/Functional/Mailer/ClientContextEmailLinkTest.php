@@ -9,9 +9,12 @@ use App\Entity\ResetPasswordRequest;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Twig\Environment;
+use Zenstruck\Foundry\Test\ResetDatabase;
 
 final class ClientContextEmailLinkTest extends KernelTestCase
 {
+    use ResetDatabase;
+
     private const string BASE_URL = 'https://chat.example.com';
 
     /** @return iterable<string, array{string, string, bool}> */

@@ -7,6 +7,7 @@ namespace App\Tests\Functional\Doctrine;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaValidator;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Zenstruck\Foundry\Test\ResetDatabase;
 
 /**
  * The test database is always built from migrations (ddev test + CI both run
@@ -17,6 +18,8 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  */
 class SchemaValidityTest extends KernelTestCase
 {
+    use ResetDatabase;
+
     public function testMappingIsValidAndInSyncWithTheMigratedSchema(): void
     {
         self::bootKernel();
