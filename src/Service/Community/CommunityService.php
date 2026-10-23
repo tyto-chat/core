@@ -442,8 +442,9 @@ class CommunityService extends AbstractDoctrineService implements CommunityServi
             }
         }
 
+        $wasPrivate = $community->isPrivate();
         $saved = $this->save($community, $updateCommunityDto);
-        $this->realtimePublisher->publishCommunityStructureChanged($saved, grantsChanged: true);
+        $this->realtimePublisher->publishCommunityStructureChanged($saved, grantsChanged: $saved->isPrivate() !== $wasPrivate);
 
         return $saved;
     }
