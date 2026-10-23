@@ -12,6 +12,7 @@ use App\Entity\User;
 use App\Entity\UserGroup;
 use App\Entity\UserGroupMember;
 use App\Enum\Channel\ChannelRole;
+use App\Enum\Community\CommunityRole;
 use App\Exception\UserGroup\ChannelNotInGroupCommunityException;
 use App\Exception\UserGroup\UserGroupNotFoundException;
 use App\Repository\GroupChannelPermissionRepository;
@@ -66,6 +67,16 @@ class UserGroupServiceTest extends TestCase
 
     public function testDeletePublishesRevocationToMembersOfPrivateChannelGroups(): void
     {
+        $this->deleteGroupWithMemberHavingCommunityRole(null, 1);
+    }
+
+    public function testDeleteDoesNotEvictModeratorsWhoStillSeeTheChannel(): void
+    {
+        $this->deleteGroupWithMemberHavingCommunityRole(CommunityRole::Moderator, 0);
+    }
+
+    private function deleteGroupWithMemberHavingCommunityRole(?CommunityRole $role, int $revocations): void
+    {
         $community = (new Community())->setIdentifier('acme');
         $channel = (new Channel())->setPrivate(true)->setIdentifier('secret');
         $channel->setCommunity($community);
@@ -83,9 +94,10 @@ class UserGroupServiceTest extends TestCase
         $perms->method('findHighestRoleForUserInChannel')->willReturn(null);
         $this->memberRepo->method('findByGroup')->willReturn([$member]);
         $this->security->method('isGranted')->willReturn(true);
+        $this->membership->method('findRole')->willReturn($role);
         $publisher = $this->createMock(RealtimePublisherInterface::class);
         $publisher->expects(self::once())->method('publishCommunityStructureChanged')->with($community);
-        $publisher->expects(self::once())->method('publishUserEvent')
+        $publisher->expects(self::exactly($revocations))->method('publishUserEvent')
             ->with(7, 'channel.access.revoked', ['communityIdentifier' => 'acme', 'channelIdentifier' => 'secret']);
 
         $service = new UserGroupService(

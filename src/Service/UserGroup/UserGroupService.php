@@ -14,7 +14,9 @@ use App\Entity\User;
 use App\Entity\UserGroup;
 use App\Entity\UserGroupMember;
 use App\Enum\Channel\ChannelRole;
+use App\Enum\Community\CommunityRole;
 use App\Enum\Notification\NotificationType;
+use App\Enum\User\UserRole;
 use App\Exception\Channel\UserNotCommunityMemberException;
 use App\Exception\UserGroup\CannotLeaveOwnedGroupException;
 use App\Exception\UserGroup\ChannelNotInGroupCommunityException;
@@ -48,14 +50,20 @@ class UserGroupService extends AbstractDoctrineService implements UserGroupServi
     ) {
     }
 
+    private function stillSeesChannel(User $user, Channel $channel, Community $community): bool
+    {
+        return in_array(UserRole::Admin->value, $user->getRoles(), true)
+            || in_array($this->communityMembership->findRole($user, $community), [CommunityRole::Admin, CommunityRole::Moderator], true)
+            || $this->channelMembershipService->isChannelMember($user, $channel)
+            || null !== $this->getEffectiveChannelRole($user, $channel);
+    }
+
     private function publishAccessEvent(User $user, Channel $channel, Community $community, bool $granted): void
     {
         if (!$channel->isPrivate()) {
             return;
         }
-        if (!$granted
-            && ($this->channelMembershipService->isChannelMember($user, $channel)
-                || null !== $this->getEffectiveChannelRole($user, $channel))) {
+        if (!$granted && $this->stillSeesChannel($user, $channel, $community)) {
             return;
         }
 
