@@ -15,6 +15,7 @@ use App\Service\Community\CommunityServiceInterface;
 use App\Service\Conversation\ConversationServiceInterface;
 use App\Service\Realtime\MercureSubscriberTokenFactory;
 use App\Service\Realtime\RealtimeTopicResolver;
+use App\Service\Settings\SettingsServiceInterface;
 use App\State\Realtime\Provider\PublicRealtimeTokenProvider;
 use App\State\Realtime\Provider\RealtimeTokenProvider;
 use PHPUnit\Framework\TestCase;
@@ -46,6 +47,7 @@ final class RealtimeTokenProviderTest extends TestCase
             $this->subscribeClaim((string) $dto->token),
         );
         self::assertGreaterThanOrEqual($before + 3600, $dto->expiresAt);
+        self::assertSame(3600, $dto->expiresIn);
     }
 
     public function testPublicTokenGrantsPublicTopicsOnly(): void
@@ -78,7 +80,10 @@ final class RealtimeTokenProviderTest extends TestCase
 
     private function factory(): MercureSubscriberTokenFactory
     {
-        return new MercureSubscriberTokenFactory(self::KEY, 3600);
+        $settings = self::createStub(SettingsServiceInterface::class);
+        $settings->method('get')->willReturn(60);
+
+        return new MercureSubscriberTokenFactory(self::KEY, $settings);
     }
 
     private function resolver(): RealtimeTopicResolver

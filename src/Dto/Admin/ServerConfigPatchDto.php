@@ -296,6 +296,10 @@ class ServerConfigPatchDto
     #[Groups(['admin_server_config:write'])]
     public int $invitationExpiryHours;
 
+    #[Assert\Range(min: 5, max: 240)]
+    #[Groups(['admin_server_config:write'])]
+    public int $realtimeTokenTtlMinutes;
+
     #[Assert\Range(min: 0, max: 23)]
     #[Groups(['admin_server_config:write'])]
     public int $digestHour;

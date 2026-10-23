@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api;
 
+use App\Entity\Setting;
 use App\Entity\User;
+use App\Settings\Settings;
 use App\Tests\Factory\ChannelFactory;
 use App\Tests\Factory\CommunityFactory;
 use App\Tests\Factory\CommunityMemberFactory;
@@ -12,6 +14,7 @@ use App\Tests\Factory\ConversationFactory;
 use App\Tests\Factory\ConversationMemberFactory;
 use App\Tests\Factory\UserFactory;
 use App\Tests\Functional\ApiTestCase;
+use Doctrine\ORM\EntityManagerInterface;
 use Zenstruck\Foundry\Test\Factories;
 use Zenstruck\Foundry\Test\ResetDatabase;
 
@@ -33,7 +36,7 @@ class RealtimeTokenTest extends ApiTestCase
         self::assertNotEmpty($data['token']);
     }
 
-    public function testTokenLivesTenMinutesSoRevokedGrantsStopStreaming(): void
+    public function testTokenLivesThirtyMinutesByDefault(): void
     {
         $user = UserFactory::createOne();
 
@@ -46,11 +49,12 @@ class RealtimeTokenTest extends ApiTestCase
             512,
             \JSON_THROW_ON_ERROR,
         );
-        self::assertEqualsWithDelta($before + 600, $payload['exp'], 5);
-        self::assertEqualsWithDelta($before + 600, $data['expiresAt'], 5);
+        self::assertEqualsWithDelta($before + 1800, $payload['exp'], 5);
+        self::assertEqualsWithDelta($before + 1800, $data['expiresAt'], 5);
+        self::assertSame(1800, $data['expiresIn']);
     }
 
-    public function testPublicTokenLivesTenMinutesToo(): void
+    public function testPublicTokenUsesTheSameLifetime(): void
     {
         $community = CommunityFactory::new()->withIdentifier('ttl-public')->create();
         ChannelFactory::new()->inCommunity($community)->with(['identifier' => 'ttl-ch'])->create();
@@ -66,8 +70,27 @@ class RealtimeTokenTest extends ApiTestCase
             512,
             \JSON_THROW_ON_ERROR,
         );
-        self::assertEqualsWithDelta($before + 600, $payload['exp'], 5);
-        self::assertEqualsWithDelta($before + 600, $data['expiresAt'], 5);
+        self::assertEqualsWithDelta($before + 1800, $payload['exp'], 5);
+        self::assertEqualsWithDelta($before + 1800, $data['expiresAt'], 5);
+        self::assertSame(1800, $data['expiresIn']);
+    }
+
+    public function testTokenLifetimeFollowsTheAdminSetting(): void
+    {
+        $user = UserFactory::createOne();
+        $setting = new Setting(Settings::realtimeTokenTtlMinutes()->key);
+        $setting->setValue(15);
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        \assert($em instanceof EntityManagerInterface);
+        $em->persist($setting);
+        $em->flush();
+        $em->clear();
+
+        $before = time();
+        $data = $this->jsonClient($user)->request('GET', '/api/v1/realtime/token')->toArray(false);
+
+        self::assertSame(900, $data['expiresIn']);
+        self::assertEqualsWithDelta($before + 900, $data['expiresAt'], 5);
     }
 
     public function testAnonymousCannotGetRealtimeToken(): void

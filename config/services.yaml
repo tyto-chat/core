@@ -4,8 +4,6 @@ parameters:
     app.community_emoji.max_width: '%env(int:APP_COMMUNITY_EMOJI_MAX_WIDTH)%'
     app.community_emoji.max_height: '%env(int:APP_COMMUNITY_EMOJI_MAX_HEIGHT)%'
     app.voice.enabled: '%env(bool:VOICE_ENABLED)%'
-    # The hub drops subscribers at token exp, so this bounds how long a revoked grant keeps streaming.
-    app.realtime.token_ttl: 600
     # SMTP secret key: use APP_SMTP_KEY when set, else derive a stable 32-byte
     # (64 hex) key by SHA-256-hashing APP_SECRET via the sha256hex processor.
     app.smtp.key: '%env(default:app_smtp_key_fallback:APP_SMTP_KEY)%'
@@ -54,7 +52,6 @@ services:
     App\Service\Realtime\MercureSubscriberTokenFactory:
         arguments:
             $subscriberJwtKey: '%env(hmac_key:MERCURE_SUBSCRIBER_JWT_KEY)%'
-            $tokenTtl: '%app.realtime.token_ttl%'
 
     App\Service\Voice\LiveKitVoiceService:
         arguments:

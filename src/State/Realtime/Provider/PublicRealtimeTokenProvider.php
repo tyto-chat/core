@@ -33,8 +33,10 @@ final readonly class PublicRealtimeTokenProvider implements ProviderInterface
             return $dto;
         }
 
-        $dto->token = $this->tokenFactory->create($topics);
-        $dto->expiresAt = time() + $this->tokenFactory->tokenTtl;
+        $ttl = $this->tokenFactory->ttlSeconds();
+        $dto->token = $this->tokenFactory->create($topics, $ttl);
+        $dto->expiresAt = time() + $ttl;
+        $dto->expiresIn = $ttl;
 
         return $dto;
     }

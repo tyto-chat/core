@@ -508,6 +508,12 @@ final class Settings
         return new SettingDef('invitationExpiryHours', SettingType::Int, 72);
     }
 
+    /** @return SettingDef<int> Realtime subscriber token lifetime; the hub drops a revoked stream at the latest when it expires. */
+    public static function realtimeTokenTtlMinutes(): SettingDef
+    {
+        return new SettingDef('realtimeTokenTtlMinutes', SettingType::Int, 30);
+    }
+
     /** @return SettingDef<int> */
     public static function digestHour(): SettingDef
     {
@@ -609,7 +615,7 @@ final class Settings
             self::ipReputationEnabled(), self::ipReputationEndpoint(), self::ipReputationConfidenceMin(),
             self::ipReputationCheckUsername(), self::ipReputationAllowlist(), self::ipReputationAppealContact(),
             self::resetPasswordCodeExpiryMinutes(), self::emailChallengeExpiryMinutes(),
-            self::invitationExpiryHours(),
+            self::invitationExpiryHours(), self::realtimeTokenTtlMinutes(),
             self::digestHour(), self::validateEmails(), self::mediaTokenTtlSeconds(),
             self::httpCachePageTtlSeconds(), self::httpCachePresenceTtlSeconds(),
             self::communityEmojiTokenTtlSeconds(), self::defaultBotId(),
