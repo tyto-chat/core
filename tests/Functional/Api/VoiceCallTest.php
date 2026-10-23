@@ -36,6 +36,27 @@ class VoiceCallTest extends ApiTestCase
         self::assertArrayHasKey('url', $body);
     }
 
+    public function testTimedOutMemberCannotGetRoomToken(): void
+    {
+        $user = UserFactory::createOne();
+        $mod = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('voice-to')->create();
+        CommunityMemberFactory::createForUserAndCommunity($user, $community);
+        CommunityMemberFactory::createModeratorForCommunity($mod, $community);
+        ChannelFactory::new()->audio()->inCommunity($community)->with(['identifier' => 'voice-to-ch'])->create();
+
+        $this->jsonClient($mod)->request('POST', '/api/v1/communities/voice-to/moderation', ['json' => [
+            'targetUserId' => $user->getId(),
+            'type' => 'timeout',
+            'expiresAt' => (new \DateTimeImmutable('+1 hour'))->format(\DateTimeInterface::ATOM),
+        ]]);
+        self::assertResponseStatusCodeSame(201);
+
+        $this->jsonClient($user)->request('POST', '/api/v1/communities/voice-to/channels/voice-to-ch/call/token');
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
     public function testTokenOnNonAudioChannelReturns422(): void
     {
         $user = UserFactory::createOne();

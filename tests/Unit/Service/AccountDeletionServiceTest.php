@@ -151,6 +151,11 @@ class AccountDeletionServiceTest extends TestCase
         $profile = $this->createMock(Profile::class);
         $profile->expects(self::once())->method('setName')->with('Deleted user');
         $profile->expects(self::once())->method('setAvatar')->with(null);
+        $profile->expects(self::once())->method('setBio')->with(null);
+        $profile->expects(self::once())->method('setLocation')->with(null);
+        $profile->expects(self::once())->method('setWebsite')->with(null);
+        $profile->expects(self::once())->method('setBirthdayMonth')->with(null);
+        $profile->expects(self::once())->method('setBirthdayDay')->with(null);
         (new \ReflectionClass(User::class))->getProperty('profile')->setValue($user, $profile);
 
         $this->userRepository->method('findExpiredForPurge')->willReturn([$user]);

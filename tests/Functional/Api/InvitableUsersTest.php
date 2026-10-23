@@ -54,6 +54,25 @@ class InvitableUsersTest extends ApiTestCase
         }
     }
 
+    public function testSearchDoesNotMatchEmailAddresses(): void
+    {
+        $caller = UserFactory::createOne();
+        $shared = UserFactory::new()
+            ->with(['email' => 'hidden.handle@corp.example'])
+            ->afterInstantiate(function (\App\Entity\User $u): void {
+                $u->getProfile()->setName('Plain Name');
+            })
+            ->create();
+        $community = CommunityFactory::new()->withIdentifier('inv-email')->create();
+        CommunityMemberFactory::createForUserAndCommunity($caller, $community);
+        CommunityMemberFactory::createForUserAndCommunity($shared, $community);
+
+        $response = $this->plainJsonClient($caller)->request('GET', '/api/v1/me/invitable-users?search=corp.example');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $response->toArray()['items']);
+    }
+
     public function testGlobalAdminSearchSeesUsersWithoutSharedCommunity(): void
     {
         $admin = UserFactory::new()->admin()->create();

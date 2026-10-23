@@ -117,6 +117,55 @@ class AppealTest extends ApiTestCase
         self::assertCount(0, $active['member'] ?? $active['hydra:member']);
     }
 
+    /**
+     * @return array{community: Community, mod: User, admin: User, target: User, appealId: int}
+     */
+    private function seedAppealedAction(string $identifier, string $type): array
+    {
+        $mod = UserFactory::createOne();
+        $admin = UserFactory::createOne();
+        $target = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier($identifier)->create();
+        CommunityMemberFactory::createModeratorForCommunity($mod, $community);
+        CommunityMemberFactory::createAdminForCommunity($admin, $community);
+        CommunityMemberFactory::createForUserAndCommunity($target, $community);
+
+        $action = $this->jsonClient($admin)->request('POST', '/api/v1/communities/'.$identifier.'/moderation', ['json' => [
+            'targetUserId' => $target->getId(),
+            'type' => $type,
+            'reason' => 'Spam',
+        ]]);
+        self::assertResponseStatusCodeSame(201);
+        $actionId = $action->toArray()['id'];
+
+        $appeal = $this->jsonClient($target)->request('POST', '/api/v1/moderation-actions/'.$actionId.'/appeals', ['json' => [
+            'reason' => 'Please review.',
+        ]]);
+        self::assertResponseStatusCodeSame(201);
+        $appealId = $appeal->toArray()['id'];
+
+        return ['community' => $community, 'mod' => $mod, 'admin' => $admin, 'target' => $target, 'appealId' => $appealId];
+    }
+
+    private function decide(User $user, int $appealId, string $status): void
+    {
+        $this->jsonClient($user)->request('PATCH', '/api/v1/appeals/'.$appealId, [
+            'json' => ['status' => $status],
+            'headers' => ['Content-Type' => 'application/merge-patch+json'],
+        ]);
+    }
+
+    public function testModCannotDecideBanAppeal(): void
+    {
+        $seed = $this->seedAppealedAction('appeal-ban', 'ban');
+
+        $this->decide($seed['mod'], $seed['appealId'], 'upheld');
+        self::assertResponseStatusCodeSame(403);
+
+        $this->decide($seed['admin'], $seed['appealId'], 'upheld');
+        self::assertResponseStatusCodeSame(200);
+    }
+
     public function testNonModCannotListAppeals(): void
     {
         $seed = $this->seedWarn('appeal-noperm');

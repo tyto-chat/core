@@ -59,7 +59,8 @@ use Symfony\Component\Validator\Constraints as Assert;
     openapi: new Model\Operation(
         summary: 'Create a channel',
         description: 'Requires community admin of the target community. Creates a text or audio channel, appends it '
-            .'to the chosen section and publishes a `community.structure` Mercure update. Returns `403` when '
+            .'to the chosen section and publishes a `community.structure` Mercure update. `section` is required '
+            .'and must belong to the same community (`422` otherwise). Returns `403` when '
             .'`type` is `audio` but voice is disabled on the server.',
     ),
 )]

@@ -15,6 +15,7 @@ use App\Security\SecurityContext;
 use App\Service\Channel\ChannelAudioService;
 use App\Service\Channel\ChannelServiceInterface;
 use App\Service\Community\CommunityMembershipServiceInterface;
+use App\Service\Moderation\ModerationServiceInterface;
 use App\Service\Presence\PresenceServiceInterface;
 use App\Service\Realtime\RealtimePublisherInterface;
 use App\Service\User\UserServiceInterface;
@@ -60,6 +61,7 @@ class ChannelAudioServiceTest extends TestCase
             voiceEnabled: true,
             userService: $this->userService,
             channelService: $this->channelService,
+            moderationService: self::createStub(ModerationServiceInterface::class),
         );
     }
 
@@ -143,6 +145,7 @@ class ChannelAudioServiceTest extends TestCase
             voiceEnabled: false,
             userService: $this->userService,
             channelService: $this->channelService,
+            moderationService: self::createStub(ModerationServiceInterface::class),
         );
 
         $this->expectException(VoiceDisabledException::class);

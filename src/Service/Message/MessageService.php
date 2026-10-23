@@ -97,6 +97,7 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
             $this->assertCanBroadcast($channel, MentionExtractor::extractBroadcasts($text));
         }
 
+        $this->assertChannelAcceptsAttachments($channel, $attachmentIris);
         $attachments = $this->resolveAttachments($attachmentIris);
 
         $page = $this->channelService->findLatestPage($channel);
@@ -203,6 +204,17 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
         $this->security->throwAccessDeniedUnlessGranted(MessageVoter::UPDATE, $message, 'You do not have permission to edit this message.');
 
         $text = MarkdownSanitizer::sanitize($updateMessageDto->text);
+
+        $channel = $message->getChannel();
+        $community = $channel?->getCommunity();
+        if (null !== $channel && null !== $community) {
+            if ($this->moderationService->isTimedOut($community, $channel, $this->security->currentUser())) {
+                throw new TimedOutException('You are timed out and cannot edit messages.');
+            }
+            $this->hydrateText($message);
+            $added = array_diff(MentionExtractor::extractBroadcasts($text), MentionExtractor::extractBroadcasts($message->getText() ?? ''));
+            $this->assertCanBroadcast($channel, array_values($added));
+        }
 
         $revision = new MessageRevision();
         $revision->setText($text);
@@ -311,6 +323,7 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
             }
 
             $this->assertCanBroadcast($channel, MentionExtractor::extractBroadcasts($text));
+            $this->assertChannelAcceptsAttachments($channel, $attachmentIris);
         } else {
             $this->security->throwAccessDeniedUnlessGranted(ConversationVoter::WRITE, $conversation, 'You are not a member of this conversation.');
             if (!$this->conversationService->isMember($conversation, $user)) {
@@ -374,6 +387,14 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
         }
 
         return $reply;
+    }
+
+    /**
+     * @param list<string> $attachmentIris
+     */
+    private function assertChannelAcceptsAttachments(Channel $channel, array $attachmentIris): void
+    {
+        $this->security->throwAccessDeniedIf([] !== $attachmentIris && !$channel->getAllowAttachments(), 'Attachments are disabled for this channel.');
     }
 
     /**

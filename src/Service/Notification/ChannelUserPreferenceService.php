@@ -17,6 +17,9 @@ use App\Security\Voter\ChannelVoter;
 use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\User\UserServiceInterface;
+use App\Service\UserContextService;
+use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+use Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface;
 
 class ChannelUserPreferenceService extends AbstractDoctrineService implements ChannelUserPreferenceServiceInterface
 {
@@ -28,6 +31,7 @@ class ChannelUserPreferenceService extends AbstractDoctrineService implements Ch
         private readonly ChannelUserPreferenceRepository $preferenceRepository,
         private readonly CommunityMembershipServiceInterface $membershipService,
         private readonly UserServiceInterface $userService,
+        private readonly AccessDecisionManagerInterface $accessDecisionManager,
     ) {
     }
 
@@ -141,6 +145,9 @@ class ChannelUserPreferenceService extends AbstractDoctrineService implements Ch
             if (null !== $community && $this->isCommunityMuted($user, $community)) {
                 continue;
             }
+            if ($channel->isPrivate() && !$this->canView($user, $channel)) {
+                continue;
+            }
             $level = $this->getChannelLevel($user, $channel);
             if (ChannelNotificationLevel::None === $level) {
                 continue;
@@ -155,5 +162,12 @@ class ChannelUserPreferenceService extends AbstractDoctrineService implements Ch
         }
 
         return $allowed;
+    }
+
+    private function canView(User $user, Channel $channel): bool
+    {
+        $token = new UsernamePasswordToken($user, UserContextService::FIREWALL_NAME, $user->getRoles());
+
+        return $this->accessDecisionManager->decide($token, [ChannelVoter::VIEW], $channel);
     }
 }

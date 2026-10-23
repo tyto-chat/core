@@ -139,6 +139,11 @@ class AccountDeletionService extends AbstractDoctrineService implements AccountD
         $profile = $user->getProfile();
         if (null !== $profile) {
             $profile->setName('Deleted user');
+            $profile->setBio(null);
+            $profile->setLocation(null);
+            $profile->setWebsite(null);
+            $profile->setBirthdayMonth(null);
+            $profile->setBirthdayDay(null);
             $avatar = $profile->getAvatar();
             $profile->setAvatar(null);
             if (null !== $avatar) {

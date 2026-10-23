@@ -51,6 +51,37 @@ class PushSubscriptionTest extends ApiTestCase
         self::assertSame(1, $this->repo()->countByUser($user));
     }
 
+    public function testSubscriptionsPerUserAreCappedKeepingTheNewest(): void
+    {
+        $user = UserFactory::createOne();
+        $client = $this->jsonClient($user);
+        for ($i = 0; $i <= 10; ++$i) {
+            $client->request('POST', '/api/v1/me/push-subscriptions', ['json' => $this->payload('https://push.example.com/d'.$i)]);
+            self::assertResponseStatusCodeSame(201);
+        }
+
+        self::assertSame(10, $this->repo()->countByUser($user));
+        self::assertNull($this->repo()->findOneByEndpoint('https://push.example.com/d0'));
+        self::assertNotNull($this->repo()->findOneByEndpoint('https://push.example.com/d10'));
+    }
+
+    public function testCapNeverDropsTheDeviceBeingRegistered(): void
+    {
+        $other = UserFactory::createOne();
+        $this->jsonClient($other)->request('POST', '/api/v1/me/push-subscriptions', ['json' => $this->payload('https://push.example.com/shared')]);
+        $user = UserFactory::createOne();
+        $client = $this->jsonClient($user);
+        for ($i = 1; $i <= 10; ++$i) {
+            $client->request('POST', '/api/v1/me/push-subscriptions', ['json' => $this->payload('https://push.example.com/d'.$i)]);
+        }
+
+        $client->request('POST', '/api/v1/me/push-subscriptions', ['json' => $this->payload('https://push.example.com/shared')]);
+
+        self::assertSame(10, $this->repo()->countByUser($user));
+        self::assertNotNull($this->repo()->findOneByEndpoint('https://push.example.com/shared'));
+        self::assertNull($this->repo()->findOneByEndpoint('https://push.example.com/d1'));
+    }
+
     public function testSubscribeRejectsIncompletePayload(): void
     {
         $user = UserFactory::createOne();

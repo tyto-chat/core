@@ -70,7 +70,7 @@ class MediaObjectController extends AbstractController
         LoggerInterface $logger,
         #[Autowire('%kernel.project_dir%/var/media')] string $mediaDir,
     ): Response {
-        if (!$signedUrlService->verify($filename, $token)) {
+        if (!$signedUrlService->verifyExport($filename, $token)) {
             // 410, not 404 — the resource may have existed; the token no longer authorises it.
             return new JsonResponse(['error' => 'Link expired or invalid.'], Response::HTTP_GONE);
         }

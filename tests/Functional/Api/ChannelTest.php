@@ -7,6 +7,7 @@ namespace App\Tests\Functional\Api;
 use App\Enum\Channel\ChannelRole;
 use App\Tests\Factory\ChannelFactory;
 use App\Tests\Factory\ChannelMemberFactory;
+use App\Tests\Factory\ChannelSectionFactory;
 use App\Tests\Factory\CommunityFactory;
 use App\Tests\Factory\CommunityMemberFactory;
 use App\Tests\Factory\UserFactory;
@@ -75,15 +76,50 @@ class ChannelTest extends ApiTestCase
     {
         $admin = UserFactory::new()->admin()->create();
         $community = CommunityFactory::new()->withIdentifier('c-col')->create();
+        $section = ChannelSectionFactory::new()->inCommunity($community)->create();
 
         $this->jsonClient($admin)->request('POST', '/api/v1/channels', ['json' => [
             'name' => 'news',
             'identifier' => 'news',
             'type' => 'text',
             'community' => '/api/v1/communities/c-col',
+            'section' => '/api/v1/communities/c-col/sections/'.$section->getId(),
         ]]);
 
         self::assertResponseStatusCodeSame(201);
+    }
+
+    public function testCreateChannelWithoutSectionReturns422(): void
+    {
+        $admin = UserFactory::new()->admin()->create();
+        CommunityFactory::new()->withIdentifier('c-nosec')->create();
+
+        $this->jsonClient($admin)->request('POST', '/api/v1/channels', ['json' => [
+            'name' => 'loose',
+            'type' => 'text',
+            'community' => '/api/v1/communities/c-nosec',
+        ]]);
+
+        self::assertResponseStatusCodeSame(422);
+    }
+
+    public function testCommunityAdminCannotCreateChannelInAnotherCommunitysSection(): void
+    {
+        $owner = UserFactory::createOne();
+        $mine = CommunityFactory::new()->withIdentifier('c-mine')->create();
+        CommunityMemberFactory::createAdminForCommunity($owner, $mine);
+        $theirs = CommunityFactory::new()->withIdentifier('c-theirs')->create();
+        $foreignSection = ChannelSectionFactory::new()->inCommunity($theirs)->create();
+
+        $this->jsonClient($owner)->request('POST', '/api/v1/channels', ['json' => [
+            'name' => 'intruder',
+            'type' => 'text',
+            'community' => '/api/v1/communities/c-mine',
+            'section' => '/api/v1/communities/c-theirs/sections/'.$foreignSection->getId(),
+        ]]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertCount(0, $foreignSection->getChannels());
     }
 
     public function testRegularUserCannotCreateChannel(): void

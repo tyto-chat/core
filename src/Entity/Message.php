@@ -227,6 +227,7 @@ use Symfony\Component\Uid\Uuid;
             .'edit history and publishes a Mercure update. `system` messages are immutable.',
     ),
     security: "is_granted('MESSAGE_UPDATE', object)",
+    input: UpdateMessageDto::class,
     processor: EditMessageProcessor::class,
     extraProperties: ['scopeResource' => 'messages'],
 )]

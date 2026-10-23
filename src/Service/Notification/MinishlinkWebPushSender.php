@@ -68,6 +68,6 @@ class MinishlinkWebPushSender implements WebPushSenderInterface
                 'publicKey' => $this->vapidPublicKey,
                 'privateKey' => $this->vapidPrivateKey,
             ],
-        ]);
+        ], [], 10, ['allow_redirects' => false]);
     }
 }

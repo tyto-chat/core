@@ -60,7 +60,7 @@ class ExportMediaServeTest extends ApiTestCase
         $signer = static::getContainer()->get(SignedUrlServiceInterface::class);
         \assert($signer instanceof SignedUrlServiceInterface);
 
-        return $signer->sign($relativePath, $ttlSeconds);
+        return $signer->signExport($relativePath, $ttlSeconds);
     }
 
     private function resetLimiter(): void
@@ -94,6 +94,19 @@ class ExportMediaServeTest extends ApiTestCase
         static::createClient()->request('GET', '/export-media/'.$token.'/'.$filename);
 
         self::assertResponseStatusCodeSame(200);
+    }
+
+    public function testOrdinaryMediaTokenIsRejectedOnExportRoute(): void
+    {
+        $this->resetLimiter();
+        $filename = $this->bootScenario();
+        $signer = static::getContainer()->get(SignedUrlServiceInterface::class);
+        \assert($signer instanceof SignedUrlServiceInterface);
+        $mediaToken = $signer->sign($filename, 3600);
+
+        static::createClient()->request('GET', '/export-media/'.$mediaToken.'/'.$filename);
+
+        self::assertResponseStatusCodeSame(410);
     }
 
     public function testExpiredTokenReturns410(): void

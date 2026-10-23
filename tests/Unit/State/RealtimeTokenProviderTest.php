@@ -43,7 +43,7 @@ final class RealtimeTokenProviderTest extends TestCase
         $dto = $this->userProvider($user, ['community' => 'acme'])->provide(new Get());
 
         self::assertSame(
-            ['u/42/n', 'u/42/e', 'u/42/d', 'u/{userId}/p', 'k/5', 'k/5/a', 'k/5/e', 'k/5/p', 'c/12', 'c/12/t'],
+            ['u/42/n', 'u/42/e', 'u/42/d', 'u/{userId}/p', 'k/5', 'k/5/e', 'k/5/p', 'c/12', 'c/12/t', 'c/12/a'],
             $this->subscribeClaim((string) $dto->token),
         );
         self::assertGreaterThanOrEqual($before + 3600, $dto->expiresAt);

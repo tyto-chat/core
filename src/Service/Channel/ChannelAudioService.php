@@ -10,8 +10,10 @@ use App\Entity\User;
 use App\Enum\Channel\ChannelType;
 use App\Exception\Channel\NotAnAudioChannelException;
 use App\Exception\Channel\VoiceDisabledException;
+use App\Exception\Moderation\TimedOutException;
 use App\Security\SecurityContext;
 use App\Security\Voter\ChannelVoter;
+use App\Service\Moderation\ModerationServiceInterface;
 use App\Service\Presence\PresenceServiceInterface;
 use App\Service\Realtime\RealtimePublisherInterface;
 use App\Service\User\UserServiceInterface;
@@ -30,6 +32,7 @@ class ChannelAudioService implements ChannelAudioServiceInterface
         private readonly bool $voiceEnabled,
         private readonly UserServiceInterface $userService,
         private readonly ChannelServiceInterface $channelService,
+        private readonly ModerationServiceInterface $moderationService,
     ) {
     }
 
@@ -48,6 +51,11 @@ class ChannelAudioService implements ChannelAudioServiceInterface
         $user = $this->security->currentUser('You must be signed in to join audio channels.');
 
         $this->security->throwAccessDeniedUnlessGranted(ChannelVoter::JOIN_AUDIO, $channel, 'You do not have permission to join this channel.');
+
+        $community = $channel->getCommunity();
+        if (null !== $community && $this->moderationService->isTimedOut($community, $channel, $user)) {
+            throw new TimedOutException('You are timed out and cannot join voice.');
+        }
 
         $this->joinAudioChannel($user, $channel);
     }

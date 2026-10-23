@@ -148,7 +148,7 @@ final class MercurePublisherTest extends TestCase
         $publisher = $this->makePublisher();
         $publisher->publishChannelActivity($this->channel());
 
-        self::assertSame(['k/5/a'], $this->captured->getTopics());
+        self::assertSame(['k/5/a', 'c/12/a'], $this->captured->getTopics());
         self::assertTrue($this->captured->isPrivate());
         self::assertStringContainsString('"type":"channel.activity"', $this->captured->getData());
     }

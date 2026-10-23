@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Api;
 
 use App\Tests\Factory\UserFactory;
 use App\Tests\Functional\ApiTestCase;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Zenstruck\Foundry\Test\Factories;
 use Zenstruck\Foundry\Test\ResetDatabase;
 
@@ -155,5 +156,26 @@ class ProfileTest extends ApiTestCase
         ]);
 
         self::assertResponseIsSuccessful();
+    }
+
+    public function testCannotUseSomeoneElsesAvatar(): void
+    {
+        $owner = UserFactory::createOne();
+        $thief = UserFactory::createOne();
+
+        $tmp = (string) tempnam(sys_get_temp_dir(), 'avatar_');
+        file_put_contents($tmp, (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', true));
+        $upload = $this->uploadClient($owner)->request('POST', '/api/v1/me/avatar', [
+            'extra' => ['files' => ['file' => new UploadedFile($tmp, 'a.png', 'image/png', null, true)]],
+        ]);
+        self::assertResponseStatusCodeSame(201);
+        $avatarIri = $upload->toArray()['@id'];
+
+        $this->jsonClient($thief)->request('PATCH', '/api/v1/profiles/'.$thief->getProfile()->getId(), [
+            'headers' => ['Content-Type' => 'application/merge-patch+json'],
+            'json' => ['avatar' => $avatarIri],
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
     }
 }

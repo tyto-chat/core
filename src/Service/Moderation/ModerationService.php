@@ -17,6 +17,7 @@ use App\Enum\Moderation\ModerationActionType;
 use App\Enum\Notification\NotificationType;
 use App\Enum\User\UserRole;
 use App\Exception\AccessDeniedException;
+use App\Exception\Channel\UserNotCommunityMemberException;
 use App\Exception\Moderation\ImmuneTargetException;
 use App\Exception\Moderation\ModerationActionNotFoundException;
 use App\Repository\ModerationActionRepository;
@@ -54,6 +55,7 @@ class ModerationService extends AbstractDoctrineService implements ModerationSer
         $actor = $this->security->currentUser();
         $this->security->throwAccessDeniedUnlessGranted(ModerationVoter::WARN, $community, 'You do not have permission to perform this moderation action.');
         $this->requireNotImmune($target, $community);
+        $this->requireMember($target, $community);
 
         $action = ModerationAction::warn($community, $target, $actor, $reason);
         $this->persist($action);
@@ -82,6 +84,7 @@ class ModerationService extends AbstractDoctrineService implements ModerationSer
         }
 
         $this->requireNotImmune($target, $community);
+        $this->requireMember($target, $community);
 
         $expiresAt = self::normalizeExpiry($expiresAt);
 
@@ -345,6 +348,13 @@ class ModerationService extends AbstractDoctrineService implements ModerationSer
         $role = $this->communityMembership->findRole($target, $community);
         if (CommunityRole::Admin === $role) {
             throw new ImmuneTargetException('Community admins cannot be moderated.');
+        }
+    }
+
+    private function requireMember(User $target, Community $community): void
+    {
+        if (null === $this->communityMembership->findRole($target, $community)) {
+            throw new UserNotCommunityMemberException();
         }
     }
 

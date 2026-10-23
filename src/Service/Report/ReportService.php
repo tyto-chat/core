@@ -185,6 +185,9 @@ class ReportService extends AbstractDoctrineService implements ReportServiceInte
         $community = null;
         if (null !== $communityIdentifier) {
             $community = $this->communityService->getByIdentifier($communityIdentifier);
+            if (!$this->security->isAdmin() && !$this->communityMembership->isMember($reporter, $community)) {
+                throw new InvalidReportTargetException('You can only file reports in a community you belong to.');
+            }
             if (!$this->communityMembership->isMember($target, $community)) {
                 throw new InvalidReportTargetException('The reported user is not a member of this community.');
             }

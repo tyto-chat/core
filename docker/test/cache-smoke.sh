@@ -177,7 +177,13 @@ status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":60}')"
 
 COMM1="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-test-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM1" ] || { echo "cache-smoke.sh: failed to create public community" >&2; exit 1; }
-CHAN1="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM1\"}" | jq -r '.identifier // empty')"
+create_channel() {
+  local section
+  section="$(api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$1/sections" '{"name":"Channels"}' | jq -r '.["@id"] // empty')"
+  api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$1\",\"section\":\"$section\"}" | jq -r '.identifier // empty'
+}
+
+CHAN1="$(create_channel "$COMM1")"
 [ -n "$CHAN1" ] || { echo "cache-smoke.sh: failed to create channel in $COMM1" >&2; exit 1; }
 echo "seeded community=$COMM1 channel=$CHAN1"
 
@@ -236,7 +242,7 @@ echo "== T6: purge on write =="
 
 COMM_T6="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t6-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM_T6" ] || { echo "cache-smoke.sh: failed to create community for T6" >&2; exit 1; }
-CHAN_T6="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM_T6\"}" | jq -r '.identifier // empty')"
+CHAN_T6="$(create_channel "$COMM_T6")"
 [ -n "$CHAN_T6" ] || { echo "cache-smoke.sh: failed to create channel for T6" >&2; exit 1; }
 api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T6/members/add" "{\"userId\":$M1_ID}" >/dev/null
 api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM_T6/channels/$CHAN_T6/messages" '{"text":"t6 seed"}' >/dev/null
@@ -298,7 +304,7 @@ status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":0}')"
 
 COMM_T7="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t7-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM_T7" ] || { echo "cache-smoke.sh: failed to create community for T7" >&2; exit 1; }
-CHAN_T7="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM_T7\"}" | jq -r '.identifier // empty')"
+CHAN_T7="$(create_channel "$COMM_T7")"
 [ -n "$CHAN_T7" ] || { echo "cache-smoke.sh: failed to create channel for T7" >&2; exit 1; }
 api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM_T7/channels/$CHAN_T7/messages" '{"text":"t7 seed"}' >/dev/null
 
@@ -343,7 +349,7 @@ echo "== T8: private community anonymous denial =="
 
 COMM2="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-priv-$RUN_ID\",\"isPrivate\":true}" | jq -r '.identifier // empty')"
 [ -n "$COMM2" ] || { echo "cache-smoke.sh: failed to create private community" >&2; exit 1; }
-CHAN2="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM2\"}" | jq -r '.identifier // empty')"
+CHAN2="$(create_channel "$COMM2")"
 [ -n "$CHAN2" ] || { echo "cache-smoke.sh: failed to create channel in $COMM2" >&2; exit 1; }
 api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM2/members/add" "{\"userId\":$M1_ID}" >/dev/null
 api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM2/channels/$CHAN2/messages" '{"text":"private seed"}' >/dev/null
@@ -389,7 +395,7 @@ status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":0}')"
 
 COMM3="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-dark-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM3" ] || { echo "cache-smoke.sh: failed to create community for T11" >&2; exit 1; }
-CHAN3="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM3\"}" | jq -r '.identifier // empty')"
+CHAN3="$(create_channel "$COMM3")"
 [ -n "$CHAN3" ] || { echo "cache-smoke.sh: failed to create channel for T11" >&2; exit 1; }
 api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM3/members/add" "{\"userId\":$M1_ID}" >/dev/null
 
@@ -421,7 +427,7 @@ echo "== T12: current =="
 
 COMM_T12="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t12-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM_T12" ] || { echo "cache-smoke.sh: failed to create community for T12" >&2; exit 1; }
-CHAN_T12="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM_T12\"}" | jq -r '.identifier // empty')"
+CHAN_T12="$(create_channel "$COMM_T12")"
 [ -n "$CHAN_T12" ] || { echo "cache-smoke.sh: failed to create channel for T12" >&2; exit 1; }
 api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T12/members/add" "{\"userId\":$M1_ID}" >/dev/null
 api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM_T12/channels/$CHAN_T12/messages" '{"text":"t12 seed"}' >/dev/null
@@ -455,7 +461,7 @@ echo "== T13: current-coherency (reaction purge) =="
 
 COMM_T13="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t13-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM_T13" ] || { echo "cache-smoke.sh: failed to create community for T13" >&2; exit 1; }
-CHAN_T13="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM_T13\"}" | jq -r '.identifier // empty')"
+CHAN_T13="$(create_channel "$COMM_T13")"
 [ -n "$CHAN_T13" ] || { echo "cache-smoke.sh: failed to create channel for T13" >&2; exit 1; }
 api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T13/members/add" "{\"userId\":$M1_ID}" >/dev/null
 
@@ -492,7 +498,7 @@ echo "== T14: pinned =="
 
 COMM_T14="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t14-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM_T14" ] || { echo "cache-smoke.sh: failed to create community for T14" >&2; exit 1; }
-CHAN_T14="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM_T14\"}" | jq -r '.identifier // empty')"
+CHAN_T14="$(create_channel "$COMM_T14")"
 [ -n "$CHAN_T14" ] || { echo "cache-smoke.sh: failed to create channel for T14" >&2; exit 1; }
 api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T14/members/add" "{\"userId\":$M1_ID}" >/dev/null
 
@@ -585,7 +591,7 @@ status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":0}')"
 
 COMM_T16="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t16-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM_T16" ] || { echo "cache-smoke.sh: failed to create community for T16" >&2; exit 1; }
-CHAN_T16="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM_T16\"}" | jq -r '.identifier // empty')"
+CHAN_T16="$(create_channel "$COMM_T16")"
 [ -n "$CHAN_T16" ] || { echo "cache-smoke.sh: failed to create channel for T16" >&2; exit 1; }
 api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T16/members/add" "{\"userId\":$M1_ID}" >/dev/null
 api_json "$M1_TOKEN" POST "/api/v1/communities/$COMM_T16/channels/$CHAN_T16/messages" '{"text":"t16 seed"}' >/dev/null
@@ -670,7 +676,7 @@ echo "== T18: thread =="
 
 COMM_T18="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t18-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
 [ -n "$COMM_T18" ] || { echo "cache-smoke.sh: failed to create community for T18" >&2; exit 1; }
-CHAN_T18="$(api_json "$ADMIN_TOKEN" POST /api/v1/channels "{\"name\":\"general\",\"type\":\"text\",\"community\":\"/api/v1/communities/$COMM_T18\"}" | jq -r '.identifier // empty')"
+CHAN_T18="$(create_channel "$COMM_T18")"
 [ -n "$CHAN_T18" ] || { echo "cache-smoke.sh: failed to create channel for T18" >&2; exit 1; }
 api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T18/members/add" "{\"userId\":$M1_ID}" >/dev/null
 

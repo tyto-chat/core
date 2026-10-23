@@ -11,6 +11,7 @@ use App\Entity\User;
 use App\Enum\ApiKey\ApiKeyScope;
 use App\Tests\Factory\ApiKeyFactory;
 use App\Tests\Factory\ChannelFactory;
+use App\Tests\Factory\ChannelSectionFactory;
 use App\Tests\Factory\CommunityFactory;
 use App\Tests\Factory\CommunityMemberFactory;
 use App\Tests\Factory\UserFactory;
@@ -190,6 +191,7 @@ class PatScopeCommunitiesTest extends ApiTestCase
     public function testCommunitiesWriteCanCreateChannel(): void
     {
         [$admin, $community] = $this->createCommunityWithAdmin('pat-com-channel-create');
+        $section = ChannelSectionFactory::new()->inCommunity($community)->create();
         $issued = ApiKeyFactory::createWithToken($admin, ['scopes' => [ApiKeyScope::CommunitiesWrite->value]]);
 
         $this->withToken($issued['plainToken'])->request('POST', '/api/v1/channels', [
@@ -198,6 +200,7 @@ class PatScopeCommunitiesTest extends ApiTestCase
                 'identifier' => 'news',
                 'type' => 'text',
                 'community' => '/api/v1/communities/'.$community->getIdentifier(),
+                'section' => '/api/v1/communities/'.$community->getIdentifier().'/sections/'.$section->getId(),
             ],
         ]);
 

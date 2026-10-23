@@ -180,7 +180,7 @@ class CommunityMemberRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return User[] users who share at least one community w/ $caller, optionally filtered by partial display name / email
+     * @return User[] users who share at least one community w/ $caller, optionally filtered by partial display name
      */
     public function findUsersSharingCommunity(User $caller, ?string $search = null, int $limit = 20): array
     {
@@ -196,7 +196,7 @@ class CommunityMemberRepository extends ServiceEntityRepository
 
         if (null !== $search && '' !== trim($search)) {
             $term = '%'.addcslashes(trim($search), '%_\\').'%';
-            $qb->andWhere('p.name LIKE :term OR u.email LIKE :term')
+            $qb->andWhere('p.name LIKE :term')
                 ->setParameter('term', $term);
         }
 

@@ -122,7 +122,7 @@ final class SearchFacade implements SearchFacadeInterface
                 snippet: $snippet,
                 text: (string) ($hit['text'] ?? ''),
                 authorId: isset($hit['authorId']) ? (int) $hit['authorId'] : null,
-                authorName: isset($hit['authorName']) ? (string) $hit['authorName'] : null,
+                authorName: $entity->getCreatedBy()?->getProfile()?->getName() ?? (isset($hit['authorName']) ? (string) $hit['authorName'] : null),
                 createdAt: isset($hit['createdAt']) ? (int) $hit['createdAt'] : null,
                 pageNumber: isset($hit['pageNumber']) ? (int) $hit['pageNumber'] : null,
                 communityIdentifier: $hitChannel?->getCommunity()?->getIdentifier(),

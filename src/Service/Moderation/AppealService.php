@@ -92,7 +92,7 @@ class AppealService extends AbstractDoctrineService implements AppealServiceInte
     public function resolve(Appeal $appeal, UpdateAppealDto $dto): Appeal
     {
         $action = $appeal->getModerationAction();
-        $this->security->throwAccessDeniedUnlessGranted(ModerationVoter::VIEW, $action, 'You do not have permission to resolve this appeal.');
+        $this->security->throwAccessDeniedUnlessGranted(ModerationVoter::LIFT, $action, 'You do not have permission to resolve this appeal.');
 
         if ($appeal->getStatus()->isResolved()) {
             throw new AppealNotAllowedException('This appeal has already been decided.');

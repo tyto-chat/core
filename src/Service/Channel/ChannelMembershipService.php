@@ -54,6 +54,10 @@ class ChannelMembershipService extends AbstractDoctrineService implements Channe
         }
 
         $existing = $this->channelMemberRepository->findOneByUserAndChannel($user, $channel);
+        if (ChannelRole::Moderator === $role || (null !== $existing && $existing->getRole() !== $role)) {
+            $this->security->throwAccessDeniedUnlessCommunityAdmin($community, "You don't have permission to update member roles.");
+        }
+
         if (null !== $existing) {
             if ($existing->getRole() === $role) {
                 return $existing;
