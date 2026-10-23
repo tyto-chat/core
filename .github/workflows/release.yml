@@ -109,9 +109,18 @@ jobs:
             type=raw,value=sha-${{ needs.plan.outputs.short }}
       - name: Create multi-arch manifest
         working-directory: ${{ runner.temp }}/digests
+        env:
+          SHA: ${{ needs.plan.outputs.sha }}
         run: |
+          tip="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/1.0 | cut -f1)"
           args=()
-          while read -r tag; do args+=(-t "$tag"); done < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          while read -r tag; do
+            if [ "${tag##*:}" = "edge" ] && [ "$tip" != "$SHA" ]; then
+              echo "::notice::$SHA is not the tip of 1.0 ($tip); edge stays where it is"
+              continue
+            fi
+            args+=(-t "$tag")
+          done < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
           for digest in *; do args+=("$IMAGE@sha256:$digest"); done
           docker buildx imagetools create "${args[@]}"
-      - run: docker buildx imagetools inspect "$(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")"
+      - run: docker buildx imagetools inspect "$(jq -r '.tags[-1]' <<< "$DOCKER_METADATA_OUTPUT_JSON")"
