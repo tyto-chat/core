@@ -142,7 +142,22 @@ class UserGroupService extends AbstractDoctrineService implements UserGroupServi
     public function delete(UserGroup $group): void
     {
         $this->security->throwAccessDeniedUnlessCommunityAdmin($group->getCommunity(), "You don't have permission to delete groups.");
+
+        $community = $group->getCommunity();
+        $channels = array_map(static fn (GroupChannelPermission $perm): Channel => $perm->getChannel(), $this->groupChannelPermissionRepository->findByGroup($group));
+        $users = array_map(static fn (UserGroupMember $member): User => $member->getUser(), $this->userGroupMemberRepository->findByGroup($group));
+
         $this->removeAndFlush($group);
+
+        if ([] === $channels) {
+            return;
+        }
+        $this->realtimePublisher->publishCommunityStructureChanged($community);
+        foreach ($users as $user) {
+            foreach ($channels as $channel) {
+                $this->publishAccessEvent($user, $channel, $community, false);
+            }
+        }
     }
 
     /** @return UserGroup[] */
