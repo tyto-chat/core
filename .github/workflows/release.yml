@@ -123,4 +123,4 @@ jobs:
           done < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
           for digest in *; do args+=("$IMAGE@sha256:$digest"); done
           docker buildx imagetools create "${args[@]}"
-      - run: docker buildx imagetools inspect "$(jq -r '.tags[-1]' <<< "$DOCKER_METADATA_OUTPUT_JSON")"
+      - run: docker buildx imagetools inspect "$(jq -r '.tags[] | select(test(":sha-"))' <<< "$DOCKER_METADATA_OUTPUT_JSON")"
