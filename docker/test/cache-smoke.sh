@@ -157,9 +157,16 @@ restore_config() {
     echo "== server-config restored =="
   else
     echo "cache-smoke.sh: FAILED to restore server-config (HTTP $status); restore manually: $ORIGINAL_CONFIG" >&2
+    return 1
   fi
 }
-trap 'restore_config; rm -f "$BODY_FILE"' EXIT
+finish() {
+  local code=$?
+  restore_config || code=1
+  rm -f "$BODY_FILE"
+  exit "$code"
+}
+trap finish EXIT
 
 # Generous rate limits for the duration of this run — the default login
 # (5/60s) / register (3/600s) / api_write (60/60s) budgets are sized for real
