@@ -53,7 +53,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
     extraProperties: ['scopeResource' => 'communities'],
     openapi: new Model\Operation(
         summary: 'Add a member to a community',
-        description: 'Requires community admin. Adds the user with an optional role; idempotent — '
+        description: 'Requires server admin; community admins invite people instead. Adds the user with an optional role; idempotent — '
             .'returns the existing membership when the user already belongs. Banned users are '
             .'rejected with `403`. Auto-pins the community for the user, may post a bot welcome '
             .'message, and publishes a `community.structure` Mercure event.',

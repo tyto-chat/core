@@ -6,7 +6,6 @@ namespace App\Tests\Functional\Api;
 
 use App\Tests\Factory\CommunityFactory;
 use App\Tests\Factory\CommunityInviteFactory;
-use App\Tests\Factory\CommunityMemberFactory;
 use App\Tests\Factory\UserFactory;
 use App\Tests\Functional\ApiTestCase;
 use Zenstruck\Foundry\Test\Factories;
@@ -159,10 +158,9 @@ class PinnedCommunityTest extends ApiTestCase
 
     public function testAddMemberAutoPinsForTarget(): void
     {
-        $admin = UserFactory::createOne();
+        $admin = UserFactory::new()->admin()->create();
         $newcomer = UserFactory::createOne();
-        $community = CommunityFactory::new()->private()->withIdentifier('autopin-add')->create();
-        CommunityMemberFactory::createAdminForCommunity($admin, $community);
+        CommunityFactory::new()->private()->withIdentifier('autopin-add')->create();
 
         $this->jsonClient($admin)->request('POST', '/api/v1/communities/autopin-add/members/add', [
             'json' => ['userId' => $newcomer->getId()],
