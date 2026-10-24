@@ -15,6 +15,7 @@ use App\Exception\User\TwoFactorAlreadyEnabledException;
 use App\Exception\User\TwoFactorNotEnabledException;
 use App\Exception\User\TwoFactorSetupNotStartedException;
 use App\Repository\RecoveryCodeRepository;
+use App\Repository\UserRepository;
 use App\Security\SecurityContext;
 use App\Service\AbstractDoctrineService;
 use App\Service\Security\SecretBoxInterface;
@@ -33,6 +34,7 @@ class TwoFactorService extends AbstractDoctrineService implements TwoFactorServi
         private readonly SecurityContext $security,
         private readonly SecretBoxInterface $secretBox,
         private readonly RecoveryCodeRepository $recoveryCodeRepository,
+        private readonly UserRepository $userRepository,
         private readonly SettingsServiceInterface $settings,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly SessionRevokerInterface $sessionRevoker,
@@ -139,12 +141,9 @@ class TwoFactorService extends AbstractDoctrineService implements TwoFactorServi
         }
         $timestep = $this->matchTotpTimestep($secret, $code);
         if (null !== $timestep) {
-            $last = $user->getTotpLastUsedTimestep();
-            if (null !== $last && $timestep <= $last) {
+            if (!$this->userRepository->tryAdvanceTotpTimestep($user, $timestep)) {
                 throw new InvalidTwoFactorCodeException('Invalid two-factor code.');
             }
-            $user->setTotpLastUsedTimestep($timestep);
-            $this->save($user);
 
             return;
         }
