@@ -34,6 +34,21 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         $this->getEntityManager()->flush();
     }
 
+    public function tryAdvanceTotpTimestep(User $user, int $timestep): bool
+    {
+        $affected = $this->createQueryBuilder('u')
+            ->update()
+            ->set('u.totpLastUsedTimestep', ':timestep')
+            ->where('u.id = :id')
+            ->andWhere('u.totpLastUsedTimestep IS NULL OR u.totpLastUsedTimestep < :timestep')
+            ->setParameter('timestep', $timestep)
+            ->setParameter('id', $user->getId())
+            ->getQuery()
+            ->execute();
+
+        return 1 === (int) $affected;
+    }
+
     /**
      * @return User[]
      */
