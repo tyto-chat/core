@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api;
 
+use App\Entity\User;
+use App\Exception\User\TotpCodeAlreadyUsedException;
+use App\Service\User\TwoFactorServiceInterface;
 use App\Tests\Factory\UserFactory;
 use App\Tests\Functional\ApiTestCase;
 use Doctrine\ORM\EntityManagerInterface;
@@ -206,6 +209,27 @@ class TwoFactorLoginTest extends ApiTestCase
             'json' => ['code' => $code],
         ]);
         self::assertResponseStatusCodeSame(401);
+    }
+
+    public function testTotpCodeCannotBeUsedByConcurrentRequests(): void
+    {
+        $userId = UserFactory::new()->withTwoFactor()->create(['email' => 'race@example.com'])->getId();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em->clear();
+        $staleUser = $em->find(User::class, $userId);
+        self::assertNotNull($staleUser);
+        self::assertNull($staleUser->getTotpLastUsedTimestep());
+
+        $totp = TOTP::createFromSecret(UserFactory::TEST_TOTP_SECRET);
+        $now = time();
+        $timestep = intdiv($now, $totp->getPeriod());
+        $em->getConnection()->executeStatement(
+            'UPDATE user SET totp_last_used_timestep = ? WHERE id = ?',
+            [$timestep, $userId],
+        );
+
+        $this->expectException(TotpCodeAlreadyUsedException::class);
+        static::getContainer()->get(TwoFactorServiceInterface::class)->verifyLogin($staleUser, $totp->at($now));
     }
 
     public function testTwoFactorLimiterRejectsAfterConfiguredAttempts(): void
