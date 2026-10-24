@@ -365,7 +365,7 @@ class CommunityService extends AbstractDoctrineService implements CommunityServi
     #[\Override]
     public function addMember(Community $community, User $user, CommunityRole $role = CommunityRole::Member, bool $sendWelcome = true): CommunityMember
     {
-        $this->security->throwAccessDeniedUnlessCommunityAdmin($community, 'You do not have permission to add members to this community.');
+        $this->security->throwAccessDeniedUnlessAdmin('Only server admins can add members directly; community admins can share an invite link.');
 
         $this->security->throwAccessDeniedIf($this->moderationService->isBanned($community, $user), 'This user is banned from this community.');
 

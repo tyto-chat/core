@@ -54,7 +54,7 @@ class CommunityMemberTest extends ApiTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testCommunityAdminCanAddMemberToPrivateCommunity(): void
+    public function testCommunityAdminCannotAddMember(): void
     {
         $admin = UserFactory::createOne();
         $newcomer = UserFactory::createOne();
@@ -65,11 +65,10 @@ class CommunityMemberTest extends ApiTestCase
             'json' => ['userId' => $newcomer->getId()],
         ]);
 
-        self::assertResponseStatusCodeSame(201);
+        self::assertResponseStatusCodeSame(403);
 
-        // The added user can now view the private community.
         $this->jsonClient($newcomer)->request('GET', '/api/v1/communities/cm-add-priv');
-        self::assertResponseIsSuccessful();
+        self::assertResponseStatusCodeSame(404);
     }
 
     public function testNonAdminCannotAddMember(): void
@@ -97,14 +96,16 @@ class CommunityMemberTest extends ApiTestCase
         ]);
 
         self::assertResponseStatusCodeSame(201);
+
+        $this->jsonClient($newcomer)->request('GET', '/api/v1/communities/cm-add-global');
+        self::assertResponseIsSuccessful();
     }
 
     public function testAddMemberIsIdempotent(): void
     {
-        $admin = UserFactory::createOne();
+        $admin = UserFactory::new()->admin()->create();
         $existing = UserFactory::createOne();
         $community = CommunityFactory::new()->withIdentifier('cm-add-idem')->create();
-        CommunityMemberFactory::createAdminForCommunity($admin, $community);
         CommunityMemberFactory::createForUserAndCommunity($existing, $community);
 
         $this->jsonClient($admin)->request('POST', '/api/v1/communities/cm-add-idem/members/add', [
@@ -113,17 +114,15 @@ class CommunityMemberTest extends ApiTestCase
 
         self::assertResponseStatusCodeSame(201);
 
-        // Still exactly two members (admin + existing) — no duplicate row.
         $response = $this->jsonClient($admin)->request('GET', '/api/v1/communities/cm-add-idem/members');
         self::assertCount(2, $response->toArray()['hydra:member']);
     }
 
     public function testAddMemberAppliesGivenRole(): void
     {
-        $admin = UserFactory::createOne();
+        $admin = UserFactory::new()->admin()->create();
         $newcomer = UserFactory::createOne();
         $community = CommunityFactory::new()->withIdentifier('cm-add-role')->create();
-        CommunityMemberFactory::createAdminForCommunity($admin, $community);
 
         $this->jsonClient($admin)->request('POST', '/api/v1/communities/cm-add-role/members/add', [
             'json' => ['userId' => $newcomer->getId(), 'role' => 'moderator'],
@@ -135,9 +134,8 @@ class CommunityMemberTest extends ApiTestCase
 
     public function testAddMemberWithNonPositiveUserIdReturns422(): void
     {
-        $admin = UserFactory::createOne();
+        $admin = UserFactory::new()->admin()->create();
         $community = CommunityFactory::new()->private()->withIdentifier('cm-add-bad')->create();
-        CommunityMemberFactory::createAdminForCommunity($admin, $community);
 
         $this->jsonClient($admin)->request('POST', '/api/v1/communities/cm-add-bad/members/add', [
             'json' => ['userId' => 0],
@@ -148,9 +146,8 @@ class CommunityMemberTest extends ApiTestCase
 
     public function testAddMemberWithUnknownUserReturns404(): void
     {
-        $admin = UserFactory::createOne();
+        $admin = UserFactory::new()->admin()->create();
         $community = CommunityFactory::new()->private()->withIdentifier('cm-add-unknown')->create();
-        CommunityMemberFactory::createAdminForCommunity($admin, $community);
 
         $this->jsonClient($admin)->request('POST', '/api/v1/communities/cm-add-unknown/members/add', [
             'json' => ['userId' => 999999999],
