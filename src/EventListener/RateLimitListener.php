@@ -19,6 +19,8 @@ use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 #[AsEventListener(event: KernelEvents::REQUEST, priority: 4, method: 'onReadRequest')]
 final readonly class RateLimitListener
 {
+    public const MESSAGE_FLOOD_ATTRIBUTE = '_message_send_rate_limited';
+
     private const EXEMPT_ROUTES = [
         'api_voice_webhook',
     ];
@@ -116,7 +118,9 @@ final readonly class RateLimitListener
         }
 
         if (str_ends_with($routeName, '/messages_post') || str_ends_with($routeName, '/replies_post')) {
-            $this->enforce($event, $this->messageSendLimiter, 'message-'.$this->resolveUserKey($ip));
+            if (!$this->enforce($event, $this->messageSendLimiter, 'message-'.$this->resolveUserKey($ip))) {
+                $request->attributes->set(self::MESSAGE_FLOOD_ATTRIBUTE, true);
+            }
 
             return;
         }
@@ -178,16 +182,18 @@ final readonly class RateLimitListener
         }
     }
 
-    private function enforce(RequestEvent $event, RateLimiterFactoryInterface $factory, string $key): void
+    private function enforce(RequestEvent $event, RateLimiterFactoryInterface $factory, string $key): bool
     {
         $rateLimit = $factory->create($key)->consume();
 
         if ($rateLimit->isAccepted()) {
-            return;
+            return true;
         }
 
         $event->stopPropagation();
         $event->setResponse($this->rateLimitResponses->tooManyRequests($rateLimit));
+
+        return false;
     }
 
     private function resolveUserKey(string $fallbackIp): string

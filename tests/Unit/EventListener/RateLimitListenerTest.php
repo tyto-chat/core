@@ -203,6 +203,7 @@ class RateLimitListenerTest extends TestCase
 
         self::assertTrue($event->hasResponse());
         self::assertSame(Response::HTTP_TOO_MANY_REQUESTS, $event->getResponse()->getStatusCode());
+        self::assertFalse($event->getRequest()->attributes->has(RateLimitListener::MESSAGE_FLOOD_ATTRIBUTE));
     }
 
     public function testAttachmentUploadRouteIsRateLimitedWhenExceeded(): void
@@ -245,6 +246,7 @@ class RateLimitListenerTest extends TestCase
 
         self::assertTrue($event->hasResponse());
         self::assertSame(Response::HTTP_TOO_MANY_REQUESTS, $event->getResponse()->getStatusCode());
+        self::assertTrue($event->getRequest()->attributes->get(RateLimitListener::MESSAGE_FLOOD_ATTRIBUTE));
     }
 
     public function testConversationMessagePostUsesMessageSendLimiter(): void
