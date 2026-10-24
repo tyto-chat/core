@@ -85,6 +85,7 @@ class MessageRepository extends ServiceEntityRepository
     public function findPinnedForChannel(Channel $channel): array
     {
         return $this->createQueryBuilder('m')
+            ->leftJoin('m.currentRevision', 'cr')->addSelect('cr')
             ->innerJoin('m.page', 'p')
             ->where('p.channel = :channel')
             ->andWhere('m.pinnedAt IS NOT NULL')
@@ -119,7 +120,7 @@ class MessageRepository extends ServiceEntityRepository
     public function findRootsByPage(MessagePage $page): array
     {
         return $this->createQueryBuilder('m')
-            ->leftJoin('m.revisions', 'b')->addSelect('b')
+            ->leftJoin('m.currentRevision', 'cr')->addSelect('cr')
             ->where('m.page = :page')
             ->andWhere('m.parent IS NULL')
             ->setParameter('page', $page)
@@ -138,6 +139,7 @@ class MessageRepository extends ServiceEntityRepository
     public function findNotDeletedBatch(int $offset, int $limit): array
     {
         return $this->createQueryBuilder('m')
+            ->leftJoin('m.currentRevision', 'cr')->addSelect('cr')
             ->where('m.deleted = false')
             ->orderBy('m.createdAt', 'ASC')
             ->addOrderBy('m.id', 'ASC')
@@ -218,6 +220,7 @@ class MessageRepository extends ServiceEntityRepository
     public function findChildren(Message $root, int $limit = 50, ?Message $before = null): array
     {
         $qb = $this->createQueryBuilder('m')
+            ->leftJoin('m.currentRevision', 'cr')->addSelect('cr')
             ->where('m.parent = :root')
             ->setParameter('root', $root)
             ->orderBy('m.createdAt', 'DESC')
