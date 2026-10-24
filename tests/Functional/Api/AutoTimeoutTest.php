@@ -8,6 +8,7 @@ use App\Entity\ModerationAction;
 use App\Entity\User;
 use App\Enum\Moderation\ModerationActionType;
 use App\EventListener\AutoTimeoutListener;
+use App\EventListener\RateLimitListener;
 use App\Exception\User\UserNotFoundException;
 use App\Service\Settings\SettingsServiceInterface;
 use App\Settings\Settings;
@@ -88,6 +89,7 @@ class AutoTimeoutTest extends ApiTestCase
             $this->buildRedisFake(),
             new NullLogger(),
             $this->buildSettingsMock(hits: $hits),
+            static::getContainer()->get('App\Service\Message\MessageServiceInterface'),
         );
     }
 
@@ -95,6 +97,7 @@ class AutoTimeoutTest extends ApiTestCase
     {
         $kernel = static::getContainer()->get(HttpKernelInterface::class);
         $request = Request::create('/api/v1/communities/'.$communitySlug.'/channels/general/messages', 'POST');
+        $request->attributes->set(RateLimitListener::MESSAGE_FLOOD_ATTRIBUTE, true);
         $response = new Response('', 429);
         $event = new ResponseEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST, $response);
         $listener($event);
@@ -123,6 +126,7 @@ class AutoTimeoutTest extends ApiTestCase
             $this->buildRedisFake(),
             new NullLogger(),
             $this->buildSettingsMock(hits: 3),
+            static::getContainer()->get('App\Service\Message\MessageServiceInterface'),
         );
 
         $em = static::getContainer()->get(EntityManagerInterface::class);

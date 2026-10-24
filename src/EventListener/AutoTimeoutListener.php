@@ -6,8 +6,10 @@ namespace App\EventListener;
 
 use App\Entity\User;
 use App\Enum\User\UserRole;
+use App\Exception\DomainExceptionInterface;
 use App\Exception\User\UserNotFoundException;
 use App\Service\Community\CommunityServiceInterface;
+use App\Service\Message\MessageServiceInterface;
 use App\Service\Moderation\AutoModerationServiceInterface;
 use App\Service\Moderation\ModerationServiceInterface;
 use App\Service\Settings\SettingsServiceInterface;
@@ -18,6 +20,7 @@ use Predis\ClientInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
@@ -35,6 +38,7 @@ final readonly class AutoTimeoutListener
         private ClientInterface $redis,
         private LoggerInterface $logger,
         private SettingsServiceInterface $settings,
+        private MessageServiceInterface $messageService,
     ) {
     }
 
@@ -44,7 +48,9 @@ final readonly class AutoTimeoutListener
             return;
         }
 
-        if (Response::HTTP_TOO_MANY_REQUESTS !== $event->getResponse()->getStatusCode()) {
+        if (Response::HTTP_TOO_MANY_REQUESTS !== $event->getResponse()->getStatusCode()
+            || true !== $event->getRequest()->attributes->get(RateLimitListener::MESSAGE_FLOOD_ATTRIBUTE)
+        ) {
             return;
         }
 
@@ -53,7 +59,7 @@ final readonly class AutoTimeoutListener
             return;
         }
 
-        $communitySlug = $this->extractCommunitySlug($event->getRequest()->getPathInfo());
+        $communitySlug = $this->resolveCommunitySlug($event->getRequest());
         if (null === $communitySlug) {
             return;
         }
@@ -106,12 +112,21 @@ final readonly class AutoTimeoutListener
         }
     }
 
-    private function extractCommunitySlug(string $pathInfo): ?string
+    private function resolveCommunitySlug(Request $request): ?string
     {
+        $pathInfo = $request->getPathInfo();
         if (preg_match('#^/api/v\d+/communities/([^/]+)/#', $pathInfo, $matches)) {
             return $matches[1];
         }
 
-        return null;
+        if (1 !== preg_match('#^/api/v\d+/messages/([^/]+)/replies$#', $pathInfo, $matches)) {
+            return null;
+        }
+
+        try {
+            return $this->messageService->getById($matches[1])->getChannel()?->getCommunity()?->getIdentifier();
+        } catch (DomainExceptionInterface) {
+            return null;
+        }
     }
 }

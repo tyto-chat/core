@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Moderation;
 
+use App\Entity\Channel;
 use App\Entity\Community;
+use App\Entity\Message;
 use App\Entity\ModerationAction;
 use App\Entity\User;
 use App\EventListener\AutoTimeoutListener;
+use App\EventListener\RateLimitListener;
 use App\Service\Community\CommunityServiceInterface;
+use App\Service\Message\MessageServiceInterface;
 use App\Service\Moderation\AutoModerationServiceInterface;
 use App\Service\Moderation\ModerationServiceInterface;
 use App\Service\Settings\SettingsServiceInterface;
@@ -37,6 +41,7 @@ class AutoTimeoutListenerTest extends TestCase
 
     private Client $redis;
     private AutoTimeoutListener $listener;
+    private ?string $resolvedSlug = null;
 
     private User $user;
     private int $timeoutsApplied = 0;
@@ -76,7 +81,11 @@ class AutoTimeoutListenerTest extends TestCase
 
         $community = $this->createMock(Community::class);
         $communityService = $this->createMock(CommunityServiceInterface::class);
-        $communityService->method('findByIdentifier')->willReturn($community);
+        $communityService->method('findByIdentifier')->willReturnCallback(function (string $slug) use ($community): Community {
+            $this->resolvedSlug = $slug;
+
+            return $community;
+        });
 
         $autoModeration = $this->createMock(AutoModerationServiceInterface::class);
         $autoModeration->method('computeAutoTimeoutDuration')
@@ -102,6 +111,7 @@ class AutoTimeoutListenerTest extends TestCase
             $this->redis,
             new NullLogger(),
             $settingsService,
+            $this->replyLookup(),
         );
     }
 
@@ -124,15 +134,53 @@ class AutoTimeoutListenerTest extends TestCase
     private function dispatch(
         int $status = Response::HTTP_TOO_MANY_REQUESTS,
         string $path = '/api/v1/communities/'.self::SLUG.'/channels/general/messages',
+        bool $messageFlood = true,
     ): void {
+        $request = Request::create($path, 'POST');
+        if ($messageFlood) {
+            $request->attributes->set(RateLimitListener::MESSAGE_FLOOD_ATTRIBUTE, true);
+        }
         $event = new ResponseEvent(
             $this->createMock(HttpKernelInterface::class),
-            Request::create($path, 'POST'),
+            $request,
             HttpKernelInterface::MAIN_REQUEST,
             new Response('', $status),
         );
 
         ($this->listener)($event);
+    }
+
+    private function replyLookup(): MessageServiceInterface
+    {
+        $community = $this->createMock(Community::class);
+        $community->method('getIdentifier')->willReturn(self::SLUG);
+        $channel = $this->createMock(Channel::class);
+        $channel->method('getCommunity')->willReturn($community);
+        $root = $this->createMock(Message::class);
+        $root->method('getChannel')->willReturn($channel);
+
+        $service = $this->createMock(MessageServiceInterface::class);
+        $service->method('getById')->willReturn($root);
+
+        return $service;
+    }
+
+    public function testOtherRateLimitsDoNotCount(): void
+    {
+        $this->dispatch(path: '/api/v1/communities/'.self::SLUG.'/channels/general/typing', messageFlood: false);
+        $this->dispatch(path: '/api/v1/communities/'.self::SLUG.'/search', messageFlood: false);
+
+        self::assertNull($this->redis->get(self::COUNTER_KEY));
+    }
+
+    public function testReplyFloodCountsAgainstTheRootsCommunity(): void
+    {
+        $this->dispatch(path: '/api/v1/messages/0190a1b2-0000-7000-8000-000000000001/replies');
+        $this->dispatch(path: '/api/v1/messages/0190a1b2-0000-7000-8000-000000000001/replies');
+        $this->dispatch(path: '/api/v1/messages/0190a1b2-0000-7000-8000-000000000001/replies');
+
+        self::assertSame(1, $this->timeoutsApplied);
+        self::assertSame(self::SLUG, $this->resolvedSlug);
     }
 
     public function testEachRateLimitedResponseIncrementsTheWindowCounter(): void
@@ -221,12 +269,13 @@ class AutoTimeoutListenerTest extends TestCase
             $this->redis,
             new NullLogger(),
             $this->settingsMock(),
+            $this->replyLookup(),
         );
 
         for ($i = 0; $i < self::HITS; ++$i) {
             $event = new ResponseEvent(
                 $this->createMock(HttpKernelInterface::class),
-                Request::create('/api/v1/communities/'.self::SLUG.'/channels/general/messages', 'POST'),
+                $this->floodRequest(),
                 HttpKernelInterface::MAIN_REQUEST,
                 new Response('', Response::HTTP_TOO_MANY_REQUESTS),
             );
@@ -284,5 +333,13 @@ class AutoTimeoutListenerTest extends TestCase
         );
 
         return $mock;
+    }
+
+    private function floodRequest(): Request
+    {
+        $request = Request::create('/api/v1/communities/'.self::SLUG.'/channels/general/messages', 'POST');
+        $request->attributes->set(RateLimitListener::MESSAGE_FLOOD_ATTRIBUTE, true);
+
+        return $request;
     }
 }
