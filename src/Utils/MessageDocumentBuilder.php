@@ -43,11 +43,10 @@ final class MessageDocumentBuilder
         $conversation = $message->getConversation();
         $author = $message->getCreatedBy();
 
-        // Message::text is transient — null on freshly-loaded entities (backfill), so fall back to the last revision.
+        // Message::text is transient — null on freshly-loaded entities (backfill), so fall back to the current revision.
         $rawText = $message->getText();
         if (null === $rawText || '' === $rawText) {
-            $lastRevision = $message->getRevisions()->last();
-            $rawText = false === $lastRevision ? null : $lastRevision->getText();
+            $rawText = $message->getCurrentRevision()?->getText();
         }
 
         return [

@@ -216,14 +216,17 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
             $this->assertCanBroadcast($channel, array_values($added));
         }
 
-        $revision = new MessageRevision();
-        $revision->setText($text);
-        $this->persist($revision);
-        $message->addRevision($revision);
-        $message->setMentionedUserIds(MentionExtractor::extractUserIds($text));
-        $message->setText($text);
+        $message = $this->transactional(function () use ($message, $text): Message {
+            $this->lockForUpdate($message);
+            $revision = new MessageRevision();
+            $revision->setText($text);
+            $this->persist($revision);
+            $message->addRevision($revision);
+            $message->setMentionedUserIds(MentionExtractor::extractUserIds($text));
+            $message->setText($text);
 
-        $message = $this->save($message);
+            return $this->save($message);
+        });
 
         $this->publisher->publishMessageUpdated($message, $text);
 
@@ -251,10 +254,7 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
     #[\Override]
     public function hydrateText(Message $message): void
     {
-        $lastRevision = $message->getRevisions()->last();
-        $message->setText(
-            $message->isDeleted() || false === $lastRevision ? null : $lastRevision->getText()
-        );
+        $message->setText($message->isDeleted() ? null : $message->getCurrentRevision()?->getText());
     }
 
     #[\Override]

@@ -258,9 +258,16 @@ class Message
     /**
      * @var Collection<int, MessageRevision>
      */
-    #[ORM\OneToMany(targetEntity: MessageRevision::class, mappedBy: 'message', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: MessageRevision::class, mappedBy: 'message', fetch: 'EXTRA_LAZY', orphanRemoval: true)]
     #[ORM\OrderBy(['createdAt' => 'ASC', 'id' => 'ASC'])]
     private Collection $revisions;
+
+    #[ORM\ManyToOne(targetEntity: MessageRevision::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?MessageRevision $currentRevision = null;
+
+    #[ORM\Column(options: ['default' => 0])]
+    private int $revisionCount = 0;
 
     // See Community::$private for the serializer prefix constraint.
     #[ORM\Column(name: 'is_deleted', options: ['default' => false])]
@@ -379,12 +386,21 @@ class Message
 
     public function addRevision(MessageRevision $revision): static
     {
-        if (!$this->revisions->contains($revision)) {
-            $this->revisions->add($revision);
-            $revision->setMessage($this);
+        if ($revision->getMessage() === $this) {
+            return $this;
         }
 
+        $this->revisions->add($revision);
+        $revision->setMessage($this);
+        $this->currentRevision = $revision;
+        ++$this->revisionCount;
+
         return $this;
+    }
+
+    public function getCurrentRevision(): ?MessageRevision
+    {
+        return $this->currentRevision;
     }
 
     public function isDeleted(): bool
@@ -395,7 +411,7 @@ class Message
     #[Groups(['message:read'])]
     public function isEdited(): bool
     {
-        return $this->revisions->count() > 1;
+        return $this->revisionCount > 1;
     }
 
     public function setDeleted(bool $deleted): static

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Dto\EntityDtoInterface;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
@@ -62,6 +63,11 @@ abstract class AbstractDoctrineService implements LoggerAwareInterface
     protected function refresh(object $entity): void
     {
         $this->entityManager->refresh($entity);
+    }
+
+    protected function lockForUpdate(object $entity): void
+    {
+        $this->entityManager->refresh($entity, LockMode::PESSIMISTIC_WRITE);
     }
 
     protected function transactional(\Closure $fn): mixed

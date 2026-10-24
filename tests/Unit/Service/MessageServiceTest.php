@@ -38,6 +38,7 @@ use App\Service\Settings\SettingsServiceInterface;
 use App\Service\Webhook\WebhookEmitterInterface;
 use App\Settings\Settings;
 use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -245,6 +246,40 @@ class MessageServiceTest extends TestCase
         $this->publisher->expects(self::once())->method('publishMessageUpdated')->with($message, 'updated text');
 
         $this->service->update($message, $dto);
+    }
+
+    public function testUpdateLocksTheMessageBeforeAppendingARevision(): void
+    {
+        $message = $this->mockMessage();
+        $this->security->method('isGranted')->willReturn(true);
+        $calls = [];
+
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $this->service->setEntityManager($entityManager);
+        $entityManager->expects(self::once())->method('wrapInTransaction')
+            ->willReturnCallback(static function (callable $fn) use (&$calls): mixed {
+                $calls[] = 'begin';
+                $result = $fn();
+                $calls[] = 'commit';
+
+                return $result;
+            });
+        $entityManager->expects(self::once())->method('refresh')
+            ->with($message, LockMode::PESSIMISTIC_WRITE)
+            ->willReturnCallback(static function () use (&$calls): void {
+                $calls[] = 'lock';
+            });
+        $message->method('addRevision')->willReturnCallback(static function () use (&$calls, $message): MockObject {
+            $calls[] = 'revision';
+
+            return $message;
+        });
+
+        $dto = new UpdateMessageDto();
+        $dto->text = 'updated text';
+        $this->service->update($message, $dto);
+
+        self::assertSame(['begin', 'lock', 'revision', 'commit'], $calls);
     }
 
     public function testUpdateThrowsAccessDeniedWhenNotGranted(): void
