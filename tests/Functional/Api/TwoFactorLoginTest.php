@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Api;
 
 use App\Entity\User;
-use App\Exception\User\InvalidTwoFactorCodeException;
+use App\Exception\User\TotpCodeAlreadyUsedException;
 use App\Service\User\TwoFactorServiceInterface;
 use App\Tests\Factory\UserFactory;
 use App\Tests\Functional\ApiTestCase;
@@ -228,7 +228,7 @@ class TwoFactorLoginTest extends ApiTestCase
             [$timestep, $userId],
         );
 
-        $this->expectException(InvalidTwoFactorCodeException::class);
+        $this->expectException(TotpCodeAlreadyUsedException::class);
         static::getContainer()->get(TwoFactorServiceInterface::class)->verifyLogin($staleUser, $totp->at($now));
     }
 

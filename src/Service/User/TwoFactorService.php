@@ -11,6 +11,7 @@ use App\Entity\RecoveryCode;
 use App\Entity\User;
 use App\Exception\User\InvalidCurrentPasswordException;
 use App\Exception\User\InvalidTwoFactorCodeException;
+use App\Exception\User\TotpCodeAlreadyUsedException;
 use App\Exception\User\TwoFactorAlreadyEnabledException;
 use App\Exception\User\TwoFactorNotEnabledException;
 use App\Exception\User\TwoFactorSetupNotStartedException;
@@ -142,7 +143,7 @@ class TwoFactorService extends AbstractDoctrineService implements TwoFactorServi
         $timestep = $this->matchTotpTimestep($secret, $code);
         if (null !== $timestep) {
             if (!$this->userRepository->tryAdvanceTotpTimestep($user, $timestep)) {
-                throw new InvalidTwoFactorCodeException('Invalid two-factor code.');
+                throw new TotpCodeAlreadyUsedException('Two-factor code was already used.');
             }
 
             return;
