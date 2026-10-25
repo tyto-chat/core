@@ -252,6 +252,10 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
         $format = substr($mimeType, (int) strrpos($mimeType, '/') + 1);
         $isAnimatedGif = $this->isAnimatedGif($originalPath, $mimeType);
 
+        if ($isAnimatedGif && 'attachment' === $mediaObject->type) {
+            return;
+        }
+
         if ($isAnimatedGif) {
             // Liip's thumbnail filter flattens animated GIFs to one frame — copy the original bytes instead.
             foreach ($filters as $filter) {

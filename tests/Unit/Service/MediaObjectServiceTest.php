@@ -125,6 +125,21 @@ class MediaObjectServiceTest extends TestCase
         self::assertSame('attachment', $mediaObject->type);
     }
 
+    public function testPrepareAttachmentSkipsAnimatedGifInsteadOfCopyingTheOriginal(): void
+    {
+        $gif = "GIF89a\x01\x00\x01\x00\x00\x00\x00!\xff\x0bNETSCAPE2.0\x03\x01\x00\x00\x00;";
+        $dir = $this->mediaDirWith('loop.gif', $gif);
+        $service = $this->serviceWithMediaDir($dir);
+        $mediaObject = new MediaObject();
+        $mediaObject->filePath = 'loop.gif';
+
+        $this->filterManager->expects(self::never())->method('applyFilter');
+        $this->filesystem->expects(self::never())->method('copy');
+        $this->filesystem->expects(self::never())->method('dumpFile');
+
+        $service->prepare($mediaObject, 'attachment');
+    }
+
     public function testPrepareAttachmentSurvivesThumbnailFailure(): void
     {
         $dir = $this->mediaDirWith('a.png', (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', true));
