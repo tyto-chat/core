@@ -11,6 +11,9 @@ env:
   MERCURE_PUBLISHER_KEY: ci_mercure_publisher_secret_at_least_32_bytes_long
   MERCURE_SUBSCRIBER_KEY: ci_mercure_subscriber_secret_at_least_32_bytes_long
 
+permissions:
+  contents: read
+
 jobs:
   e2e:
     if: github.event.action != 'edited' || github.event.changes.body != null

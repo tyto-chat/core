@@ -10,6 +10,9 @@ on:
 env:
   IMAGE: ghcr.io/tyto-chat/tyto-core
 
+permissions:
+  contents: read
+
 jobs:
   plan:
     runs-on: ubuntu-latest
