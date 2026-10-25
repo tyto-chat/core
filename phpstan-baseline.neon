@@ -1,5 +1,10 @@
 parameters:
 	ignoreErrors:
+		-
+			message: '#^Parameter \#1 \$type of static method Imagick\:\:getResourceLimit\(\) expects 0\|1\|2\|3\|5\|6\|7\|8\|9, int given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Unit/Utils/ImagickLimitsTest.php
 
 		-
 			message: '#^Only booleans are allowed in a negated boolean, string\|false given\.$#'

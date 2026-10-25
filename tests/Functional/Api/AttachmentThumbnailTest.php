@@ -11,6 +11,8 @@ use App\Tests\Factory\CommunityFactory;
 use App\Tests\Factory\CommunityMemberFactory;
 use App\Tests\Factory\UserFactory;
 use App\Tests\Functional\ApiTestCase;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
+use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Zenstruck\Foundry\Test\Factories;
 use Zenstruck\Foundry\Test\ResetDatabase;
@@ -71,5 +73,24 @@ class AttachmentThumbnailTest extends ApiTestCase
         self::assertSame(1, $service->generateMissingAttachmentThumbnails());
         self::assertFileExists($file);
         self::assertSame(0, $service->generateMissingAttachmentThumbnails());
+    }
+
+    public function testBackfillResumesAfterTheGivenId(): void
+    {
+        $attachment = $this->postImageAttachment();
+        $attachmentId = (int) basename((string) $attachment['@id']);
+        $thumbPath = (string) parse_url((string) $attachment['thumbnailUrl'], PHP_URL_PATH);
+        $file = self::getContainer()->getParameter('kernel.project_dir').'/var/media/attachment_thumb/'.basename($thumbPath);
+        unlink($file);
+
+        $tester = new CommandTester((new Application(self::$kernel))->find('tyto:media:generate-thumbnails'));
+        $tester->execute(['--from-id' => (string) $attachmentId]);
+        $tester->assertCommandIsSuccessful();
+        self::assertStringContainsString('Generated 0 thumbnails', $tester->getDisplay());
+        self::assertFileDoesNotExist($file);
+
+        $tester->execute(['--from-id' => (string) ($attachmentId - 1)]);
+        self::assertStringContainsString('Generated 1 thumbnails', $tester->getDisplay());
+        self::assertFileExists($file);
     }
 }

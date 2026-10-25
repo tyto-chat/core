@@ -17,6 +17,7 @@ use App\Security\Voter\MediaObjectVoter;
 use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityEmojiServiceInterface;
 use App\Service\Realtime\MessageRealtimePublisherInterface;
+use App\Utils\ImagickLimits;
 use Liip\ImagineBundle\Imagine\Filter\FilterManager;
 use Liip\ImagineBundle\Model\Binary;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -115,10 +116,10 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
     }
 
     #[\Override]
-    public function generateMissingAttachmentThumbnails(?callable $onProgress = null): int
+    public function generateMissingAttachmentThumbnails(?callable $onAttachment = null, int $fromId = 0): int
     {
         $generated = 0;
-        $afterId = 0;
+        $afterId = max(0, $fromId);
         $filter = self::FILTERS['attachment'][0];
 
         while ([] !== ($batch = $this->mediaObjectRepository->findImageAttachmentsAfter($afterId, self::THUMBNAILABLE_MIME_TYPES, 100))) {
@@ -128,13 +129,13 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
                 if (!is_file($source) || is_file($this->mediaDir.'/'.$filter.'/'.$attachment->filePath)) {
                     continue;
                 }
+                if (null !== $onAttachment) {
+                    $onAttachment($afterId);
+                }
                 $this->generateVariants($attachment);
                 if (is_file($this->mediaDir.'/'.$filter.'/'.$attachment->filePath)) {
                     ++$generated;
                 }
-            }
-            if (null !== $onProgress) {
-                $onProgress(count($batch));
             }
             $this->entityManager->clear();
         }
@@ -252,10 +253,6 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
         $format = substr($mimeType, (int) strrpos($mimeType, '/') + 1);
         $isAnimatedGif = $this->isAnimatedGif($originalPath, $mimeType);
 
-        if ($isAnimatedGif && 'attachment' === $mediaObject->type) {
-            return;
-        }
-
         if ($isAnimatedGif) {
             // Liip's thumbnail filter flattens animated GIFs to one frame — copy the original bytes instead.
             foreach ($filters as $filter) {
@@ -264,6 +261,10 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
             }
 
             return;
+        }
+
+        if ('attachment' === $mediaObject->type) {
+            ImagickLimits::apply();
         }
 
         $binary = new Binary((string) file_get_contents($originalPath), $mimeType, $format);

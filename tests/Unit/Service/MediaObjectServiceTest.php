@@ -22,6 +22,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Liip\ImagineBundle\Imagine\Filter\FilterManager;
 use Liip\ImagineBundle\Model\Binary;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -125,13 +126,21 @@ class MediaObjectServiceTest extends TestCase
         self::assertSame('attachment', $mediaObject->type);
     }
 
-    public function testPrepareAttachmentSkipsAnimatedGifInsteadOfCopyingTheOriginal(): void
+    /** @return iterable<string, array{string}> */
+    public static function gifs(): iterable
     {
-        $gif = "GIF89a\x01\x00\x01\x00\x00\x00\x00!\xff\x0bNETSCAPE2.0\x03\x01\x00\x00\x00;";
-        $dir = $this->mediaDirWith('loop.gif', $gif);
+        yield 'looping animation' => ["GIF89a\x01\x00\x01\x00\x00\x00\x00!\xff\x0bNETSCAPE2.0\x03\x01\x00\x00\x00;"];
+        yield 'play-once animation without NETSCAPE2.0' => ["GIF89a\x01\x00\x01\x00\x00\x00\x00!\xf9\x04\x00\x0a\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x01\x00\x00!\xf9\x04\x00\x0a\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x01\x00\x00;"];
+        yield 'static' => ["GIF89a\x01\x00\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x01\x00\x00;"];
+    }
+
+    #[DataProvider('gifs')]
+    public function testPrepareAttachmentNeverThumbnailsGifs(string $gif): void
+    {
+        $dir = $this->mediaDirWith('pic.gif', $gif);
         $service = $this->serviceWithMediaDir($dir);
         $mediaObject = new MediaObject();
-        $mediaObject->filePath = 'loop.gif';
+        $mediaObject->filePath = 'pic.gif';
 
         $this->filterManager->expects(self::never())->method('applyFilter');
         $this->filesystem->expects(self::never())->method('copy');
