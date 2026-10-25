@@ -7,7 +7,7 @@ ROLE="${1:-app}"
 if [ "$(id -u)" = 0 ]; then
   secrets_dir="$(dirname "${SECRETS_FILE:-/secrets/app.env}")"
   mkdir -p "$secrets_dir"
-  for dir in "$secrets_dir" /app/var /app/config/jwt /srv/app; do
+  for dir in "$secrets_dir" /app/var /app/config/jwt /srv/app /data/caddy /config/caddy; do
     [ -d "$dir" ] || continue
     [ -z "$(find "$dir" ! -user www-data -print -quit)" ] ||
       chown -R www-data:www-data "$dir" || echo "entrypoint: could not change ownership of $dir; continuing"
