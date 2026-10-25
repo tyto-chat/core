@@ -203,6 +203,33 @@ class AccountDeletionServiceTest extends TestCase
         $this->service->purgeExpired();
     }
 
+    public function testPurgeExpiredPurgesCachedContextAndAuthorPagesAfterTheFlush(): void
+    {
+        $user = new User();
+        $user->setEmail('alice@example.com');
+        $user->setPassword('hash');
+        $user->setDeletionRequestedAt(new \DateTimeImmutable('-8 days'));
+        (new \ReflectionClass(User::class))->getProperty('id')->setValue($user, 99);
+        $this->userRepository->method('findExpiredForPurge')->willReturn([$user]);
+
+        $calls = [];
+        $this->entityManager->method('flush')->willReturnCallback(static function () use (&$calls): void {
+            $calls[] = 'flush';
+        });
+        $purger = $this->createMock(CachePurgerInterface::class);
+        $purger->method('purgeUserContext')->willReturnCallback(static function (int $id) use (&$calls): void {
+            $calls[] = 'context:'.$id;
+        });
+        $purger->method('purgeAuthor')->willReturnCallback(static function (int $id) use (&$calls): void {
+            $calls[] = 'author:'.$id;
+        });
+        $this->service->setCachePurger($purger);
+
+        $this->service->purgeExpired();
+
+        self::assertSame(['flush', 'context:99', 'author:99'], $calls);
+    }
+
     public function testPurgeExpiredNoOpWhenEmpty(): void
     {
         $this->userRepository->method('findExpiredForPurge')->willReturn([]);

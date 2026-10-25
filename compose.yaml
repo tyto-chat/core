@@ -38,7 +38,7 @@ x-core-image: &core-image
     LIVEKIT_INTERNAL_URL: ${LIVEKIT_INTERNAL_URL:-http://livekit:7880}
     VOICE_ENABLED: ${VOICE_ENABLED:-true}
     CACHE_DSN: ${CACHE_DSN:-redis://redis:6379}
-    # Caddy admin API, loopback-only; purges always run in-process in the app container.
+    # Caddy admin API, loopback-only; the worker and scheduler reach it through the app's internal :8888 listener.
     CACHE_PURGE_URL: http://localhost:2019
     CACHE_REDIS_URL: redis:6379
     TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
@@ -93,6 +93,7 @@ services:
     environment:
       <<: *core-env
       MERCURE_URL: "http://app:8890/.well-known/mercure"
+      CACHE_PURGE_URL: "http://app:8888"
     depends_on:
       app: { condition: service_healthy }
 
@@ -104,6 +105,7 @@ services:
     environment:
       <<: *core-env
       MERCURE_URL: "http://app:8890/.well-known/mercure"
+      CACHE_PURGE_URL: "http://app:8888"
     depends_on:
       app: { condition: service_healthy }
 
