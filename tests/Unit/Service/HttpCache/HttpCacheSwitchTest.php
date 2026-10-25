@@ -111,6 +111,24 @@ class HttpCacheSwitchTest extends TestCase
         self::assertFalse($switch->isOn());
     }
 
+    public function testALaterShorterTripKeepsTheEarlierLongerDeadline(): void
+    {
+        $switch = $this->switchWith(30, 0);
+        $switch->trip(86400);
+        $switch->trip(60);
+
+        self::assertGreaterThanOrEqual(time() + 86000, (int) file_get_contents($this->flagFile.'.tripped'));
+    }
+
+    public function testALaterLongerTripExtendsTheDeadline(): void
+    {
+        $switch = $this->switchWith(30, 0);
+        $switch->trip(60);
+        $switch->trip(86400);
+
+        self::assertGreaterThanOrEqual(time() + 86000, (int) file_get_contents($this->flagFile.'.tripped'));
+    }
+
     public function testCacheRearmsOnceTheHoldHasExpired(): void
     {
         $switch = $this->switchWith(30, 0);

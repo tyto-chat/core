@@ -34,7 +34,8 @@ final readonly class HttpCacheSwitch implements HttpCacheSwitchInterface
     public function trip(int $holdSeconds): void
     {
         $this->locked(function () use ($holdSeconds): void {
-            $this->filesystem->dumpFile($this->trippedFile(), (string) (time() + max(1, $holdSeconds)));
+            $deadline = max(time() + max(1, $holdSeconds), (int) @file_get_contents($this->trippedFile()));
+            $this->filesystem->dumpFile($this->trippedFile(), (string) $deadline);
             $this->filesystem->remove([$this->flagFile, $this->presenceFlagFile()]);
         });
     }
