@@ -153,9 +153,10 @@ class ModerationService extends AbstractDoctrineService implements ModerationSer
         $this->liftActiveTimeoutsInternal($community, $target, $actor);
         $this->flush();
 
+        // Publishing purges the cached permission hash; it must not wait behind side effects that can throw.
+        $this->realtimePublisher->publishUserEvent((int) $target->getId(), 'server.banned');
         $this->dispatchNotification($action);
         $this->emitWebhookEvent($action);
-        $this->realtimePublisher->publishUserEvent((int) $target->getId(), 'server.banned');
         $this->messageBus->dispatch(new DisconnectVoiceParticipantMessage((int) $target->getId()));
 
         return $action;

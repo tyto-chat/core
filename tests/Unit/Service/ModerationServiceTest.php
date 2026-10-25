@@ -180,6 +180,28 @@ class ModerationServiceTest extends TestCase
         $this->service->serverBan($community, $target, null, null);
     }
 
+    public function testServerBanInvalidatesCachedAccessEvenWhenTheNotificationFails(): void
+    {
+        $this->authedUser(admin: true);
+        $community = $this->createMock(Community::class);
+        $target = $this->createMock(User::class);
+        $target->method('isBot')->willReturn(false);
+        $target->method('hasRole')->willReturn(false);
+        $target->method('getId')->willReturn(55);
+        $this->membership->method('findRole')->willReturn(CommunityRole::Member);
+        $this->repo->method('findActiveTimeoutsByUserAndCommunity')->willReturn([]);
+        $this->notificationService->method('new')->willThrowException(new \RuntimeException('push queue down'));
+
+        $this->realtimePublisher->expects(self::once())->method('publishUserEvent')->with(55, 'server.banned');
+
+        try {
+            $this->service->serverBan($community, $target, null, null);
+            self::fail('the notification failure should still surface');
+        } catch (\RuntimeException $e) {
+            self::assertSame('push queue down', $e->getMessage());
+        }
+    }
+
     public function testTimeoutWithChannelDisconnectsFromChannel(): void
     {
         $this->authedUser(admin: true);
