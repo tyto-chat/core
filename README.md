@@ -1,5 +1,10 @@
 # tyto.chat — Core
 
+[![CI](https://github.com/tyto-chat/core/actions/workflows/ci.yml/badge.svg?branch=1.0)](https://github.com/tyto-chat/core/actions/workflows/ci.yml)
+[![Quality gate](https://sonarcloud.io/api/project_badges/measure?project=tyto-chat_core&metric=alert_status)](https://sonarcloud.io/project/overview?id=tyto-chat_core)
+[![Release](https://img.shields.io/github/v/release/tyto-chat/core?include_prereleases&label=release)](https://github.com/tyto-chat/core/releases)
+[![License: MIT](https://img.shields.io/github/license/tyto-chat/core)](LICENSE)
+
 Backend API for the tyto.chat platform. Built with Symfony 7.4 LTS and API Platform 4, it exposes a JSON-LD REST API consumed by the standalone React SPA ([client](https://github.com/tyto-chat/client)).
 
 <p align="center">
