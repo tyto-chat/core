@@ -221,6 +221,21 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
 
     private function generateVariants(MediaObject $mediaObject): void
     {
+        if ('attachment' !== $mediaObject->type) {
+            $this->writeVariants($mediaObject);
+
+            return;
+        }
+
+        try {
+            $this->writeVariants($mediaObject);
+        } catch (\Throwable $e) {
+            $this->logger?->warning('media.thumbnail_failed', ['filePath' => $mediaObject->filePath, 'exception' => $e]);
+        }
+    }
+
+    private function writeVariants(MediaObject $mediaObject): void
+    {
         if (null === $mediaObject->filePath || null === $mediaObject->type) {
             return;
         }
@@ -247,16 +262,7 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
         $binary = new Binary((string) file_get_contents($originalPath), $mimeType, $format);
 
         foreach ($filters as $filter) {
-            try {
-                $filtered = $this->filterManager->applyFilter($binary, $filter);
-            } catch (\Throwable $e) {
-                if ('attachment' !== $mediaObject->type) {
-                    throw $e;
-                }
-                $this->logger?->warning('media.thumbnail_failed', ['filePath' => $mediaObject->filePath, 'exception' => $e]);
-
-                continue;
-            }
+            $filtered = $this->filterManager->applyFilter($binary, $filter);
             $outputPath = $this->mediaDir.'/'.$filter.'/'.$mediaObject->filePath;
             $this->filesystem->dumpFile($outputPath, $filtered->getContent());
         }

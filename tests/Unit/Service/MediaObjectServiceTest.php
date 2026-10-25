@@ -124,6 +124,34 @@ class MediaObjectServiceTest extends TestCase
         self::assertSame('attachment', $mediaObject->type);
     }
 
+    public function testPrepareAttachmentSurvivesThumbnailWriteFailure(): void
+    {
+        $dir = $this->mediaDirWith('a.png', (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', true));
+        $service = $this->serviceWithMediaDir($dir);
+        $mediaObject = new MediaObject();
+        $mediaObject->filePath = 'a.png';
+
+        $this->filterManager->method('applyFilter')->willReturn(new Binary('thumb', 'image/png', 'png'));
+        $this->filesystem->method('dumpFile')->willThrowException(new \RuntimeException('disk full'));
+
+        $service->prepare($mediaObject, 'attachment');
+
+        self::assertSame('attachment', $mediaObject->type);
+    }
+
+    public function testPrepareNonAttachmentStillPropagatesVariantFailures(): void
+    {
+        $dir = $this->mediaDirWith('a.png', (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', true));
+        $service = $this->serviceWithMediaDir($dir);
+        $mediaObject = new MediaObject();
+        $mediaObject->filePath = 'a.png';
+
+        $this->filterManager->method('applyFilter')->willThrowException(new \RuntimeException('corrupt'));
+
+        $this->expectException(\RuntimeException::class);
+        $service->prepare($mediaObject, 'avatar');
+    }
+
     private function mediaDirWith(string $name, string $contents): string
     {
         $dir = sys_get_temp_dir().'/tyto-media-'.bin2hex(random_bytes(4));
