@@ -67,8 +67,9 @@ COPY --from=vendor /app/vendor ./vendor
 COPY . .
 
 # Writable runtime dirs (media + exports are mounted as volumes at runtime).
-RUN mkdir -p var/cache var/log var/media var/exports config/jwt \
-    && chown -R www-data:www-data var config/jwt
+RUN mkdir -p var/cache var/log var/media var/exports config/jwt /data/caddy /config/caddy /etc/frankenphp/sites.d /srv/app \
+    && chown -R www-data:www-data var config/jwt public /data/caddy /config/caddy /etc/frankenphp/sites.d /srv/app \
+    && chown www-data:www-data /app
 
 ENTRYPOINT ["entrypoint.sh"]
 CMD ["app"]
