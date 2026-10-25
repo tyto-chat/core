@@ -435,12 +435,6 @@ parameters:
 			path: src/Service/Realtime/MercurePublisher.php
 
 		-
-			message: '#^Only booleans are allowed in a ternary operator condition, string\|null given\.$#'
-			identifier: ternary.condNotBoolean
-			count: 1
-			path: src/Service/Realtime/MercurePublisher.php
-
-		-
 			message: '#^Parameter \#1 \$secret of class Symfony\\Component\\Mercure\\Jwt\\LcobucciFactory constructor expects non\-empty\-string, string given\.$#'
 			identifier: argument.type
 			count: 1

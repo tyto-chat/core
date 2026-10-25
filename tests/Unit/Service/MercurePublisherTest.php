@@ -9,11 +9,13 @@ use App\Entity\Channel;
 use App\Entity\Community;
 use App\Entity\Conversation;
 use App\Entity\ConversationMember;
+use App\Entity\MediaObject;
 use App\Entity\Message;
 use App\Entity\MessagePage;
 use App\Entity\Notification;
 use App\Entity\User;
 use App\Enum\Presence\PresenceState;
+use App\Service\MediaObject\AttachmentUrlGeneratorInterface;
 use App\Service\MediaObject\SignedUrlServiceInterface;
 use App\Service\Realtime\MercurePublisher;
 use App\Tests\Stub\InMemoryChannelParticipantStore;
@@ -31,7 +33,7 @@ final class MercurePublisherTest extends TestCase
 {
     private ?Update $captured = null;
 
-    private function makePublisher(string $iriFromResource = '/api/v1/unused'): MercurePublisher
+    private function makePublisher(string $iriFromResource = '/api/v1/unused', ?AttachmentUrlGeneratorInterface $attachmentUrls = null): MercurePublisher
     {
         $iri = $this->createMock(IriConverterInterface::class);
         $iri->method('getIriFromResource')->willReturn($iriFromResource);
@@ -51,6 +53,7 @@ final class MercurePublisherTest extends TestCase
             new InMemoryChannelParticipantStore(),
             $this->createMock(UrlGeneratorInterface::class),
             $this->createMock(SignedUrlServiceInterface::class),
+            $attachmentUrls ?? $this->createMock(AttachmentUrlGeneratorInterface::class),
             new NullLogger(),
         );
     }
@@ -66,6 +69,7 @@ final class MercurePublisherTest extends TestCase
             new InMemoryChannelParticipantStore(),
             $this->createMock(UrlGeneratorInterface::class),
             $this->createMock(SignedUrlServiceInterface::class),
+            $this->createMock(AttachmentUrlGeneratorInterface::class),
             new NullLogger(),
         );
     }
@@ -242,6 +246,29 @@ final class MercurePublisherTest extends TestCase
         self::assertStringContainsString('"attachments"', $this->captured->getData());
     }
 
+    public function testPublishMessageAttachmentsUpdatedCarriesContentAndThumbnailUrls(): void
+    {
+        $withThumb = new MediaObject();
+        $withThumb->filePath = 'a.png';
+        $withoutThumb = new MediaObject();
+        $withoutThumb->filePath = 'b.pdf';
+        $message = $this->rootInChannel();
+        $message->getAttachments()->add($withThumb);
+        $message->getAttachments()->add($withoutThumb);
+
+        $urls = self::createStub(AttachmentUrlGeneratorInterface::class);
+        $urls->method('contentUrl')->willReturnCallback(static fn (MediaObject $a): string => 'https://x/c/'.$a->filePath);
+        $urls->method('thumbnailUrl')->willReturnCallback(static fn (MediaObject $a): ?string => 'a.png' === $a->filePath ? 'https://x/t/a.png' : null);
+
+        $this->makePublisher('/api/v1/unused', $urls)->publishMessageAttachmentsUpdated($message);
+
+        $attachments = json_decode((string) $this->captured?->getData(), true, flags: \JSON_THROW_ON_ERROR)['attachments'];
+        self::assertSame('https://x/t/a.png', $attachments[0]['thumbnailUrl']);
+        self::assertSame('https://x/c/a.png', $attachments[0]['contentUrl']);
+        self::assertArrayHasKey('thumbnailUrl', $attachments[1]);
+        self::assertNull($attachments[1]['thumbnailUrl']);
+    }
+
     public function testPublishMessagePinnedUsesContainerTopic(): void
     {
         $publisher = $this->makePublisher();
@@ -352,6 +379,7 @@ final class MercurePublisherTest extends TestCase
             new InMemoryChannelParticipantStore(),
             $this->createMock(UrlGeneratorInterface::class),
             $this->createMock(SignedUrlServiceInterface::class),
+            $this->createMock(AttachmentUrlGeneratorInterface::class),
             new NullLogger(),
         );
 
@@ -379,6 +407,7 @@ final class MercurePublisherTest extends TestCase
             new InMemoryChannelParticipantStore(),
             $this->createMock(UrlGeneratorInterface::class),
             $this->createMock(SignedUrlServiceInterface::class),
+            $this->createMock(AttachmentUrlGeneratorInterface::class),
             new NullLogger(),
         );
 
@@ -416,6 +445,7 @@ final class MercurePublisherTest extends TestCase
             new InMemoryChannelParticipantStore(),
             $this->createMock(UrlGeneratorInterface::class),
             $this->createMock(SignedUrlServiceInterface::class),
+            $this->createMock(AttachmentUrlGeneratorInterface::class),
             $logger,
         );
 

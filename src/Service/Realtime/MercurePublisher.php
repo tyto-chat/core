@@ -13,6 +13,7 @@ use App\Entity\MediaObject;
 use App\Entity\Message;
 use App\Entity\Notification;
 use App\Enum\Presence\PresenceState;
+use App\Service\MediaObject\AttachmentUrlGeneratorInterface;
 use App\Service\MediaObject\SignedUrlServiceInterface;
 use App\Service\Voice\ChannelParticipantStoreInterface;
 use App\Utils\Topics;
@@ -29,6 +30,7 @@ class MercurePublisher implements RealtimePublisherInterface
         private readonly ChannelParticipantStoreInterface $participantStore,
         private readonly UrlGeneratorInterface $urlGenerator,
         private readonly SignedUrlServiceInterface $signedUrlService,
+        private readonly AttachmentUrlGeneratorInterface $attachmentUrls,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -264,16 +266,8 @@ class MercurePublisher implements RealtimePublisherInterface
                 'originalName' => $a->originalName,
                 'mimeType' => $a->mimeType,
                 'size' => $a->size,
-                'contentUrl' => $a->filePath
-                    ? $this->urlGenerator->generate(
-                        'app_media_serve',
-                        [
-                            'token' => $this->signedUrlService->sign($a->filePath),
-                            'filename' => $a->filePath,
-                        ],
-                        UrlGeneratorInterface::ABSOLUTE_URL,
-                    )
-                    : null,
+                'contentUrl' => $this->attachmentUrls->contentUrl($a),
+                'thumbnailUrl' => $this->attachmentUrls->thumbnailUrl($a),
             ],
             $message->getAttachments()->toArray()
         ));
