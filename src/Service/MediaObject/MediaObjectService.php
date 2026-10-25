@@ -246,6 +246,9 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
         if ('attachment' === $mediaObject->type && !in_array($mimeType, self::THUMBNAILABLE_MIME_TYPES, true)) {
             return;
         }
+        if ('attachment' === $mediaObject->type && $this->exceedsThumbnailPixelLimit($originalPath)) {
+            return;
+        }
         $format = substr($mimeType, (int) strrpos($mimeType, '/') + 1);
         $isAnimatedGif = $this->isAnimatedGif($originalPath, $mimeType);
 
@@ -266,6 +269,13 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
             $outputPath = $this->mediaDir.'/'.$filter.'/'.$mediaObject->filePath;
             $this->filesystem->dumpFile($outputPath, $filtered->getContent());
         }
+    }
+
+    private function exceedsThumbnailPixelLimit(string $path): bool
+    {
+        $size = @getimagesize($path);
+
+        return false === $size || $size[0] * $size[1] > self::MAX_THUMBNAIL_SOURCE_PIXELS;
     }
 
     private function isAnimatedGif(string $path, string $mimeType): bool

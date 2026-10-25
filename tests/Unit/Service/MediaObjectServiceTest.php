@@ -109,6 +109,22 @@ class MediaObjectServiceTest extends TestCase
         $service->prepare($mediaObject, 'attachment');
     }
 
+    public function testPrepareAttachmentSkipsThumbnailWhenPixelCountExceedsLimit(): void
+    {
+        $header = "\x89PNG\r\n\x1a\n".pack('N', 13).'IHDR'.pack('NN', 20000, 20000)."\x08\x02\x00\x00\x00".pack('N', 0);
+        $dir = $this->mediaDirWith('bomb.png', $header);
+        $service = $this->serviceWithMediaDir($dir);
+        $mediaObject = new MediaObject();
+        $mediaObject->filePath = 'bomb.png';
+
+        $this->filterManager->expects(self::never())->method('applyFilter');
+        $this->filesystem->expects(self::never())->method('dumpFile');
+
+        $service->prepare($mediaObject, 'attachment');
+
+        self::assertSame('attachment', $mediaObject->type);
+    }
+
     public function testPrepareAttachmentSurvivesThumbnailFailure(): void
     {
         $dir = $this->mediaDirWith('a.png', (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', true));
