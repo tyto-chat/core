@@ -8,6 +8,8 @@ use App\Async\RepurgeHttpCacheTagMessage;
 use App\Service\HttpCache\HttpCacheQuarantineInterface;
 use App\Service\HttpCache\HttpCacheSwitchInterface;
 use App\Service\HttpCache\SouinCachePurger;
+use App\Service\Settings\SettingsServiceInterface;
+use App\Settings\Settings;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -213,6 +215,21 @@ class SouinCachePurgerTest extends TestCase
         $switch->expects(self::once())->method('trip')->with(self::greaterThanOrEqual(3600));
 
         (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $switch))->purgeUserContext(4);
+    }
+
+    public function testTripHoldOutlastsTheLongestCacheTtl(): void
+    {
+        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 503]));
+        $settings = self::createStub(SettingsServiceInterface::class);
+        $settings->method('get')->willReturnCallback(static fn ($def): int => match ($def->key) {
+            Settings::httpCachePageTtlSeconds()->key, Settings::mediaTokenTtlSeconds()->key => 86400,
+            Settings::httpCacheContextTtlSeconds()->key => 600,
+            default => 15,
+        });
+        $switch = $this->createMock(HttpCacheSwitchInterface::class);
+        $switch->expects(self::once())->method('trip')->with(86400);
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $switch, $settings))->purgeCommunityPages(3);
     }
 
     public function testFailedAuthorPurgeDoesNotTripTheCache(): void

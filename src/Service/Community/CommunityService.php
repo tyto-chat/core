@@ -347,6 +347,7 @@ class CommunityService extends AbstractDoctrineService implements CommunityServi
         $this->removeAccessResidue($currentUser, $community);
         $this->communityPinService->unpinFor($currentUser, $community);
         $this->realtimePublisher->publishCommunityStructureChanged($community);
+        $this->cachePurger->purgeUserContext((int) $currentUser->getId());
         $this->messageBus->dispatch(new DisconnectVoiceParticipantMessage(
             (int) $currentUser->getId(),
             communityIdentifier: $community->getIdentifier(),

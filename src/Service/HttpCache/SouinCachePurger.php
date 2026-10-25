@@ -165,8 +165,22 @@ final class SouinCachePurger implements CachePurgerInterface
 
     private function tripSwitch(): void
     {
-        $contextTtl = $this->settings?->get(Settings::httpCacheContextTtlSeconds()) ?? 0;
-        $this->httpCacheSwitch?->trip(max(self::MAX_TOKEN_LIFETIME_SECONDS, $contextTtl));
+        $this->httpCacheSwitch?->trip(max([self::MAX_TOKEN_LIFETIME_SECONDS, ...$this->cacheTtls()]));
+    }
+
+    /** @return list<int> every TTL a stored entry may still be running on */
+    private function cacheTtls(): array
+    {
+        if (null === $this->settings) {
+            return [];
+        }
+
+        return [
+            $this->settings->get(Settings::httpCacheContextTtlSeconds()),
+            $this->settings->get(Settings::httpCachePresenceTtlSeconds()),
+            $this->settings->get(Settings::httpCachePageTtlSeconds()),
+            $this->settings->get(Settings::mediaTokenTtlSeconds()),
+        ];
     }
 
     private function scheduleRepurge(string $tag): void

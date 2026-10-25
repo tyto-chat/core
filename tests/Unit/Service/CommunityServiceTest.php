@@ -307,6 +307,24 @@ class CommunityServiceTest extends TestCase
         $this->service->leave($community);
     }
 
+    public function testLeaveQuarantinesAndPurgesTheLeaversPermissionHash(): void
+    {
+        $user = $this->createMock(User::class);
+        $user->method('getId')->willReturn(9);
+        $member = $this->createMock(CommunityMember::class);
+        $member->method('getRole')->willReturn(CommunityRole::Member);
+        $this->security->method('getUser')->willReturn($user);
+        $this->security->method('isGranted')->willReturnMap([
+            [UserRole::User->value, null, true],
+            [UserRole::Admin->value, null, false],
+        ]);
+        $this->communityMembershipService->method('findOneByUserAndCommunity')->willReturn($member);
+
+        $this->cachePurger->expects(self::once())->method('purgeUserContext')->with(9);
+
+        $this->service->leave($this->community(identifier: 'c1'));
+    }
+
     public function testLeaveDispatchesVoiceDisconnect(): void
     {
         $user = $this->createMock(User::class);
