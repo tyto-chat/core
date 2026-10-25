@@ -20,9 +20,11 @@ use App\Service\Realtime\RealtimePublisherInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use Liip\ImagineBundle\Imagine\Filter\FilterManager;
+use Liip\ImagineBundle\Model\Binary;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
@@ -75,6 +77,69 @@ class MediaObjectServiceTest extends TestCase
         $this->service->prepare($mediaObject, 'logo');
 
         self::assertSame('logo', $mediaObject->type);
+    }
+
+    public function testPrepareAttachmentWritesThumbnailForRasterImage(): void
+    {
+        $dir = $this->mediaDirWith('a.png', (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', true));
+        $service = $this->serviceWithMediaDir($dir);
+        $mediaObject = new MediaObject();
+        $mediaObject->filePath = 'a.png';
+
+        $this->filterManager->expects(self::once())->method('applyFilter')
+            ->with(self::isInstanceOf(Binary::class), 'attachment_thumb')
+            ->willReturn(new Binary('thumb', 'image/png', 'png'));
+        $this->filesystem->expects(self::once())->method('dumpFile')->with($dir.'/attachment_thumb/a.png', 'thumb');
+
+        $service->prepare($mediaObject, 'attachment');
+
+        self::assertSame('attachment', $mediaObject->type);
+    }
+
+    public function testPrepareAttachmentSkipsNonImages(): void
+    {
+        $dir = $this->mediaDirWith('notes.txt', 'plain text');
+        $service = $this->serviceWithMediaDir($dir);
+        $mediaObject = new MediaObject();
+        $mediaObject->filePath = 'notes.txt';
+
+        $this->filterManager->expects(self::never())->method('applyFilter');
+        $this->filesystem->expects(self::never())->method('dumpFile');
+
+        $service->prepare($mediaObject, 'attachment');
+    }
+
+    public function testPrepareAttachmentSurvivesThumbnailFailure(): void
+    {
+        $dir = $this->mediaDirWith('a.png', (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', true));
+        $service = $this->serviceWithMediaDir($dir);
+        $mediaObject = new MediaObject();
+        $mediaObject->filePath = 'a.png';
+
+        $this->filterManager->method('applyFilter')->willThrowException(new \RuntimeException('corrupt'));
+        $this->filesystem->expects(self::never())->method('dumpFile');
+
+        $service->prepare($mediaObject, 'attachment');
+
+        self::assertSame('attachment', $mediaObject->type);
+    }
+
+    private function mediaDirWith(string $name, string $contents): string
+    {
+        $dir = sys_get_temp_dir().'/tyto-media-'.bin2hex(random_bytes(4));
+        mkdir($dir, 0o777, true);
+        file_put_contents($dir.'/'.$name, $contents);
+
+        return $dir;
+    }
+
+    private function serviceWithMediaDir(string $dir): MediaObjectService
+    {
+        $service = new MediaObjectService(new SecurityContext($this->security, $this->createMock(CommunityMembershipServiceInterface::class)), $this->filterManager, $this->filesystem, $this->createMock(RealtimePublisherInterface::class), $this->mediaObjectRepository, $this->communityEmojiService, $dir);
+        $service->setEntityManager($this->entityManager);
+        $service->setLogger($this->createMock(LoggerInterface::class));
+
+        return $service;
     }
 
     public function testLinkAttachmentToMessageThrowsWhenNotAttachmentType(): void

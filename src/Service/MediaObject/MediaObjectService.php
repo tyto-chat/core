@@ -105,12 +105,41 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
         $this->security->throwAccessDeniedUnlessGranted(MediaObjectVoter::DELETE, $attachment, 'You do not have permission to delete this attachment.');
 
         $parentMessage = $attachment->message;
+        $this->deleteVariants($attachment);
         // VichUploader's preRemove listener deletes the file — bulk DQL deletes would skip it.
         $this->removeAndFlush($attachment);
 
         if (null !== $parentMessage) {
             $this->publisher->publishMessageAttachmentsUpdated($parentMessage);
         }
+    }
+
+    #[\Override]
+    public function generateMissingAttachmentThumbnails(?callable $onProgress = null): int
+    {
+        $generated = 0;
+        $afterId = 0;
+        $filter = self::FILTERS['attachment'][0];
+
+        while ([] !== ($batch = $this->mediaObjectRepository->findImageAttachmentsAfter($afterId, self::THUMBNAILABLE_MIME_TYPES, 100))) {
+            foreach ($batch as $attachment) {
+                $afterId = (int) $attachment->getId();
+                $source = $this->mediaDir.'/'.$attachment->filePath;
+                if (!is_file($source) || is_file($this->mediaDir.'/'.$filter.'/'.$attachment->filePath)) {
+                    continue;
+                }
+                $this->generateVariants($attachment);
+                if (is_file($this->mediaDir.'/'.$filter.'/'.$attachment->filePath)) {
+                    ++$generated;
+                }
+            }
+            if (null !== $onProgress) {
+                $onProgress(count($batch));
+            }
+            $this->entityManager->clear();
+        }
+
+        return $generated;
     }
 
     #[\Override]
@@ -131,6 +160,7 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
     {
         $message = $attachment->message;
 
+        $this->deleteVariants($attachment);
         // VichUploader's preRemove listener deletes the file — bulk DQL deletes would skip it.
         $this->entityManager->remove($attachment);
 
@@ -179,10 +209,14 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
     /** @param list<string> $paths */
     private function removeFiles(array $paths): void
     {
-        $this->filesystem->remove(array_map(
-            fn (string $path): string => $this->mediaDir.'/'.$path,
-            $paths,
-        ));
+        $targets = [];
+        foreach ($paths as $path) {
+            $targets[] = $this->mediaDir.'/'.$path;
+            foreach (self::FILTERS['attachment'] as $filter) {
+                $targets[] = $this->mediaDir.'/'.$filter.'/'.$path;
+            }
+        }
+        $this->filesystem->remove($targets);
     }
 
     private function generateVariants(MediaObject $mediaObject): void
@@ -194,6 +228,9 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
         $filters = self::FILTERS[$mediaObject->type] ?? [];
         $originalPath = $this->mediaDir.'/'.$mediaObject->filePath;
         $mimeType = (string) mime_content_type($originalPath);
+        if ('attachment' === $mediaObject->type && !in_array($mimeType, self::THUMBNAILABLE_MIME_TYPES, true)) {
+            return;
+        }
         $format = substr($mimeType, (int) strrpos($mimeType, '/') + 1);
         $isAnimatedGif = $this->isAnimatedGif($originalPath, $mimeType);
 
@@ -210,7 +247,16 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
         $binary = new Binary((string) file_get_contents($originalPath), $mimeType, $format);
 
         foreach ($filters as $filter) {
-            $filtered = $this->filterManager->applyFilter($binary, $filter);
+            try {
+                $filtered = $this->filterManager->applyFilter($binary, $filter);
+            } catch (\Throwable $e) {
+                if ('attachment' !== $mediaObject->type) {
+                    throw $e;
+                }
+                $this->logger?->warning('media.thumbnail_failed', ['filePath' => $mediaObject->filePath, 'exception' => $e]);
+
+                continue;
+            }
             $outputPath = $this->mediaDir.'/'.$filter.'/'.$mediaObject->filePath;
             $this->filesystem->dumpFile($outputPath, $filtered->getContent());
         }

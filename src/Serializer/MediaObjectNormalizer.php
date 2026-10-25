@@ -25,12 +25,14 @@ class MediaObjectNormalizer implements NormalizerInterface
         private readonly UrlGeneratorInterface $urlGenerator,
         private readonly SignedUrlServiceInterface $signedUrlService,
         private readonly SettingsServiceInterface $settings,
+        #[Autowire('%kernel.project_dir%/var/media')] private readonly string $mediaDir,
     ) {
     }
 
     public function normalize($object, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
     {
         $context[self::ALREADY_CALLED] = true;
+        $object->thumbnailUrl = null;
 
         if ($object->filePath && null !== $object->type) {
             if ('avatar' === $object->type || 'logo' === $object->type) {
@@ -62,6 +64,7 @@ class MediaObjectNormalizer implements NormalizerInterface
                     ],
                     UrlGeneratorInterface::ABSOLUTE_URL,
                 );
+                $object->thumbnailUrl = $this->attachmentThumbnailUrl($object);
             } elseif ('community_emoji' === $object->type) {
                 $relativePath = 'community_emoji/'.$object->filePath;
                 $object->contentUrl = $this->urlGenerator->generate(
@@ -84,6 +87,25 @@ class MediaObjectNormalizer implements NormalizerInterface
         $inner = 'jsonld' === $format ? $this->normalizer : $this->jsonNormalizer;
 
         return $inner->normalize($object, $format, $context);
+    }
+
+    private function attachmentThumbnailUrl(MediaObject $object): ?string
+    {
+        $filter = MediaObjectServiceInterface::FILTERS['attachment'][0];
+        $relativePath = $filter.'/'.$object->filePath;
+        if (!is_file($this->mediaDir.'/'.$relativePath)) {
+            return null;
+        }
+
+        return $this->urlGenerator->generate(
+            'app_media_serve_variant',
+            [
+                'token' => $this->signedUrlService->signStable($relativePath, $this->settings->get(Settings::mediaTokenTtlSeconds())),
+                'filter' => $filter,
+                'filename' => $object->filePath,
+            ],
+            UrlGeneratorInterface::ABSOLUTE_URL,
+        );
     }
 
     public function supportsNormalization($data, ?string $format = null, array $context = []): bool
