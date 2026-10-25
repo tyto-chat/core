@@ -102,6 +102,9 @@ class AccountDeletionService extends AbstractDoctrineService implements AccountD
         }
         if (0 !== $count) {
             $this->flush();
+            foreach ($users as $purged) {
+                $this->purgeCachesFor($purged);
+            }
         }
 
         return $count;
@@ -121,6 +124,11 @@ class AccountDeletionService extends AbstractDoctrineService implements AccountD
 
         $this->anonymiseInPlace($user);
         $this->flush();
+        $this->purgeCachesFor($user);
+    }
+
+    private function purgeCachesFor(User $user): void
+    {
         $this->cachePurger?->purgeUserContext((int) $user->getId());
         $this->cachePurger?->purgeAuthor((int) $user->getId());
     }

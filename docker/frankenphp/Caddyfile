@@ -106,14 +106,25 @@
 import sites.d/*.caddyfile
 
 # Internal-only listener for the forward_auth hash sub-request above. Never
-# published by compose. (Souin's purge/admin API is separate: it rides
-# Caddy's built-in Admin API on loopback :2019, not this site block — see
-# CACHE_PURGE_URL in compose.yaml.)
+# published by compose. Souin's purge API rides Caddy's Admin API on loopback
+# :2019; the one PURGE route below proxies only that call so the worker and
+# scheduler containers (CACHE_PURGE_URL=http://app:8888) can invalidate too.
 :8888 {
 	root * /app/public
-	@noBearerCookie not header_regexp Cookie (?:^|;\s*)BEARER=
-	route @noBearerCookie {
-		cache
+	@souinPurge {
+		method PURGE
+		path /souin-api/souin
 	}
-	php_server
+	handle @souinPurge {
+		reverse_proxy localhost:2019 {
+			header_up Host localhost:2019
+		}
+	}
+	handle {
+		@noBearerCookie not header_regexp Cookie (?:^|;\s*)BEARER=
+		route @noBearerCookie {
+			cache
+		}
+		php_server
+	}
 }

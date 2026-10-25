@@ -978,6 +978,43 @@ get_resource "" "$PRESENCE_PATH_T25" >/dev/null
 r="$(get_resource "" "$PRESENCE_PATH_T25")"
 assert_cmd "T25 presence summary is still cached while only the page TTL is 0" is_hit "$(cache_status_of "$r")"
 
+# =========================================================================
+# T26: the worker/scheduler containers purge through the app's internal :8888
+# listener. Needs a command that runs inside a non-app container of the stack,
+# e.g. WORKER_EXEC="docker compose -p tytosmoke exec -T worker". Skipped when unset.
+# =========================================================================
+
+echo "== T26: purge from the worker container =="
+
+if [ -z "${WORKER_EXEC:-}" ]; then
+  echo "SKIP: T26 (set WORKER_EXEC to run a command inside the worker container)"
+else
+  status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":60}')"
+  [ "$status" = "200" ] || { echo "cache-smoke.sh: failed to enable httpCachePageTtlSeconds for T26" >&2; exit 1; }
+
+  COMM_T26="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t26-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+  [ -n "$COMM_T26" ] || { echo "cache-smoke.sh: failed to create community for T26" >&2; exit 1; }
+  CHAN_T26="$(create_channel "$COMM_T26")"
+  [ -n "$CHAN_T26" ] || { echo "cache-smoke.sh: failed to create channel for T26" >&2; exit 1; }
+  api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T26/channels/$CHAN_T26/messages" '{"text":"t26 seed"}' >/dev/null
+
+  get_page "" "$COMM_T26" "$CHAN_T26" 1 >/dev/null
+  r="$(get_page "" "$COMM_T26" "$CHAN_T26" 1)"
+  assert_cmd "T26 anonymous page is a hit before the worker-side purge" is_hit "$(cache_status_of "$r")"
+
+  PAGE_KEY="/api/v1/communities/$COMM_T26/channels/$CHAN_T26/pages/1"
+  st="$($WORKER_EXEC curl -s -o /dev/null -w '%{http_code}' -X PURGE -H "Surrogate-Key: $PAGE_KEY" http://app:8888/souin-api/souin || true)"
+  assert_cmd "T26 PURGE from the worker container succeeds (HTTP $st)" [ "${st:0:1}" = "2" ]
+
+  r="$(get_page "" "$COMM_T26" "$CHAN_T26" 1)"
+  assert_cmd "T26 the page is a miss after the worker-side purge" is_miss "$(cache_status_of "$r")"
+
+  st="$($WORKER_EXEC curl -s -o /dev/null -w '%{http_code}' http://app:8888/config/ || true)"
+  assert_cmd "T26 the admin config API is not reachable through :8888 (HTTP $st)" [ "$st" != "200" ]
+  st="$($WORKER_EXEC curl -s -o /dev/null -w '%{http_code}' -X PURGE http://app:8888/config/ || true)"
+  assert_cmd "T26 PURGE is proxied only for the Souin path (HTTP $st)" [ "$st" != "200" ]
+fi
+
 echo "=============================="
 if [ "$FAILED" -eq 0 ]; then
   echo "cache-smoke.sh: ALL CHECKS PASSED"
