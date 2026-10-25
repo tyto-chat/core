@@ -65,12 +65,12 @@ class HttpCacheHeadersTest extends ApiTestCase
 
     private function flagFile(): string
     {
-        return self::getContainer()->getParameter('kernel.project_dir').'/var/http-cache.on';
+        return self::getContainer()->getParameter('kernel.project_dir').'/var/http-cache/http-cache.on';
     }
 
     private function presenceFlagFile(): string
     {
-        return self::getContainer()->getParameter('kernel.project_dir').'/var/http-cache-presence.on';
+        return self::getContainer()->getParameter('kernel.project_dir').'/var/http-cache/http-cache-presence.on';
     }
 
     public function testSavingTtlMirrorsCacheSwitchIntoFlagFile(): void
@@ -320,6 +320,44 @@ class HttpCacheHeadersTest extends ApiTestCase
         self::assertStringContainsString('public', $headers['cache-control'][0]);
         self::assertContains('X-User-Context-Hash', $headers['vary'] ?? []);
         self::assertNotContains('Authorization', $headers['vary'] ?? []);
+    }
+
+    public function testCachedPageAndMessageCarryTheirCommunityPagesTag(): void
+    {
+        $this->setHttpCacheTtl(300);
+        [$client, $community, $channel] = $this->memberClientWithChannelPage();
+        $tag = 'pages-k'.$community->getId();
+
+        $page = $client->request('GET', sprintf('/api/v1/communities/%s/channels/%s/pages/1', $community->getIdentifier(), $channel->getIdentifier()));
+        self::assertContains($tag, explode(', ', $page->getHeaders()['surrogate-key'][0] ?? ''));
+
+        $root = $client->request('POST', sprintf('/api/v1/communities/%s/channels/%s/messages', $community->getIdentifier(), $channel->getIdentifier()), [
+            'json' => ['text' => 'tagged'],
+        ]);
+        $message = $client->request('GET', '/api/v1/messages/'.basename((string) $root->toArray()['@id']));
+        self::assertContains($tag, explode(', ', $message->getHeaders()['surrogate-key'][0] ?? ''));
+    }
+
+    public function testMakingAChannelPrivateStopsCachingItsCommunityPages(): void
+    {
+        $this->setHttpCacheTtl(300);
+        [$client, $community, $channel] = $this->memberClientWithChannelPage();
+        $admin = UserFactory::new()->admin()->create();
+        $adminClient = $this->jsonClient($admin);
+        $adminClient->disableReboot();
+        $pagePath = sprintf('/api/v1/communities/%s/channels/%s/pages/1', $community->getIdentifier(), $channel->getIdentifier());
+
+        $adminClient->request('PATCH', sprintf('/api/v1/communities/%s/channels/%s', $community->getIdentifier(), $channel->getIdentifier()), [
+            'headers' => ['Content-Type' => 'application/merge-patch+json'],
+            'json' => ['isPrivate' => true],
+        ]);
+        self::assertResponseIsSuccessful();
+        $page = $adminClient->request('GET', $pagePath);
+
+        self::assertResponseIsSuccessful();
+        $cacheControl = $page->getHeaders()['cache-control'][0];
+        self::assertStringContainsString('no-store', $cacheControl);
+        self::assertStringNotContainsString('s-maxage', $cacheControl);
     }
 
     public function testMessageItemCarriesCacheHeadersWhenEnabled(): void

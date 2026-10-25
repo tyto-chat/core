@@ -94,14 +94,14 @@ class CacheContextServiceTest extends TestCase
 
     public function testAnonymousGetsAnonBucket(): void
     {
-        self::assertSame('v1:anon', $this->service->bucketFor(null, '/api/v1/communities/x/channels/y/pages/1'));
+        self::assertSame('v2:anon', $this->service->bucketFor(null, '/api/v1/communities/x/channels/y/pages/1'));
     }
 
     public function testUnparseableUriGetsAnonBucket(): void
     {
         $user = $this->makeUser(1);
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '/api/v1/communities/x/messages/current'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '/api/v1/communities/x/messages/current'));
     }
 
     public function testQueryStringUriStillBucketsByPath(): void
@@ -111,14 +111,14 @@ class CacheContextServiceTest extends TestCase
         $this->communities->method('findOneBy')->willReturn($community);
         $this->noGrants();
 
-        self::assertSame('v1:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pages/1?foo=1'));
+        self::assertSame('v2:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pages/1?foo=1'));
     }
 
     public function testMalformedUriGetsAnonBucket(): void
     {
         $user = $this->makeUser(1);
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '//x:y:z/path'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '//x:y:z/path'));
     }
 
     public function testUnknownCommunityGetsAnonBucket(): void
@@ -126,7 +126,7 @@ class CacheContextServiceTest extends TestCase
         $user = $this->makeUser(1);
         $this->communities->method('findOneBy')->willReturn(null);
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '/api/v1/communities/ghost/channels/y/pages/1'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '/api/v1/communities/ghost/channels/y/pages/1'));
     }
 
     public function testPlainMemberOfPublicCommunityGetsStandardBucket(): void
@@ -136,7 +136,7 @@ class CacheContextServiceTest extends TestCase
         $this->communities->method('findOneBy')->willReturn($community);
         $this->noGrants();
 
-        self::assertSame('v1:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pages/1'));
+        self::assertSame('v2:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pages/1'));
     }
 
     public function testNonMemberOfPublicCommunityGetsStandardBucket(): void
@@ -150,7 +150,7 @@ class CacheContextServiceTest extends TestCase
         $this->permissions->method('directChannelRoles')->willReturn([]);
         $this->permissions->method('groupChannelRoles')->willReturn([]);
 
-        self::assertSame('v1:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pages/1'));
+        self::assertSame('v2:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pages/1'));
     }
 
     public function testNonMemberOfPrivateCommunityGetsAnonBucket(): void
@@ -164,7 +164,7 @@ class CacheContextServiceTest extends TestCase
         $this->permissions->method('directChannelRoles')->willReturn([]);
         $this->permissions->method('groupChannelRoles')->willReturn([]);
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pages/1'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pages/1'));
     }
 
     public function testPlainMemberOfPrivateCommunityGetsStandardBucket(): void
@@ -174,7 +174,7 @@ class CacheContextServiceTest extends TestCase
         $this->communities->method('findOneBy')->willReturn($community);
         $this->noGrants();
 
-        self::assertSame('v1:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pages/1'));
+        self::assertSame('v2:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pages/1'));
     }
 
     public function testGlobalAdminGetsPerUserFingerprint(): void
@@ -190,9 +190,9 @@ class CacheContextServiceTest extends TestCase
 
         $bucket = $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pages/1');
 
-        self::assertStringStartsWith('v1:', $bucket);
-        self::assertNotSame('v1:anon', $bucket);
-        self::assertNotSame('v1:C10:standard', $bucket);
+        self::assertStringStartsWith('v2:', $bucket);
+        self::assertNotSame('v2:anon', $bucket);
+        self::assertNotSame('v2:C10:standard', $bucket);
     }
 
     public function testCommunityModeratorGetsPerUserFingerprint(): void
@@ -208,9 +208,9 @@ class CacheContextServiceTest extends TestCase
 
         $bucket = $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pages/1');
 
-        self::assertStringStartsWith('v1:', $bucket);
-        self::assertNotSame('v1:anon', $bucket);
-        self::assertNotSame('v1:C10:standard', $bucket);
+        self::assertStringStartsWith('v2:', $bucket);
+        self::assertNotSame('v2:anon', $bucket);
+        self::assertNotSame('v2:C10:standard', $bucket);
     }
 
     public function testDirectChannelGrantGetsPerUserFingerprint(): void
@@ -226,9 +226,9 @@ class CacheContextServiceTest extends TestCase
 
         $bucket = $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pages/1');
 
-        self::assertStringStartsWith('v1:', $bucket);
-        self::assertNotSame('v1:anon', $bucket);
-        self::assertNotSame('v1:C10:standard', $bucket);
+        self::assertStringStartsWith('v2:', $bucket);
+        self::assertNotSame('v2:anon', $bucket);
+        self::assertNotSame('v2:C10:standard', $bucket);
     }
 
     public function testGroupDerivedGrantGetsPerUserFingerprint(): void
@@ -244,9 +244,9 @@ class CacheContextServiceTest extends TestCase
 
         $bucket = $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pages/1');
 
-        self::assertStringStartsWith('v1:', $bucket);
-        self::assertNotSame('v1:anon', $bucket);
-        self::assertNotSame('v1:C10:standard', $bucket);
+        self::assertStringStartsWith('v2:', $bucket);
+        self::assertNotSame('v2:anon', $bucket);
+        self::assertNotSame('v2:C10:standard', $bucket);
     }
 
     public function testFingerprintChangesWhenGrantAdded(): void
@@ -296,7 +296,7 @@ class CacheContextServiceTest extends TestCase
         $this->communities->method('findOneBy')->willReturn($this->makeCommunity(10, false));
         $this->noGrants();
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/messages'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/messages'));
     }
 
     public function testPlainMemberOfPublicCommunityGetsStandardBucketForMessagesCurrent(): void
@@ -306,7 +306,7 @@ class CacheContextServiceTest extends TestCase
         $this->communities->method('findOneBy')->willReturn($community);
         $this->noGrants();
 
-        self::assertSame('v1:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/messages/current'));
+        self::assertSame('v2:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/messages/current'));
     }
 
     public function testPlainMemberOfPublicCommunityGetsStandardBucketForPinnedMessages(): void
@@ -316,7 +316,7 @@ class CacheContextServiceTest extends TestCase
         $this->communities->method('findOneBy')->willReturn($community);
         $this->noGrants();
 
-        self::assertSame('v1:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pinned-messages'));
+        self::assertSame('v2:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pinned-messages'));
     }
 
     public function testPlainMemberOfPublicCommunityGetsStandardBucketForEmojis(): void
@@ -326,7 +326,7 @@ class CacheContextServiceTest extends TestCase
         $this->communities->method('findOneBy')->willReturn($community);
         $this->noGrants();
 
-        self::assertSame('v1:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/emojis'));
+        self::assertSame('v2:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/emojis'));
     }
 
     public function testGlobalAdminGetsPerUserFingerprintForMessagesCurrent(): void
@@ -342,9 +342,9 @@ class CacheContextServiceTest extends TestCase
 
         $bucket = $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/messages/current');
 
-        self::assertStringStartsWith('v1:', $bucket);
-        self::assertNotSame('v1:anon', $bucket);
-        self::assertNotSame('v1:C10:standard', $bucket);
+        self::assertStringStartsWith('v2:', $bucket);
+        self::assertNotSame('v2:anon', $bucket);
+        self::assertNotSame('v2:C10:standard', $bucket);
     }
 
     public function testGlobalAdminGetsPerUserFingerprintForPinnedMessages(): void
@@ -360,9 +360,9 @@ class CacheContextServiceTest extends TestCase
 
         $bucket = $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pinned-messages');
 
-        self::assertStringStartsWith('v1:', $bucket);
-        self::assertNotSame('v1:anon', $bucket);
-        self::assertNotSame('v1:C10:standard', $bucket);
+        self::assertStringStartsWith('v2:', $bucket);
+        self::assertNotSame('v2:anon', $bucket);
+        self::assertNotSame('v2:C10:standard', $bucket);
     }
 
     public function testGlobalAdminGetsPerUserFingerprintForEmojis(): void
@@ -378,9 +378,9 @@ class CacheContextServiceTest extends TestCase
 
         $bucket = $this->service->bucketFor($user, '/api/v1/communities/x/emojis');
 
-        self::assertStringStartsWith('v1:', $bucket);
-        self::assertNotSame('v1:anon', $bucket);
-        self::assertNotSame('v1:C10:standard', $bucket);
+        self::assertStringStartsWith('v2:', $bucket);
+        self::assertNotSame('v2:anon', $bucket);
+        self::assertNotSame('v2:C10:standard', $bucket);
     }
 
     public function testNonMemberOfPrivateCommunityGetsAnonBucketForMessagesCurrent(): void
@@ -394,7 +394,7 @@ class CacheContextServiceTest extends TestCase
         $this->permissions->method('directChannelRoles')->willReturn([]);
         $this->permissions->method('groupChannelRoles')->willReturn([]);
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/messages/current'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/messages/current'));
     }
 
     public function testNonMemberOfPrivateCommunityGetsAnonBucketForPinnedMessages(): void
@@ -408,7 +408,7 @@ class CacheContextServiceTest extends TestCase
         $this->permissions->method('directChannelRoles')->willReturn([]);
         $this->permissions->method('groupChannelRoles')->willReturn([]);
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pinned-messages'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '/api/v1/communities/x/channels/y/pinned-messages'));
     }
 
     public function testNonMemberOfPrivateCommunityGetsAnonBucketForEmojis(): void
@@ -422,7 +422,7 @@ class CacheContextServiceTest extends TestCase
         $this->permissions->method('directChannelRoles')->willReturn([]);
         $this->permissions->method('groupChannelRoles')->willReturn([]);
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '/api/v1/communities/x/emojis'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '/api/v1/communities/x/emojis'));
     }
 
     public function testPercentEncodedKeywordStillBucketsByDecodedPath(): void
@@ -432,7 +432,7 @@ class CacheContextServiceTest extends TestCase
         $this->communities->method('findOneBy')->willReturn($community);
         $this->noGrants();
 
-        self::assertSame('v1:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/emoji%73'));
+        self::assertSame('v2:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/emoji%73'));
     }
 
     public function testEncodedSlashInIdentifierStaysAnon(): void
@@ -441,7 +441,7 @@ class CacheContextServiceTest extends TestCase
         $this->communities->method('findOneBy')->willReturn($this->makeCommunity(10, false));
         $this->noGrants();
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '/api/v1/communities/a%2Fb/emojis'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '/api/v1/communities/a%2Fb/emojis'));
     }
 
     public function testDoubleEncodedKeywordStaysAnon(): void
@@ -450,7 +450,7 @@ class CacheContextServiceTest extends TestCase
         $this->communities->method('findOneBy')->willReturn($this->makeCommunity(10, false));
         $this->noGrants();
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '/api/v1/communities/x/emoji%2573'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '/api/v1/communities/x/emoji%2573'));
     }
 
     public function testThreadMemberOfRootCommunityGetsStandardBucket(): void
@@ -462,7 +462,7 @@ class CacheContextServiceTest extends TestCase
         $this->messages->method('findOneBy')->willReturn($message);
         $this->noGrants();
 
-        self::assertSame('v1:C10:standard', $this->service->bucketFor($user, '/api/v1/messages/11111111-1111-4111-8111-111111111111/thread'));
+        self::assertSame('v2:C10:standard', $this->service->bucketFor($user, '/api/v1/messages/11111111-1111-4111-8111-111111111111/thread'));
     }
 
     public function testThreadElevatedUserGetsPerUserFingerprint(): void
@@ -480,9 +480,9 @@ class CacheContextServiceTest extends TestCase
 
         $bucket = $this->service->bucketFor($user, '/api/v1/messages/11111111-1111-4111-8111-111111111111/thread');
 
-        self::assertStringStartsWith('v1:', $bucket);
-        self::assertNotSame('v1:anon', $bucket);
-        self::assertNotSame('v1:C10:standard', $bucket);
+        self::assertStringStartsWith('v2:', $bucket);
+        self::assertNotSame('v2:anon', $bucket);
+        self::assertNotSame('v2:C10:standard', $bucket);
     }
 
     public function testThreadUnknownUuidGetsAnonBucket(): void
@@ -490,7 +490,7 @@ class CacheContextServiceTest extends TestCase
         $user = $this->makeUser(1);
         $this->messages->method('findOneBy')->willReturn(null);
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '/api/v1/messages/11111111-1111-4111-8111-111111111111/thread'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '/api/v1/messages/11111111-1111-4111-8111-111111111111/thread'));
     }
 
     public function testThreadOfDmMessageGetsAnonBucket(): void
@@ -498,7 +498,7 @@ class CacheContextServiceTest extends TestCase
         $user = $this->makeUser(1);
         $this->messages->method('findOneBy')->willReturn($this->makeDmMessage());
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '/api/v1/messages/11111111-1111-4111-8111-111111111111/thread'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '/api/v1/messages/11111111-1111-4111-8111-111111111111/thread'));
     }
 
     public function testThreadPercentEncodedUuidPathStillWorks(): void
@@ -510,7 +510,7 @@ class CacheContextServiceTest extends TestCase
         $this->messages->method('findOneBy')->willReturn($message);
         $this->noGrants();
 
-        self::assertSame('v1:C10:standard', $this->service->bucketFor($user, '/api/v1/messages/11111111-1111-4111-8111-111111%3111111/thread'));
+        self::assertSame('v2:C10:standard', $this->service->bucketFor($user, '/api/v1/messages/11111111-1111-4111-8111-111111%3111111/thread'));
     }
 
     public function testVersionedMessagePathBucketsLikeUnversionedDid(): void
@@ -524,8 +524,8 @@ class CacheContextServiceTest extends TestCase
 
         $uuid = '11111111-1111-4111-8111-111111111111';
 
-        self::assertSame('v1:C10:standard', $this->service->bucketFor($user, '/api/v1/messages/'.$uuid));
-        self::assertSame('v1:C10:standard', $this->service->bucketFor($user, '/api/v1/messages/'.$uuid.'/thread'));
+        self::assertSame('v2:C10:standard', $this->service->bucketFor($user, '/api/v1/messages/'.$uuid));
+        self::assertSame('v2:C10:standard', $this->service->bucketFor($user, '/api/v1/messages/'.$uuid.'/thread'));
     }
 
     public function testUnversionedApiPathNoLongerMatchesAnyBucketShape(): void
@@ -543,7 +543,7 @@ class CacheContextServiceTest extends TestCase
         // Caddy's @cacheable regexp won't match this shape either, so it's
         // never actually served from cache; this only guards bucketFor()
         // itself from silently still recognizing the old shape.
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '/api/messages/11111111-1111-4111-8111-111111111111'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '/api/messages/11111111-1111-4111-8111-111111111111'));
     }
 
     public function testPresenceSummaryMemberOfPublicCommunityGetsStandardBucket(): void
@@ -553,7 +553,7 @@ class CacheContextServiceTest extends TestCase
         $this->communities->method('findOneBy')->willReturn($community);
         $this->noGrants();
 
-        self::assertSame('v1:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/presence/summary'));
+        self::assertSame('v2:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x/presence/summary'));
     }
 
     public function testPresenceSummaryNonMemberOfPrivateCommunityGetsAnonBucket(): void
@@ -567,7 +567,7 @@ class CacheContextServiceTest extends TestCase
         $this->permissions->method('directChannelRoles')->willReturn([]);
         $this->permissions->method('groupChannelRoles')->willReturn([]);
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '/api/v1/communities/x/presence/summary'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '/api/v1/communities/x/presence/summary'));
     }
 
     public function testCommunityDetailMemberOfPublicCommunityGetsStandardBucket(): void
@@ -577,7 +577,7 @@ class CacheContextServiceTest extends TestCase
         $this->communities->method('findOneBy')->willReturn($community);
         $this->noGrants();
 
-        self::assertSame('v1:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x'));
+        self::assertSame('v2:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x'));
     }
 
     public function testCommunityDetailNonMemberOfPublicCommunityGetsStandardBucket(): void
@@ -591,7 +591,7 @@ class CacheContextServiceTest extends TestCase
         $this->permissions->method('directChannelRoles')->willReturn([]);
         $this->permissions->method('groupChannelRoles')->willReturn([]);
 
-        self::assertSame('v1:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x'));
+        self::assertSame('v2:C10:standard', $this->service->bucketFor($user, '/api/v1/communities/x'));
     }
 
     public function testCommunityDetailNonMemberOfPrivateCommunityGetsAnonBucket(): void
@@ -605,7 +605,7 @@ class CacheContextServiceTest extends TestCase
         $this->permissions->method('directChannelRoles')->willReturn([]);
         $this->permissions->method('groupChannelRoles')->willReturn([]);
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '/api/v1/communities/x'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '/api/v1/communities/x'));
     }
 
     public function testCommunityDetailElevatedUserGetsPerUserFingerprint(): void
@@ -621,9 +621,9 @@ class CacheContextServiceTest extends TestCase
 
         $bucket = $this->service->bucketFor($user, '/api/v1/communities/x');
 
-        self::assertStringStartsWith('v1:', $bucket);
-        self::assertNotSame('v1:anon', $bucket);
-        self::assertNotSame('v1:C10:standard', $bucket);
+        self::assertStringStartsWith('v2:', $bucket);
+        self::assertNotSame('v2:anon', $bucket);
+        self::assertNotSame('v2:C10:standard', $bucket);
     }
 
     public function testCommunityDetailWithTrailingSlashStaysAnon(): void
@@ -632,7 +632,7 @@ class CacheContextServiceTest extends TestCase
         $this->communities->method('findOneBy')->willReturn($this->makeCommunity(10, false));
         $this->noGrants();
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '/api/v1/communities/x/'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '/api/v1/communities/x/'));
     }
 
     public function testCommunitiesCollectionStaysAnon(): void
@@ -641,7 +641,7 @@ class CacheContextServiceTest extends TestCase
         $this->communities->method('findOneBy')->willReturn($this->makeCommunity(10, false));
         $this->noGrants();
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, '/api/v1/communities'));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, '/api/v1/communities'));
     }
 
     /**
@@ -673,7 +673,7 @@ class CacheContextServiceTest extends TestCase
         $this->communities->method('findOneBy')->willReturn($this->makeCommunity(10, false));
         $this->noGrants();
 
-        self::assertSame('v1:anon', $this->service->bucketFor($user, $path));
+        self::assertSame('v2:anon', $this->service->bucketFor($user, $path));
     }
 
     /**

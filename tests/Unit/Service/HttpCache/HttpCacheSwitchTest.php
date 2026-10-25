@@ -13,21 +13,20 @@ use Symfony\Component\Filesystem\Filesystem;
 
 class HttpCacheSwitchTest extends TestCase
 {
+    private string $dir;
     private string $flagFile;
 
     #[\Override]
     protected function setUp(): void
     {
-        $this->flagFile = sys_get_temp_dir().'/tyto-http-cache-'.bin2hex(random_bytes(4)).'.on';
+        $this->dir = sys_get_temp_dir().'/tyto-http-cache-'.bin2hex(random_bytes(4));
+        $this->flagFile = $this->dir.'/http-cache.on';
     }
 
     #[\Override]
     protected function tearDown(): void
     {
-        @unlink($this->flagFile);
-        @unlink($this->flagFile.'.lock');
-        @unlink($this->flagFile.'.tripped');
-        @unlink($this->presenceFlagFile());
+        (new Filesystem())->remove($this->dir);
     }
 
     private function presenceFlagFile(): string
@@ -66,6 +65,16 @@ class HttpCacheSwitchTest extends TestCase
         self::assertSame($presenceOn, is_file($this->presenceFlagFile()));
     }
 
+    public function testSyncCreatesTheSharedSwitchDirectory(): void
+    {
+        self::assertDirectoryDoesNotExist($this->dir);
+
+        $this->switchWith(30, 15)->sync();
+
+        self::assertFileExists($this->flagFile);
+        self::assertFileExists($this->presenceFlagFile());
+    }
+
     public function testDisablingPagesWhilePresenceStaysOnRemovesOnlyThePagesFlag(): void
     {
         $this->switchWith(3600, 15)->sync();
@@ -100,12 +109,12 @@ class HttpCacheSwitchTest extends TestCase
         self::assertFalse($switch->isOn());
         self::assertFalse($switch->sync());
         self::assertFalse($switch->isOn());
-        @unlink($this->flagFile.'.tripped');
     }
 
     public function testCacheRearmsOnceTheHoldHasExpired(): void
     {
         $switch = $this->switchWith(30, 0);
+        mkdir($this->dir);
         file_put_contents($this->flagFile.'.tripped', (string) (time() - 5));
 
         self::assertTrue($switch->isOn());
@@ -114,6 +123,7 @@ class HttpCacheSwitchTest extends TestCase
 
     public function testSyncRemovesStaleFlagWhenCacheTurnedOff(): void
     {
+        mkdir($this->dir);
         touch($this->flagFile);
 
         $switch = $this->switchWith(0, 0);

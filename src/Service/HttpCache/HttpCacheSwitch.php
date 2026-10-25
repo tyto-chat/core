@@ -14,7 +14,7 @@ final readonly class HttpCacheSwitch implements HttpCacheSwitchInterface
     public function __construct(
         private SettingsServiceInterface $settings,
         private Filesystem $filesystem,
-        #[Autowire('%kernel.project_dir%/var/http-cache.on')] private string $flagFile,
+        #[Autowire('%kernel.project_dir%/var/http-cache/http-cache.on')] private string $flagFile,
     ) {
     }
 
@@ -71,6 +71,7 @@ final readonly class HttpCacheSwitch implements HttpCacheSwitchInterface
      */
     private function locked(callable $action): mixed
     {
+        $this->filesystem->mkdir(\dirname($this->flagFile));
         $handle = fopen($this->flagFile.'.lock', 'c');
         if (false === $handle) {
             return $action();

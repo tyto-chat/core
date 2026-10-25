@@ -15,7 +15,7 @@ use App\Security\PermissionResolverInterface;
 
 final class CacheContextService implements CacheContextServiceInterface
 {
-    private const string ANON = 'v1:anon';
+    private const string ANON = 'v2:anon';
 
     public function __construct(
         private readonly CommunityRepository $communities,
@@ -106,7 +106,7 @@ final class CacheContextService implements CacheContextServiceInterface
             'D'.($conversation->getId() ?? 0),
         ]);
 
-        return 'v1:'.hash('sha256', $material);
+        return 'v2:'.hash('sha256', $material);
     }
 
     private function bucketForCommunity(User $user, Community $community): string
@@ -125,7 +125,7 @@ final class CacheContextService implements CacheContextServiceInterface
             return self::ANON;
         }
 
-        return sprintf('v1:C%d:standard', $community->getId());
+        return sprintf('v2:C%d:standard', $community->getId());
     }
 
     /**
@@ -155,6 +155,6 @@ final class CacheContextService implements CacheContextServiceInterface
             $serialize($groupRoles),
         ]);
 
-        return 'v1:'.hash('sha256', $material);
+        return 'v2:'.hash('sha256', $material);
     }
 }

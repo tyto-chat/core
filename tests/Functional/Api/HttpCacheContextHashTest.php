@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api;
 
+use App\Service\HttpCache\HttpCacheQuarantineInterface;
 use App\Tests\Factory\CommunityFactory;
 use App\Tests\Factory\CommunityMemberFactory;
 use App\Tests\Factory\UserFactory;
 use App\Tests\Functional\ApiTestCase;
+use App\Tests\Stub\InMemoryHttpCacheQuarantine;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Zenstruck\Foundry\Test\Factories;
 use Zenstruck\Foundry\Test\ResetDatabase;
@@ -64,6 +66,43 @@ class HttpCacheContextHashTest extends ApiTestCase
             $headers['surrogate-key'][0],
         );
         self::assertArrayHasKey('x-user-context-hash', $headers);
+    }
+
+    public function testHashIsNotStoredWhileItsCommunityIsQuarantined(): void
+    {
+        $this->setContextTtl(600);
+        $user = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('ctx-quarantined')->create();
+        CommunityMemberFactory::createForUserAndCommunity($user, $community);
+        $client = $this->jsonClient($user);
+        $quarantine = self::getContainer()->get(HttpCacheQuarantineInterface::class);
+        \assert($quarantine instanceof InMemoryHttpCacheQuarantine);
+        $quarantine->quarantineCommunity((int) $community->getId());
+
+        $response = $client->request('GET', '/api/http-cache/context-hash', [
+            'headers' => ['X-Forwarded-Uri' => '/api/v1/communities/ctx-quarantined/emojis'],
+        ]);
+
+        self::assertResponseStatusCodeSame(204);
+        self::assertStringContainsString('no-store', $response->getHeaders()['cache-control'][0]);
+    }
+
+    public function testHashIsNotStoredWhileItsUserIsQuarantined(): void
+    {
+        $this->setContextTtl(600);
+        $user = UserFactory::createOne();
+        $community = CommunityFactory::new()->withIdentifier('ctx-user-quarantined')->create();
+        CommunityMemberFactory::createForUserAndCommunity($user, $community);
+        $client = $this->jsonClient($user);
+        $quarantine = self::getContainer()->get(HttpCacheQuarantineInterface::class);
+        \assert($quarantine instanceof InMemoryHttpCacheQuarantine);
+        $quarantine->quarantineUser((int) $user->getId());
+
+        $response = $client->request('GET', '/api/http-cache/context-hash', [
+            'headers' => ['X-Forwarded-Uri' => '/api/v1/communities/ctx-user-quarantined/emojis'],
+        ]);
+
+        self::assertStringContainsString('no-store', $response->getHeaders()['cache-control'][0]);
     }
 
     public function testHashLifetimeNeverOutlivesTheAccessToken(): void

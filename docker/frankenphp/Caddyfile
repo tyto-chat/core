@@ -70,13 +70,14 @@
 	# The `(/(...))?` group is optional so a bare /api/communities/{c} (community
 	# detail, task-3) matches too, without swallowing subresources such as
 	# /membership, /invites, /moderation, /unread-channels, or a bare /channels/{ch}.
-	# The flag files are written by tyto:http-cache:sync / the server-config save: http-cache.on while the page TTL is > 0,
+	# The flag files in /app/var/http-cache (a volume shared with the worker and scheduler, so a trip there turns this cache off too)
+	# are written by tyto:http-cache:sync / the server-config save: http-cache.on while the page TTL is > 0,
 	# http-cache-presence.on while the presence TTL is > 0. Each category is switched off independently.
 	# PAT callers bypass the cache: a HIT would skip the app's per-scope check.
 	@cacheablePages {
 		path_regexp ^/api/v[0-9]+/(communities/[^/]+(/(channels/[^/]+/(pages/[0-9]+|messages/current|pinned-messages)|emojis))?|messages/[0-9a-f-]{36}(/thread)?)$
 		file {
-			root /app/var
+			root /app/var/http-cache
 			try_files http-cache.on
 		}
 		not header Authorization "Bearer pat_*"
@@ -84,7 +85,7 @@
 	@cacheablePresence {
 		path_regexp ^/api/v[0-9]+/communities/[^/]+/presence/summary$
 		file {
-			root /app/var
+			root /app/var/http-cache
 			try_files http-cache-presence.on
 		}
 		not header Authorization "Bearer pat_*"

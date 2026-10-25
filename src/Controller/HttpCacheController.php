@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Service\HttpCache\CacheContextServiceInterface;
+use App\Service\HttpCache\HttpCacheQuarantineInterface;
 use App\Service\Settings\SettingsServiceInterface;
 use App\Settings\Settings;
 use App\Utils\CacheTags;
@@ -21,6 +22,7 @@ final class HttpCacheController extends AbstractController
         private readonly CacheContextServiceInterface $cacheContext,
         private readonly LoggerInterface $logger,
         private readonly SettingsServiceInterface $settings,
+        private readonly HttpCacheQuarantineInterface $quarantine,
     ) {
     }
 
@@ -42,7 +44,14 @@ final class HttpCacheController extends AbstractController
         $response->headers->set('X-User-Context-Hash', $bucket);
 
         $ttl = $this->settings->get(Settings::httpCacheContextTtlSeconds());
+        $communityId = $this->cacheContext->communityIdFor($uri);
         if (!$request->headers->has('Authorization') && $this->carriesBearerCookie($request)) {
+            $ttl = 0;
+        }
+        if (null !== $communityId && $this->quarantine->isCommunityQuarantined($communityId)) {
+            $ttl = 0;
+        }
+        if ($user instanceof User && $this->quarantine->isUserQuarantined((int) $user->getId())) {
             $ttl = 0;
         }
         $authorization = $request->headers->get('Authorization');
@@ -60,7 +69,6 @@ final class HttpCacheController extends AbstractController
         if ($user instanceof User) {
             $tags[] = CacheTags::userContext((int) $user->getId());
         }
-        $communityId = $this->cacheContext->communityIdFor($uri);
         if (null !== $communityId) {
             $tags[] = CacheTags::communityContext($communityId);
         }

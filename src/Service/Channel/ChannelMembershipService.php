@@ -78,7 +78,6 @@ class ChannelMembershipService extends AbstractDoctrineService implements Channe
         $channelMember->setChannel($channel);
         $channelMember->setRole($role);
         $channelMember = $this->save($channelMember);
-        $this->realtimePublisher->publishCommunityStructureChanged($channelMember->getChannel()->getCommunity());
 
         $this->notificationService->new(new CreateNotificationDto(
             recipient: $user,
@@ -209,6 +208,7 @@ class ChannelMembershipService extends AbstractDoctrineService implements Channe
         $previousRole = $channelMember->getRole();
         $channelMember->setRole($role);
         $channelMember = $this->save($channelMember);
+        $this->cachePurger?->purgeUserContext((int) $channelMember->getUser()->getId());
 
         if (ChannelRole::Moderator === $role && ChannelRole::Moderator !== $previousRole) {
             $channel = $channelMember->getChannel();

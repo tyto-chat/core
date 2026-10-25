@@ -28,7 +28,7 @@ class CacheContextHashTest extends ApiTestCase
         ]);
 
         self::assertResponseStatusCodeSame(204);
-        self::assertSame('v1:anon', $response->getHeaders()['x-user-context-hash'][0]);
+        self::assertSame('v2:anon', $response->getHeaders()['x-user-context-hash'][0]);
     }
 
     public function testMemberGetsStandardBucketForPublicCommunity(): void
@@ -43,7 +43,7 @@ class CacheContextHashTest extends ApiTestCase
         ]);
 
         self::assertResponseStatusCodeSame(204);
-        self::assertSame(sprintf('v1:C%d:standard', $community->getId()), $response->getHeaders()['x-user-context-hash'][0]);
+        self::assertSame(sprintf('v2:C%d:standard', $community->getId()), $response->getHeaders()['x-user-context-hash'][0]);
     }
 
     public function testNonMemberOfPrivateCommunityGetsAnonHash(): void
@@ -57,7 +57,7 @@ class CacheContextHashTest extends ApiTestCase
         ]);
 
         self::assertResponseStatusCodeSame(204);
-        self::assertSame('v1:anon', $response->getHeaders()['x-user-context-hash'][0]);
+        self::assertSame('v2:anon', $response->getHeaders()['x-user-context-hash'][0]);
     }
 
     public function testCommunityAdminGetsPerUserFingerprintNotStandardBucket(): void
@@ -73,8 +73,8 @@ class CacheContextHashTest extends ApiTestCase
 
         self::assertResponseStatusCodeSame(204);
         $bucket = $response->getHeaders()['x-user-context-hash'][0];
-        self::assertNotSame('v1:anon', $bucket);
-        self::assertNotSame(sprintf('v1:C%d:standard', $community->getId()), $bucket);
+        self::assertNotSame('v2:anon', $bucket);
+        self::assertNotSame(sprintf('v2:C%d:standard', $community->getId()), $bucket);
     }
 
     public function testMemberGetsStandardBucketForThreadUri(): void
@@ -91,7 +91,7 @@ class CacheContextHashTest extends ApiTestCase
         ]);
 
         self::assertResponseStatusCodeSame(204);
-        self::assertSame(sprintf('v1:C%d:standard', $community->getId()), $response->getHeaders()['x-user-context-hash'][0]);
+        self::assertSame(sprintf('v2:C%d:standard', $community->getId()), $response->getHeaders()['x-user-context-hash'][0]);
     }
 
     public function testDmThreadParticipantGetsPerUserFingerprintNotAnon(): void
@@ -107,8 +107,8 @@ class CacheContextHashTest extends ApiTestCase
 
         self::assertResponseStatusCodeSame(204);
         $bucket = $response->getHeaders()['x-user-context-hash'][0];
-        self::assertStringStartsWith('v1:', $bucket);
-        self::assertNotSame('v1:anon', $bucket);
+        self::assertStringStartsWith('v2:', $bucket);
+        self::assertNotSame('v2:anon', $bucket);
     }
 
     public function testDmThreadNeverSharesBucketAcrossUsers(): void
@@ -131,9 +131,9 @@ class CacheContextHashTest extends ApiTestCase
         $bucketB = $this->jsonClient($participantB)->request('GET', '/api/http-cache/context-hash', ['headers' => $headers])->getHeaders()['x-user-context-hash'][0];
         $bucketStranger = $this->jsonClient($stranger)->request('GET', '/api/http-cache/context-hash', ['headers' => $headers])->getHeaders()['x-user-context-hash'][0];
 
-        self::assertNotSame('v1:anon', $bucketA);
-        self::assertNotSame('v1:anon', $bucketB);
-        self::assertNotSame('v1:anon', $bucketStranger);
+        self::assertNotSame('v2:anon', $bucketA);
+        self::assertNotSame('v2:anon', $bucketB);
+        self::assertNotSame('v2:anon', $bucketStranger);
         self::assertNotSame($bucketA, $bucketB);
         self::assertNotSame($bucketA, $bucketStranger);
         self::assertNotSame($bucketB, $bucketStranger);
@@ -150,7 +150,7 @@ class CacheContextHashTest extends ApiTestCase
         ]);
 
         self::assertResponseStatusCodeSame(204);
-        self::assertSame('v1:anon', $response->getHeaders()['x-user-context-hash'][0]);
+        self::assertSame('v2:anon', $response->getHeaders()['x-user-context-hash'][0]);
     }
 
     public function testResponseIsNeverCacheable(): void
@@ -183,7 +183,7 @@ class CacheContextHashTest extends ApiTestCase
 
         // The collapse: the viewer-agnostic detail payload (task-2 canary) is
         // what makes sharing one bucket across members and non-members safe.
-        self::assertSame(sprintf('v1:C%d:standard', $community->getId()), $memberBucket);
+        self::assertSame(sprintf('v2:C%d:standard', $community->getId()), $memberBucket);
         self::assertSame($memberBucket, $nonMemberBucket);
     }
 
@@ -197,7 +197,7 @@ class CacheContextHashTest extends ApiTestCase
         ]);
 
         self::assertResponseStatusCodeSame(204);
-        self::assertSame('v1:anon', $response->getHeaders()['x-user-context-hash'][0]);
+        self::assertSame('v2:anon', $response->getHeaders()['x-user-context-hash'][0]);
     }
 
     public function testPublicMessageBucketIsSharedStandardForPlainMembers(): void
@@ -218,7 +218,7 @@ class CacheContextHashTest extends ApiTestCase
         $bucketA = $this->jsonClient($userA)->request('GET', '/api/http-cache/context-hash', ['headers' => $headers])->getHeaders()['x-user-context-hash'][0];
         $bucketB = $this->jsonClient($userB)->request('GET', '/api/http-cache/context-hash', ['headers' => $headers])->getHeaders()['x-user-context-hash'][0];
 
-        self::assertSame(sprintf('v1:C%d:standard', $community->getId()), $bucketA);
+        self::assertSame(sprintf('v2:C%d:standard', $community->getId()), $bucketA);
         self::assertSame($bucketA, $bucketB);
     }
 
@@ -247,7 +247,7 @@ class CacheContextHashTest extends ApiTestCase
         $bucketInsiderB = $this->jsonClient($insiderB)->request('GET', '/api/http-cache/context-hash', ['headers' => $headers])->getHeaders()['x-user-context-hash'][0];
         $bucketPlainMember = $this->jsonClient($plainMember)->request('GET', '/api/http-cache/context-hash', ['headers' => $headers])->getHeaders()['x-user-context-hash'][0];
 
-        $standardBucket = sprintf('v1:C%d:standard', $community->getId());
+        $standardBucket = sprintf('v2:C%d:standard', $community->getId());
 
         self::assertNotSame($standardBucket, $bucketInsiderA);
         self::assertNotSame($standardBucket, $bucketInsiderB);
@@ -272,9 +272,9 @@ class CacheContextHashTest extends ApiTestCase
         $bucketB = $this->jsonClient($participantB)->request('GET', '/api/http-cache/context-hash', ['headers' => $headers])->getHeaders()['x-user-context-hash'][0];
         $bucketStranger = $this->jsonClient($stranger)->request('GET', '/api/http-cache/context-hash', ['headers' => $headers])->getHeaders()['x-user-context-hash'][0];
 
-        self::assertNotSame('v1:anon', $bucketA);
-        self::assertNotSame('v1:anon', $bucketB);
-        self::assertNotSame('v1:anon', $bucketStranger);
+        self::assertNotSame('v2:anon', $bucketA);
+        self::assertNotSame('v2:anon', $bucketB);
+        self::assertNotSame('v2:anon', $bucketStranger);
         self::assertNotSame($bucketA, $bucketB);
         self::assertNotSame($bucketA, $bucketStranger);
         self::assertNotSame($bucketB, $bucketStranger);
@@ -289,6 +289,6 @@ class CacheContextHashTest extends ApiTestCase
         ]);
 
         self::assertResponseStatusCodeSame(204);
-        self::assertSame('v1:anon', $response->getHeaders()['x-user-context-hash'][0]);
+        self::assertSame('v2:anon', $response->getHeaders()['x-user-context-hash'][0]);
     }
 }

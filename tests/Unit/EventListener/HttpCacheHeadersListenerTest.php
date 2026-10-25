@@ -7,7 +7,9 @@ namespace App\Tests\Unit\EventListener;
 use ApiPlatform\Metadata\Get;
 use App\EventListener\HttpCacheHeadersListener;
 use App\Security\Authentication\ApiKeyAuthenticator;
+use App\Service\HttpCache\CacheContextServiceInterface;
 use App\Service\HttpCache\CacheTagCollector;
+use App\Service\HttpCache\HttpCacheQuarantineInterface;
 use App\Service\HttpCache\HttpCacheSwitchInterface;
 use App\Service\Settings\SettingsServiceInterface;
 use App\Settings\Settings;
@@ -19,7 +21,7 @@ use Symfony\Component\HttpKernel\HttpKernelInterface;
 
 class HttpCacheHeadersListenerTest extends TestCase
 {
-    private function respond(bool $switchOn, bool $viaPat, int $pageTtl, bool|string $flag = true, bool $presenceSwitchOn = false, int $presenceTtl = 0): Response
+    private function respond(bool $switchOn, bool $viaPat, int $pageTtl, bool|string $flag = true, bool $presenceSwitchOn = false, int $presenceTtl = 0, ?int $communityId = null, bool $quarantined = false): Response
     {
         $settings = self::createStub(SettingsServiceInterface::class);
         $settings->method('get')->willReturnCallback(static fn ($def): int => match ($def->key) {
@@ -40,7 +42,11 @@ class HttpCacheHeadersListenerTest extends TestCase
 
         $response = new Response('{}');
         $event = new ResponseEvent(self::createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST, $response);
-        (new HttpCacheHeadersListener($settings, $switch, new CacheTagCollector()))($event);
+        $context = self::createStub(CacheContextServiceInterface::class);
+        $context->method('communityIdFor')->willReturn($communityId);
+        $quarantine = self::createStub(HttpCacheQuarantineInterface::class);
+        $quarantine->method('isCommunityQuarantined')->willReturn($quarantined);
+        (new HttpCacheHeadersListener($settings, $switch, new CacheTagCollector(), $context, $quarantine))($event);
 
         return $response;
     }
@@ -67,6 +73,28 @@ class HttpCacheHeadersListenerTest extends TestCase
         $response = $this->respond(false, false, 3600, true, true, 15);
 
         self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
+    }
+
+    public function testCachedResponseCarriesItsCommunityPagesTagAfterThePath(): void
+    {
+        $response = $this->respond(true, false, 3600, communityId: 7);
+
+        self::assertSame('/api/v1/communities/c/emojis, pages-k7', $response->headers->get('Surrogate-Key'));
+    }
+
+    public function testQuarantinedCommunityResponsesAreNeverStored(): void
+    {
+        $response = $this->respond(true, false, 3600, communityId: 7, quarantined: true);
+
+        self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
+        self::assertFalse($response->headers->hasCacheControlDirective('public'));
+    }
+
+    public function testNoCommunityTagForResponsesOutsideACommunity(): void
+    {
+        $response = $this->respond(true, false, 3600);
+
+        self::assertNull($response->headers->get('Surrogate-Key'));
     }
 
     public function testNoStoreWhenSwitchOff(): void

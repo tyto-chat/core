@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace App\Service\HttpCache;
 
+use App\Async\RepurgeHttpCacheTagMessage;
 use App\Service\Settings\SettingsServiceInterface;
 use App\Settings\Settings;
 use App\Utils\ApiVersions;
 use App\Utils\CacheTags;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class SouinCachePurger implements CachePurgerInterface
 {
     private const int MAX_TOKEN_LIFETIME_SECONDS = 3600;
+    public const int REPURGE_DELAY_MS = 5000;
 
     public function __construct(
         private readonly HttpClientInterface $httpClient,
@@ -21,6 +25,8 @@ final class SouinCachePurger implements CachePurgerInterface
         private readonly LoggerInterface $logger,
         private readonly ?HttpCacheSwitchInterface $httpCacheSwitch = null,
         private readonly ?SettingsServiceInterface $settings = null,
+        private readonly ?MessageBusInterface $messageBus = null,
+        private readonly ?HttpCacheQuarantineInterface $quarantine = null,
     ) {
     }
 
@@ -72,6 +78,7 @@ final class SouinCachePurger implements CachePurgerInterface
     #[\Override]
     public function purgeUserContext(int $userId): void
     {
+        $this->quarantineOrTrip(fn (HttpCacheQuarantineInterface $q) => $q->quarantineUser($userId), CacheTags::userContext($userId));
         $this->purgeTag(CacheTags::userContext($userId));
     }
 
@@ -82,15 +89,32 @@ final class SouinCachePurger implements CachePurgerInterface
     }
 
     #[\Override]
+    public function purgeCommunityPages(int $communityId): void
+    {
+        $this->quarantineOrTrip(fn (HttpCacheQuarantineInterface $q) => $q->quarantineCommunity($communityId), CacheTags::communityPages($communityId));
+        $this->purgeTag(CacheTags::communityPages($communityId));
+    }
+
+    #[\Override]
+    public function repurgeTag(string $tag): void
+    {
+        $this->purgeTag($tag, false);
+    }
+
+    #[\Override]
     public function purgeAuthor(int $userId): void
     {
         $this->purgeTag(CacheTags::author($userId));
     }
 
-    private function purgeTag(string $tag): void
+    private function purgeTag(string $tag, bool $scheduleRepurge = true): void
     {
         if ('' === $this->purgeBaseUrl) {
             return;
+        }
+
+        if ($scheduleRepurge && !str_starts_with($tag, 'author-')) {
+            $this->scheduleRepurge($tag);
         }
 
         $error = null;
@@ -116,8 +140,50 @@ final class SouinCachePurger implements CachePurgerInterface
         ]);
 
         if (!str_starts_with($tag, 'author-')) {
-            $contextTtl = $this->settings?->get(Settings::httpCacheContextTtlSeconds()) ?? 0;
-            $this->httpCacheSwitch?->trip(max(self::MAX_TOKEN_LIFETIME_SECONDS, $contextTtl));
+            $this->tripSwitch();
+        }
+    }
+
+    /** @param callable(HttpCacheQuarantineInterface): void $quarantine */
+    private function quarantineOrTrip(callable $quarantine, string $tag): void
+    {
+        if (null === $this->quarantine) {
+            return;
+        }
+
+        try {
+            $quarantine($this->quarantine);
+        } catch (\Throwable $e) {
+            $this->logger->error('http_cache.quarantine_failed', [
+                'channel' => 'http_cache',
+                'path' => $tag,
+                'error' => $e->getMessage(),
+            ]);
+            $this->tripSwitch();
+        }
+    }
+
+    private function tripSwitch(): void
+    {
+        $contextTtl = $this->settings?->get(Settings::httpCacheContextTtlSeconds()) ?? 0;
+        $this->httpCacheSwitch?->trip(max(self::MAX_TOKEN_LIFETIME_SECONDS, $contextTtl));
+    }
+
+    private function scheduleRepurge(string $tag): void
+    {
+        if (null === $this->messageBus) {
+            return;
+        }
+
+        try {
+            $this->messageBus->dispatch(new RepurgeHttpCacheTagMessage($tag), [new DelayStamp(self::REPURGE_DELAY_MS)]);
+        } catch (\Throwable $e) {
+            $this->logger->error('http_cache.repurge_schedule_failed', [
+                'channel' => 'http_cache',
+                'path' => $tag,
+                'error' => $e->getMessage(),
+            ]);
+            $this->tripSwitch();
         }
     }
 

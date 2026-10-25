@@ -23,4 +23,9 @@ interface CachePurgerInterface
     public function purgeCommunityContext(int $communityId): void;
 
     public function purgeAuthor(int $userId): void;
+
+    public function purgeCommunityPages(int $communityId): void;
+
+    /** @internal Second, delayed purge of a permission tag: drops entries an in-flight request stored after the first purge. */
+    public function repurgeTag(string $tag): void;
 }

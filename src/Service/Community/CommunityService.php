@@ -446,6 +446,9 @@ class CommunityService extends AbstractDoctrineService implements CommunityServi
         $wasPrivate = $community->isPrivate();
         $saved = $this->save($community, $updateCommunityDto);
         $this->realtimePublisher->publishCommunityStructureChanged($saved, grantsChanged: $saved->isPrivate() !== $wasPrivate);
+        if ($saved->isPrivate() !== $wasPrivate) {
+            $this->cachePurger->purgeCommunityPages($saved->getId());
+        }
 
         return $saved;
     }
@@ -472,6 +475,7 @@ class CommunityService extends AbstractDoctrineService implements CommunityServi
         // No structure-publish on delete — without a direct purge the cached detail outlives the entity.
         $this->cachePurger->purgeCommunityDetail($identifier);
         $this->cachePurger->purgeCommunityContext($communityId);
+        $this->cachePurger->purgeCommunityPages($communityId);
     }
 
     /**

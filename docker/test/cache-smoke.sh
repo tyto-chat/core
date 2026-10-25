@@ -543,7 +543,7 @@ done
 # =========================================================================
 # T15: community emojis. Anon store/hit on a public community, purge on
 # upload, and the separate-variant proof: a member's FIRST GET must be a
-# miss, not a hit against the anon-bucket entry (v1:anon vs v1:C{id}:standard
+# miss, not a hit against the anon-bucket entry (v2:anon vs v2:C{id}:standard
 # are different Souin cache entries even for the same underlying data).
 # =========================================================================
 
@@ -826,6 +826,9 @@ done
 
 echo "== T21: community detail =="
 
+# Permission purges repeat after REPURGE_DELAY_MS (5s); let the ones from earlier steps land first.
+sleep 7
+
 DETAIL_PATH_T21="/api/v1/communities/$COMM1"
 
 r="$(get_resource "$M1_TOKEN" "$DETAIL_PATH_T21")"
@@ -1013,6 +1016,95 @@ else
   assert_cmd "T26 the admin config API is not reachable through :8888 (HTTP $st)" [ "$st" != "200" ]
   st="$($WORKER_EXEC curl -s -o /dev/null -w '%{http_code}' -X PURGE http://app:8888/config/ || true)"
   assert_cmd "T26 PURGE is proxied only for the Souin path (HTTP $st)" [ "$st" != "200" ]
+fi
+
+# =========================================================================
+# T27: making a channel private purges every cached page of its community, so
+# the anonymous (and standard) buckets stop serving the now-private content.
+# =========================================================================
+
+echo "== T27: privacy change purges cached pages =="
+
+status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":300}')"
+[ "$status" = "200" ] || { echo "cache-smoke.sh: failed to enable httpCachePageTtlSeconds for T27" >&2; exit 1; }
+
+COMM_T27="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t27-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+[ -n "$COMM_T27" ] || { echo "cache-smoke.sh: failed to create community for T27" >&2; exit 1; }
+CHAN_T27="$(create_channel "$COMM_T27")"
+[ -n "$CHAN_T27" ] || { echo "cache-smoke.sh: failed to create channel for T27" >&2; exit 1; }
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T27/channels/$CHAN_T27/messages" '{"text":"t27 secret soon"}' >/dev/null
+
+get_page "" "$COMM_T27" "$CHAN_T27" 1 >/dev/null
+r="$(get_page "" "$COMM_T27" "$CHAN_T27" 1)"
+assert_cmd "T27 anonymous page is a hit while the channel is public" is_hit "$(cache_status_of "$r")"
+
+status="$(curl -s -o /dev/null -w '%{http_code}' -X PATCH "$BASE/api/v1/communities/$COMM_T27/channels/$CHAN_T27" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/merge-patch+json' -d '{"isPrivate":true}')"
+assert_eq "T27 making the channel private succeeds" "200" "$status"
+
+r="$(get_page "" "$COMM_T27" "$CHAN_T27" 1)"
+assert_cmd "T27 anonymous page is no longer served from cache once the channel is private" is_not_hit "$(cache_status_of "$r")"
+st="$(grep -o 'HTTP_STATUS:[0-9]*' <<<"$r" | cut -d: -f2)"
+assert_cmd "T27 anonymous caller is refused the now-private page (HTTP $st)" [ "${st:0:1}" = "4" ]
+
+r="$(get_page "$ADMIN_TOKEN" "$COMM_T27" "$CHAN_T27" 1)"
+assert_cmd "T27 pages of the community are not stored during the quarantine window" has_no_smaxage "$(cache_control_of "$r")"
+
+# =========================================================================
+# T28: the cache switch lives on a volume shared with the worker, so a trip
+# there (flag removed) turns the app's edge cache off too.
+# =========================================================================
+
+echo "== T28: worker-side switch reaches the app =="
+
+if [ -z "${WORKER_EXEC:-}" ]; then
+  echo "SKIP: T28 (set WORKER_EXEC to run a command inside the worker container)"
+else
+  status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":300}')"
+  [ "$status" = "200" ] || { echo "cache-smoke.sh: failed to enable httpCachePageTtlSeconds for T28" >&2; exit 1; }
+  assert_cmd "T28 the worker sees the page flag the app wrote" $WORKER_EXEC test -f /app/var/http-cache/http-cache.on
+
+  get_page "" "$COMM_T26" "$CHAN_T26" 1 >/dev/null
+  r="$(get_page "" "$COMM_T26" "$CHAN_T26" 1)"
+  assert_cmd "T28 page is a hit before the worker removes the flag" is_hit "$(cache_status_of "$r")"
+
+  $WORKER_EXEC rm -f /app/var/http-cache/http-cache.on
+  r="$(get_page "" "$COMM_T26" "$CHAN_T26" 1)"
+  assert_cmd "T28 page is no longer served from cache once the worker removed the flag" is_not_hit "$(cache_status_of "$r")"
+
+  admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":300}' >/dev/null
+fi
+
+# =========================================================================
+# T29: every permission purge is repeated after a short delay, so a permission
+# hash stored by a request that was in flight during the first purge is dropped
+# too. The hash cache is not visible from outside; check that the delayed
+# message is queued and that the worker consumes it once the delay has passed.
+# Needs APP_EXEC, a command prefix that runs inside the app container (its
+# console has the database settings), e.g. "docker compose -p tytosmoke exec -T app".
+# =========================================================================
+
+echo "== T29: delayed second purge =="
+
+if [ -z "${APP_EXEC:-}" ]; then
+  echo "SKIP: T29 (set APP_EXEC to run a command inside the app container)"
+else
+  pending_repurges() {
+    $APP_EXEC php bin/console dbal:run-sql --no-ansi \
+      "SELECT COUNT(*) AS n FROM messenger_messages WHERE body LIKE '%RepurgeHttpCacheTagMessage%' AND delivered_at IS NULL" 2>/dev/null \
+      | grep -oE '[0-9]+' | tail -1 || true
+  }
+
+  status="$(curl -s -o /dev/null -w '%{http_code}' -X PATCH "$BASE/api/v1/communities/$COMM1/members/$M2_MEMBER_ID" \
+    -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/merge-patch+json' -d '{"role":"member"}')"
+  assert_eq "T29 demoting member2 succeeds" "200" "$status"
+
+  n="$(pending_repurges)"
+  assert_cmd "T29 the role change queued a delayed repurge (pending: ${n:-?})" [ "${n:-0}" -ge 1 ]
+
+  sleep 10
+  n="$(pending_repurges)"
+  assert_cmd "T29 the worker consumed the repurge after the delay (pending: ${n:-?})" [ "${n:-1}" -eq 0 ]
 fi
 
 echo "=============================="

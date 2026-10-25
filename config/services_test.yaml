@@ -15,6 +15,14 @@ services:
 
     # Swap presence backend for an in-memory stub so functional tests don't
     # require Redis (and so test state stays isolated).
+    # cache.app is an ArrayAdapter reset after every request in test, which would drop a quarantine between two requests.
+    App\Tests\Stub\InMemoryHttpCacheQuarantine:
+        public: true
+
+    App\Service\HttpCache\HttpCacheQuarantineInterface:
+        alias: App\Tests\Stub\InMemoryHttpCacheQuarantine
+        public: true
+
     App\Tests\Stub\InMemoryPresenceService:
         autowire: true
         public: true

@@ -433,6 +433,7 @@ class CommunityServiceTest extends TestCase
 
         $this->cachePurger->expects(self::once())->method('purgeCommunityDetail')->with('doomed-community');
         $this->cachePurger->expects(self::once())->method('purgeCommunityContext')->with($community->getId());
+        $this->cachePurger->expects(self::once())->method('purgeCommunityPages')->with($community->getId());
 
         $this->service->delete($community);
     }
@@ -510,11 +511,38 @@ class CommunityServiceTest extends TestCase
     public function testUpdatePrivacyFlipFlagsGrants(): void
     {
         $community = new Community()->setPrivate(false);
+        new \ReflectionProperty(Community::class, 'id')->setValue($community, 9);
         $dto = new UpdateCommunityDto();
         $dto->isPrivate = true;
         $this->security->method('isGranted')->willReturn(true);
 
         $this->realtimePublisher->expects(self::once())->method('publishCommunityStructureChanged')->with($community, true);
+
+        $this->service->update($community, $dto);
+    }
+
+    public function testPrivacyFlipPurgesEveryCachedPageOfTheCommunity(): void
+    {
+        $community = new Community()->setPrivate(false);
+        new \ReflectionProperty(Community::class, 'id')->setValue($community, 9);
+        $dto = new UpdateCommunityDto();
+        $dto->isPrivate = true;
+        $this->security->method('isGranted')->willReturn(true);
+
+        $this->cachePurger->expects(self::once())->method('purgeCommunityPages')->with(9);
+
+        $this->service->update($community, $dto);
+    }
+
+    public function testRenameKeepsCachedCommunityPages(): void
+    {
+        $community = new Community()->setPrivate(false);
+        new \ReflectionProperty(Community::class, 'id')->setValue($community, 9);
+        $dto = new UpdateCommunityDto();
+        $dto->name = 'Renamed';
+        $this->security->method('isGranted')->willReturn(true);
+
+        $this->cachePurger->expects(self::never())->method('purgeCommunityPages');
 
         $this->service->update($community, $dto);
     }

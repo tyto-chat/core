@@ -6,10 +6,13 @@ namespace App\EventListener;
 
 use ApiPlatform\Metadata\HttpOperation;
 use App\Security\Authentication\ApiKeyAuthenticator;
+use App\Service\HttpCache\CacheContextServiceInterface;
 use App\Service\HttpCache\CacheTagCollector;
+use App\Service\HttpCache\HttpCacheQuarantineInterface;
 use App\Service\HttpCache\HttpCacheSwitchInterface;
 use App\Service\Settings\SettingsServiceInterface;
 use App\Settings\Settings;
+use App\Utils\CacheTags;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
@@ -21,6 +24,8 @@ final class HttpCacheHeadersListener
         private readonly SettingsServiceInterface $settings,
         private readonly HttpCacheSwitchInterface $httpCacheSwitch,
         private readonly CacheTagCollector $cacheTags,
+        private readonly CacheContextServiceInterface $cacheContext,
+        private readonly HttpCacheQuarantineInterface $quarantine,
     ) {
     }
 
@@ -56,6 +61,14 @@ final class HttpCacheHeadersListener
             return;
         }
 
+        $communityId = $this->cacheContext->communityIdFor($event->getRequest()->getPathInfo());
+        if (null !== $communityId && $this->quarantine->isCommunityQuarantined($communityId)) {
+            // A response started before a permission change could otherwise be stored after its purge.
+            $response->headers->set('Cache-Control', 'no-store, private');
+
+            return;
+        }
+
         if ('presence' === $flag) {
             // Presence payloads carry no signed media URLs, so no mediaTokenTtl clamp.
             $ttl = $this->settings->get(Settings::httpCachePresenceTtlSeconds());
@@ -76,10 +89,13 @@ final class HttpCacheHeadersListener
         $response->headers->addCacheControlDirective('s-maxage', (string) $ttl);
         $response->setVary(['X-User-Context-Hash'], false);
 
-        $authorTags = $this->cacheTags->all();
-        if ([] !== $authorTags) {
+        $tags = $this->cacheTags->all();
+        if (null !== $communityId) {
+            $tags[] = CacheTags::communityPages($communityId);
+        }
+        if ([] !== $tags) {
             // An explicit Surrogate-Key replaces Souin's automatic path key, so the path must be listed or path purges stop matching.
-            $response->headers->set('Surrogate-Key', implode(', ', [$event->getRequest()->getPathInfo(), ...$authorTags]));
+            $response->headers->set('Surrogate-Key', implode(', ', [$event->getRequest()->getPathInfo(), ...$tags]));
         }
     }
 }

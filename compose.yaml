@@ -46,6 +46,7 @@ x-core-image: &core-image
   volumes:
     - secrets:/secrets
     - media:/app/var/media
+    - http_cache_switch:/app/var/http-cache
     - exports:/app/var/exports
     - jwt:/app/config/jwt
   depends_on:
@@ -174,5 +175,6 @@ volumes:
   meili_data:
   secrets:
   media:
+  http_cache_switch:
   exports:
   jwt:

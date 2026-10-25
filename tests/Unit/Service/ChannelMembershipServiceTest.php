@@ -15,6 +15,7 @@ use App\Repository\ChannelMemberRepository;
 use App\Security\SecurityContext;
 use App\Service\Channel\ChannelMembershipService;
 use App\Service\Community\CommunityMembershipServiceInterface;
+use App\Service\HttpCache\CachePurgerInterface;
 use App\Service\Notification\NotificationServiceInterface;
 use App\Service\Realtime\RealtimePublisherInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -159,6 +160,35 @@ class ChannelMembershipServiceTest extends TestCase
         $result = $this->service->addMember($channel, $user);
 
         self::assertSame(ChannelRole::Member, $result->getRole());
+    }
+
+    public function testAddMemberPublishesTheStructureChangeOnce(): void
+    {
+        $community = $this->createMock(Community::class);
+        $community->method('getIdentifier')->willReturn('test');
+        $channel = $this->channelInCommunity($community);
+        $channel->method('getIdentifier')->willReturn('general');
+
+        $this->security->method('isGranted')->willReturn(true);
+        $this->communityMembershipService->method('isMember')->willReturn(true);
+        $this->channelMemberRepository->method('findOneByUserAndChannel')->willReturn(null);
+        $this->realtimePublisher->expects(self::once())->method('publishCommunityStructureChanged')->with($community);
+
+        $this->service->addMember($channel, $this->createMock(User::class));
+    }
+
+    public function testUpdateMemberRolePurgesTheMembersCachedPermissionHash(): void
+    {
+        $user = $this->createMock(User::class);
+        $user->method('getId')->willReturn(42);
+        $member = $this->memberInCommunity($user, ChannelRole::Member);
+        $this->security->method('isGranted')->willReturn(true);
+
+        $purger = $this->createMock(CachePurgerInterface::class);
+        $purger->expects(self::once())->method('purgeUserContext')->with(42);
+        $this->service->setCachePurger($purger);
+
+        $this->service->updateMemberRole($member, ChannelRole::Moderator);
     }
 
     private function memberInCommunity(User $memberUser, ChannelRole $role = ChannelRole::Moderator): ChannelMember&MockObject

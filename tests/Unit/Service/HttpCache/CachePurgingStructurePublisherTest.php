@@ -47,6 +47,14 @@ class CachePurgingStructurePublisherTest extends TestCase
         $this->decorator->publishCommunityStructureChanged($community);
     }
 
+    public function testStructureChangesNeverPurgeCachedPages(): void
+    {
+        $this->purger->expects(self::never())->method('purgeCommunityPages');
+
+        $this->decorator->publishCommunityStructureChanged($this->makeCommunity('comm'));
+        $this->decorator->publishCommunityStructureChanged($this->makeCommunity('comm'), grantsChanged: true);
+    }
+
     public function testEmojisUpdatedPassesThroughWithoutPurging(): void
     {
         $community = $this->makeCommunity('comm');

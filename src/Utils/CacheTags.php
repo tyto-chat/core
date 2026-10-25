@@ -16,6 +16,11 @@ final class CacheTags
         return 'ctx-c'.$communityId;
     }
 
+    public static function communityPages(int $communityId): string
+    {
+        return 'pages-k'.$communityId;
+    }
+
     public static function author(int $userId): string
     {
         return 'author-'.$userId;
