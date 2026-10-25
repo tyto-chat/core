@@ -42,6 +42,7 @@
 			cors_origins {$MERCURE_CORS_ORIGINS:*}
 			anonymous
 			transport bolt {
+				path /app/var/mercure.db
 				size 1000
 			}
 		}

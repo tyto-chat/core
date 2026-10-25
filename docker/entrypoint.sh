@@ -5,9 +5,12 @@ ROLE="${1:-app}"
 
 # Volumes created by earlier root-running images keep root ownership: fix them once, then drop privileges.
 if [ "$(id -u)" = 0 ]; then
-  for dir in /secrets /app/var/media /app/var/exports /app/config/jwt /srv/app; do
+  secrets_dir="$(dirname "${SECRETS_FILE:-/secrets/app.env}")"
+  mkdir -p "$secrets_dir"
+  for dir in "$secrets_dir" /app/var /app/config/jwt /srv/app; do
     [ -d "$dir" ] || continue
-    [ -z "$(find "$dir" ! -user www-data -print -quit)" ] || chown -R www-data:www-data "$dir"
+    [ -z "$(find "$dir" ! -user www-data -print -quit)" ] ||
+      chown -R www-data:www-data "$dir" || echo "entrypoint: could not change ownership of $dir; continuing"
   done
   caps=""
   [ "$ROLE" = app ] && caps="--inh-caps=+net_bind_service --ambient-caps=+net_bind_service"
