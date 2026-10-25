@@ -687,8 +687,8 @@ class CacheContextServiceTest extends TestCase
     public function testCaddyfileRegexpStaysInLockstep(): void
     {
         $caddyfile = (string) file_get_contents(__DIR__.'/../../../../docker/frankenphp/Caddyfile');
-        self::assertSame(1, preg_match('/^\s*path_regexp (\S+)/m', $caddyfile, $m), 'no @cacheable path_regexp found in Caddyfile');
-        $caddyRegexp = '#'.str_replace('#', '\#', $m[1]).'#';
+        self::assertGreaterThan(0, preg_match_all('/^\s*path_regexp (\S+)/m', $caddyfile, $m), 'no @cacheable path_regexp found in Caddyfile');
+        $caddyRegexp = '#(?:'.implode('|', array_map(static fn (string $r): string => str_replace('#', '\#', $r), $m[1])).')#';
 
         // Maintenance note: adding a shape to either regexp (the Caddyfile
         // @cacheable path_regexp OR the PHP-side pattern in bucketFor())

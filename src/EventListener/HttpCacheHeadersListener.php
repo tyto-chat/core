@@ -43,7 +43,7 @@ final class HttpCacheHeadersListener
             return;
         }
 
-        if (!$this->httpCacheSwitch->isOn() || $event->getRequest()->attributes->has(ApiKeyAuthenticator::REQUEST_SCOPES_ATTRIBUTE)) {
+        if (!('presence' === $flag ? $this->httpCacheSwitch->isPresenceOn() : $this->httpCacheSwitch->isOn()) || $event->getRequest()->attributes->has(ApiKeyAuthenticator::REQUEST_SCOPES_ATTRIBUTE)) {
             $response->headers->set('Cache-Control', 'no-store, private');
 
             return;

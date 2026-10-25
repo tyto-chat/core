@@ -116,7 +116,7 @@ get_resource() {
 }
 
 http_status_of() { grep -o 'HTTP_STATUS:[0-9]*' <<<"$1" | cut -d: -f2; }
-cache_status_of() { grep -i '^cache-status:' <<<"$1" | tr -d '\r'; }
+cache_status_of() { { grep -i '^cache-status:' <<<"$1" || true; } | tr -d '\r'; }
 cache_control_of() { grep -i '^cache-control:' <<<"$1" | tr -d '\r'; }
 
 # Predicates below are plain functions returning the natural grep exit
@@ -946,6 +946,37 @@ curl -s -o /dev/null -D- -H "Cookie: BEARER=$ADMIN_TOKEN" -H "$ACCEPT_HEADER" \
   "$BASE/api/v1/communities/$COMM_T24/channels/$CHAN_T24/pages/1" >/dev/null
 r="$(get_page "" "$COMM_T24" "$CHAN_T24" 1)"
 assert_cmd "T24 anonymous page after an admin cookie-only request is a miss (own bucket, not the admin's)" is_miss "$(cache_status_of "$r")"
+
+# =========================================================================
+# T25: each cache category switches off on its own. Disabling the page TTL
+# while the presence TTL stays on must stop serving already-warmed page entries.
+# =========================================================================
+
+echo "== T25: page cache off while presence stays on =="
+
+status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":60,"httpCachePresenceTtlSeconds":15}')"
+[ "$status" = "200" ] || { echo "cache-smoke.sh: failed to enable both TTLs for T25" >&2; exit 1; }
+
+COMM_T25="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t25-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+[ -n "$COMM_T25" ] || { echo "cache-smoke.sh: failed to create community for T25" >&2; exit 1; }
+CHAN_T25="$(create_channel "$COMM_T25")"
+[ -n "$CHAN_T25" ] || { echo "cache-smoke.sh: failed to create channel for T25" >&2; exit 1; }
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T25/channels/$CHAN_T25/messages" '{"text":"t25 seed"}' >/dev/null
+
+get_page "" "$COMM_T25" "$CHAN_T25" 1 >/dev/null
+r="$(get_page "" "$COMM_T25" "$CHAN_T25" 1)"
+assert_cmd "T25 warmed page is a hit while both caches are on" is_hit "$(cache_status_of "$r")"
+
+status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":0}')"
+[ "$status" = "200" ] || { echo "cache-smoke.sh: failed to disable httpCachePageTtlSeconds for T25" >&2; exit 1; }
+
+r="$(get_page "" "$COMM_T25" "$CHAN_T25" 1)"
+assert_cmd "T25 warmed page is no longer served from cache once the page TTL is 0" is_not_hit "$(cache_status_of "$r" || true)"
+
+PRESENCE_PATH_T25="/api/v1/communities/$COMM_T25/presence/summary"
+get_resource "" "$PRESENCE_PATH_T25" >/dev/null
+r="$(get_resource "" "$PRESENCE_PATH_T25")"
+assert_cmd "T25 presence summary is still cached while only the page TTL is 0" is_hit "$(cache_status_of "$r")"
 
 echo "=============================="
 if [ "$FAILED" -eq 0 ]; then

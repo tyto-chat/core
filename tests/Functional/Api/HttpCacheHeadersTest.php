@@ -68,6 +68,11 @@ class HttpCacheHeadersTest extends ApiTestCase
         return self::getContainer()->getParameter('kernel.project_dir').'/var/http-cache.on';
     }
 
+    private function presenceFlagFile(): string
+    {
+        return self::getContainer()->getParameter('kernel.project_dir').'/var/http-cache-presence.on';
+    }
+
     public function testSavingTtlMirrorsCacheSwitchIntoFlagFile(): void
     {
         $this->setHttpCacheTtl(30);
@@ -77,10 +82,25 @@ class HttpCacheHeadersTest extends ApiTestCase
         self::assertFileDoesNotExist($this->flagFile());
 
         $this->setPresenceTtl(15);
-        self::assertFileExists($this->flagFile());
+        self::assertFileDoesNotExist($this->flagFile());
+        self::assertFileExists($this->presenceFlagFile());
 
         $this->setPresenceTtl(0);
+        self::assertFileDoesNotExist($this->presenceFlagFile());
+    }
+
+    public function testDisablingPagesLeavesThePresenceFlagUntouched(): void
+    {
+        $this->setPresenceTtl(15);
+        $this->setHttpCacheTtl(30);
+        self::assertFileExists($this->flagFile());
+        self::assertFileExists($this->presenceFlagFile());
+
+        $this->setHttpCacheTtl(0);
+
         self::assertFileDoesNotExist($this->flagFile());
+        self::assertFileExists($this->presenceFlagFile());
+        $this->setPresenceTtl(0);
     }
 
     public function testPageResponseCarriesNoCacheHeadersByDefault(): void

@@ -27,6 +27,12 @@ class HttpCacheSwitchTest extends TestCase
         @unlink($this->flagFile);
         @unlink($this->flagFile.'.lock');
         @unlink($this->flagFile.'.tripped');
+        @unlink($this->presenceFlagFile());
+    }
+
+    private function presenceFlagFile(): string
+    {
+        return dirname($this->flagFile).'/http-cache-presence.on';
     }
 
     private function switchWith(int $pageTtl, int $presenceTtl): HttpCacheSwitch
@@ -39,23 +45,48 @@ class HttpCacheSwitchTest extends TestCase
         return new HttpCacheSwitch($settings, new Filesystem(), $this->flagFile);
     }
 
-    /** @return iterable<string, array{int, int, bool}> */
+    /** @return iterable<string, array{int, int, bool, bool}> */
     public static function ttlCombinations(): iterable
     {
-        yield 'both off' => [0, 0, false];
-        yield 'pages on' => [30, 0, true];
-        yield 'presence on' => [0, 15, true];
-        yield 'both on' => [30, 15, true];
+        yield 'both off' => [0, 0, false, false];
+        yield 'pages on' => [30, 0, true, false];
+        yield 'presence on' => [0, 15, false, true];
+        yield 'both on' => [30, 15, true, true];
     }
 
     #[DataProvider('ttlCombinations')]
-    public function testSyncMirrorsTtlSettingsIntoFlagFile(int $pageTtl, int $presenceTtl, bool $expected): void
+    public function testSyncMirrorsEachTtlIntoItsOwnFlagFile(int $pageTtl, int $presenceTtl, bool $pagesOn, bool $presenceOn): void
     {
         $switch = $this->switchWith($pageTtl, $presenceTtl);
 
-        self::assertSame($expected, $switch->sync());
-        self::assertSame($expected, $switch->isOn());
-        self::assertSame($expected, is_file($this->flagFile));
+        self::assertSame($pagesOn || $presenceOn, $switch->sync());
+        self::assertSame($pagesOn, $switch->isOn());
+        self::assertSame($presenceOn, $switch->isPresenceOn());
+        self::assertSame($pagesOn, is_file($this->flagFile));
+        self::assertSame($presenceOn, is_file($this->presenceFlagFile()));
+    }
+
+    public function testDisablingPagesWhilePresenceStaysOnRemovesOnlyThePagesFlag(): void
+    {
+        $this->switchWith(3600, 15)->sync();
+        self::assertTrue(is_file($this->flagFile));
+
+        $this->switchWith(0, 15)->sync();
+
+        self::assertFileDoesNotExist($this->flagFile);
+        self::assertFileExists($this->presenceFlagFile());
+    }
+
+    public function testTripTurnsBothCategoriesOff(): void
+    {
+        $switch = $this->switchWith(30, 15);
+        $switch->sync();
+
+        $switch->trip(600);
+
+        self::assertFalse($switch->isOn());
+        self::assertFalse($switch->isPresenceOn());
+        self::assertFileDoesNotExist($this->presenceFlagFile());
     }
 
     public function testTripTurnsTheCacheOffAndHoldsItOffAgainstSync(): void

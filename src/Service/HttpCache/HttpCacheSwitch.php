@@ -21,14 +21,13 @@ final readonly class HttpCacheSwitch implements HttpCacheSwitchInterface
     #[\Override]
     public function isOn(): bool
     {
-        if (is_file($this->trippedFile())) {
-            if (!$this->holdExpired()) {
-                return false;
-            }
-            $this->sync();
-        }
+        return $this->flagActive($this->flagFile);
+    }
 
-        return is_file($this->flagFile);
+    #[\Override]
+    public function isPresenceOn(): bool
+    {
+        return $this->flagActive($this->presenceFlagFile());
     }
 
     #[\Override]
@@ -36,7 +35,7 @@ final readonly class HttpCacheSwitch implements HttpCacheSwitchInterface
     {
         $this->locked(function () use ($holdSeconds): void {
             $this->filesystem->dumpFile($this->trippedFile(), (string) (time() + max(1, $holdSeconds)));
-            $this->filesystem->remove($this->flagFile);
+            $this->filesystem->remove([$this->flagFile, $this->presenceFlagFile()]);
         });
     }
 
@@ -44,25 +43,22 @@ final readonly class HttpCacheSwitch implements HttpCacheSwitchInterface
     public function sync(): bool
     {
         return $this->locked(function (): bool {
-            $on = $this->settings->get(Settings::httpCachePageTtlSeconds()) > 0
-                || $this->settings->get(Settings::httpCachePresenceTtlSeconds()) > 0;
+            $pages = $this->settings->get(Settings::httpCachePageTtlSeconds()) > 0;
+            $presence = $this->settings->get(Settings::httpCachePresenceTtlSeconds()) > 0;
 
             if (is_file($this->trippedFile())) {
                 if (!$this->holdExpired()) {
-                    $this->filesystem->remove($this->flagFile);
+                    $this->filesystem->remove([$this->flagFile, $this->presenceFlagFile()]);
 
                     return false;
                 }
                 $this->filesystem->remove($this->trippedFile());
             }
 
-            if ($on) {
-                $this->filesystem->touch($this->flagFile);
-            } else {
-                $this->filesystem->remove($this->flagFile);
-            }
+            $this->mirror($this->flagFile, $pages);
+            $this->mirror($this->presenceFlagFile(), $presence);
 
-            return $on;
+            return $pages || $presence;
         });
     }
 
@@ -88,6 +84,32 @@ final readonly class HttpCacheSwitch implements HttpCacheSwitchInterface
             flock($handle, LOCK_UN);
             fclose($handle);
         }
+    }
+
+    private function flagActive(string $flagFile): bool
+    {
+        if (is_file($this->trippedFile())) {
+            if (!$this->holdExpired()) {
+                return false;
+            }
+            $this->sync();
+        }
+
+        return is_file($flagFile);
+    }
+
+    private function mirror(string $flagFile, bool $on): void
+    {
+        if ($on) {
+            $this->filesystem->touch($flagFile);
+        } else {
+            $this->filesystem->remove($flagFile);
+        }
+    }
+
+    private function presenceFlagFile(): string
+    {
+        return dirname($this->flagFile).'/http-cache-presence.on';
     }
 
     private function trippedFile(): string
