@@ -58,6 +58,26 @@ final class CacheContextService implements CacheContextServiceInterface
         return $this->bucketForCommunity($user, $community);
     }
 
+    #[\Override]
+    public function communityIdFor(string $uri): ?int
+    {
+        $path = parse_url($uri, PHP_URL_PATH);
+        if (!is_string($path)) {
+            return null;
+        }
+        $path = rawurldecode($path);
+
+        if (1 === preg_match('#^/api/v\d+/messages/([0-9a-f\-]{36})(?:/thread)?$#', $path, $m)) {
+            return $this->messages->findOneBy(['id' => $m[1]])?->getChannel()?->getCommunity()?->getId();
+        }
+
+        if (1 === preg_match('#^/api/v\d+/communities/([^/]+)#', $path, $m)) {
+            return $this->communities->findOneBy(['identifier' => $m[1]])?->getId();
+        }
+
+        return null;
+    }
+
     private function bucketForMessage(User $user, string $uuid): string
     {
         $message = $this->messages->findOneBy(['id' => $uuid]);

@@ -62,7 +62,16 @@
 	# The `(/(...))?` group is optional so a bare /api/communities/{c} (community
 	# detail, task-3) matches too, without swallowing subresources such as
 	# /membership, /invites, /moderation, /unread-channels, or a bare /channels/{ch}.
-	@cacheable path_regexp ^/api/v[0-9]+/(communities/[^/]+(/(channels/[^/]+/(pages/[0-9]+|messages/current|pinned-messages)|emojis|presence/summary))?|messages/[0-9a-f-]{36}(/thread)?)$
+	# The flag file is written by tyto:http-cache:sync / the server-config save while a cache TTL is > 0.
+	# PAT callers bypass the cache: a HIT would skip the app's per-scope check.
+	@cacheable {
+		path_regexp ^/api/v[0-9]+/(communities/[^/]+(/(channels/[^/]+/(pages/[0-9]+|messages/current|pinned-messages)|emojis|presence/summary))?|messages/[0-9a-f-]{36}(/thread)?)$
+		file {
+			root /app/var
+			try_files http-cache.on
+		}
+		not header Authorization "Bearer pat_*"
+	}
 	route @cacheable {
 		forward_auth localhost:8888 {
 			uri /api/http-cache/context-hash
@@ -86,5 +95,9 @@ import sites.d/*.caddyfile
 # CACHE_PURGE_URL in compose.yaml.)
 :8888 {
 	root * /app/public
+	@noBearerCookie not header_regexp Cookie (?:^|;\s*)BEARER=
+	route @noBearerCookie {
+		cache
+	}
 	php_server
 }

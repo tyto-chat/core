@@ -17,4 +17,10 @@ interface CachePurgerInterface
     public function purgeMessage(string $messageUuid): void;
 
     public function purgeCommunityDetail(string $communityIdentifier): void;
+
+    public function purgeUserContext(int $userId): void;
+
+    public function purgeCommunityContext(int $communityId): void;
+
+    public function purgeAuthor(int $userId): void;
 }

@@ -31,6 +31,7 @@ class CachePurgingStructurePublisherTest extends TestCase
     {
         $community = new Community();
         $community->setIdentifier($identifier);
+        (new \ReflectionProperty(Community::class, 'id'))->setValue($community, 7);
 
         return $community;
     }
@@ -41,6 +42,7 @@ class CachePurgingStructurePublisherTest extends TestCase
 
         $this->inner->expects(self::once())->method('publishCommunityStructureChanged')->with($community);
         $this->purger->expects(self::once())->method('purgeCommunityDetail')->with('comm');
+        $this->purger->expects(self::once())->method('purgeCommunityContext')->with(7);
 
         $this->decorator->publishCommunityStructureChanged($community);
     }
@@ -55,11 +57,29 @@ class CachePurgingStructurePublisherTest extends TestCase
         $this->decorator->publishCommunityEmojisUpdated($community);
     }
 
-    public function testUserEventPassesThroughWithoutPurging(): void
+    /** @return iterable<string, array{string}> */
+    public static function permissionEvents(): iterable
     {
-        $this->inner->expects(self::once())->method('publishUserEvent')->with(9, 'role.changed', ['communityIdentifier' => 'comm']);
+        foreach (['channel.access.granted', 'channel.access.revoked', 'community.removed', 'role.changed', 'server.banned'] as $event) {
+            yield $event => [$event];
+        }
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('permissionEvents')]
+    public function testPermissionUserEventsPurgeThatUsersContext(string $event): void
+    {
+        $this->inner->expects(self::once())->method('publishUserEvent')->with(9, $event, []);
+        $this->purger->expects(self::once())->method('purgeUserContext')->with(9);
         $this->purger->expects(self::never())->method('purgeCommunityDetail');
 
-        $this->decorator->publishUserEvent(9, 'role.changed', ['communityIdentifier' => 'comm']);
+        $this->decorator->publishUserEvent(9, $event);
+    }
+
+    public function testOtherUserEventsPassThroughWithoutPurging(): void
+    {
+        $this->inner->expects(self::once())->method('publishUserEvent')->with(9, 'notification.created', []);
+        $this->purger->expects(self::never())->method('purgeUserContext');
+
+        $this->decorator->publishUserEvent(9, 'notification.created');
     }
 }

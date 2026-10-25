@@ -886,6 +886,67 @@ for attempt in 1 2; do
   assert_cmd "T21 GET .../membership #$attempt is never a cache hit" is_not_hit "$cs"
 done
 
+# =========================================================================
+# T22: PATs bypass the cache entirely (a HIT would skip the per-scope check),
+# and a PAT without messages:read is still refused on a URL others have cached.
+# T23: renaming an author purges cached pages that embed them.
+# =========================================================================
+
+echo "== T22/T23: PAT bypass + author purge =="
+
+admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":300,"httpCacheContextTtlSeconds":600}' >/dev/null
+
+issue_pat() {
+  api_json "$M1_TOKEN" POST /api/v1/me/api-keys "{\"name\":\"smoke-$RUN_ID-$2\",\"scopes\":$1}" | jq -r '.plainToken // empty'
+}
+
+PAT_OK="$(issue_pat '["messages:read","communities:read"]' ok)"
+PAT_NO="$(issue_pat '["profile:read"]' no)"
+[ -n "$PAT_OK" ] && [ -n "$PAT_NO" ] || { echo "cache-smoke.sh: PAT issuance failed" >&2; exit 1; }
+
+get_page "" "$COMM1" "$CHAN1" 1 >/dev/null
+r="$(get_page "" "$COMM1" "$CHAN1" 1)"
+assert_cmd "T22 anonymous page is cached (hit) before the PAT checks" is_hit "$(cache_status_of "$r")"
+
+r="$(get_page "$PAT_OK" "$COMM1" "$CHAN1" 1)"
+assert_eq "T22 PAT with messages:read gets the page" "200" "$(http_status_of "$r")"
+assert_cmd "T22 PAT response is never a cache hit" is_not_hit "$(cache_status_of "$r" || true)"
+assert_cmd "T22 PAT response carries no s-maxage" has_no_smaxage "$(cache_control_of "$r" || true)"
+
+r="$(get_page "$PAT_NO" "$COMM1" "$CHAN1" 1)"
+assert_eq "T22 PAT without messages:read is refused on a URL that is cached for others" "403" "$(http_status_of "$r")"
+
+M1_PROFILE_PATH="$(api_json "$M1_TOKEN" GET /api/v1/me | jq -r '.profile["@id"] // .profile // empty')"
+get_page "" "$COMM1" "$CHAN1" 1 >/dev/null
+r="$(get_page "" "$COMM1" "$CHAN1" 1)"
+assert_cmd "T23 page embedding member1 is cached before the rename" is_hit "$(cache_status_of "$r")"
+status="$(curl -s -o /dev/null -w '%{http_code}' -X PATCH "$BASE$M1_PROFILE_PATH" \
+  -H "Authorization: Bearer $M1_TOKEN" -H 'Content-Type: application/merge-patch+json' -d "{\"name\":\"Renamed $RUN_ID\"}")"
+assert_eq "T23 member1 renames themselves" "200" "$status"
+r="$(get_page "" "$COMM1" "$CHAN1" 1)"
+assert_cmd "T23 the cached page embedding the renamed author was purged" is_miss "$(cache_status_of "$r")"
+body_contains "Renamed $RUN_ID" && pass "T23 the fresh page carries the new name" || fail "T23 the fresh page carries the new name"
+
+# =========================================================================
+# T24: a cookie-only caller (BEARER cookie, no Authorization header) is
+# authenticated by lexik but would vary the cached permission hash on an empty
+# Authorization -- the same variant as anonymous callers. It must never seed
+# the anonymous variant.
+# =========================================================================
+
+echo "== T24: cookie-only caller cannot poison the anonymous hash =="
+
+COMM_T24="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t24-$RUN_ID\"}" | jq -r '.identifier // empty')"
+[ -n "$COMM_T24" ] || { echo "cache-smoke.sh: failed to create T24 community" >&2; exit 1; }
+CHAN_T24="$(create_channel "$COMM_T24")"
+[ -n "$CHAN_T24" ] || { echo "cache-smoke.sh: failed to create T24 channel" >&2; exit 1; }
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T24/channels/$CHAN_T24/messages" '{"text":"t24 seed"}' >/dev/null
+
+curl -s -o /dev/null -D- -H "Cookie: BEARER=$ADMIN_TOKEN" -H "$ACCEPT_HEADER" \
+  "$BASE/api/v1/communities/$COMM_T24/channels/$CHAN_T24/pages/1" >/dev/null
+r="$(get_page "" "$COMM_T24" "$CHAN_T24" 1)"
+assert_cmd "T24 anonymous page after an admin cookie-only request is a miss (own bucket, not the admin's)" is_miss "$(cache_status_of "$r")"
+
 echo "=============================="
 if [ "$FAILED" -eq 0 ]; then
   echo "cache-smoke.sh: ALL CHECKS PASSED"

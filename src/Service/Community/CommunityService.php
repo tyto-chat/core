@@ -413,6 +413,7 @@ class CommunityService extends AbstractDoctrineService implements CommunityServi
         $this->communityPinService->pinFor($user, $community);
 
         $this->welcomeMessageService->sendIfConfigured($community, $user);
+        $this->realtimePublisher->publishCommunityStructureChanged($community);
 
         return $saved;
     }
@@ -458,6 +459,7 @@ class CommunityService extends AbstractDoctrineService implements CommunityServi
         $this->security->throwAccessDeniedUnlessAdmin('Only admins can delete communities.');
 
         $identifier = (string) $community->getIdentifier();
+        $communityId = $community->getId();
         $channelIds = array_map(
             static fn ($channel): int => (int) $channel->getId(),
             $community->getChannels()->toArray(),
@@ -469,6 +471,7 @@ class CommunityService extends AbstractDoctrineService implements CommunityServi
         }
         // No structure-publish on delete — without a direct purge the cached detail outlives the entity.
         $this->cachePurger->purgeCommunityDetail($identifier);
+        $this->cachePurger->purgeCommunityContext($communityId);
     }
 
     /**

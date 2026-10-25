@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\HttpCache;
 
+use App\Service\HttpCache\HttpCacheSwitchInterface;
 use App\Service\HttpCache\SouinCachePurger;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -55,6 +56,89 @@ class SouinCachePurgerTest extends TestCase
         self::assertSame('PURGE', $capturedMethod);
         self::assertSame('http://app:8888/souin-api/souin', $capturedUrl);
         self::assertContains('Surrogate-Key: /api/v1/communities/comm/channels/chan/pages/7', $capturedOptions['headers'] ?? []);
+    }
+
+    /** @return iterable<string, array{string, int, string}> */
+    public static function tagPurges(): iterable
+    {
+        yield 'user context' => ['purgeUserContext', 12, 'ctx-u12'];
+        yield 'community context' => ['purgeCommunityContext', 5, 'ctx-c5'];
+        yield 'author' => ['purgeAuthor', 12, 'author-12'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('tagPurges')]
+    public function testTagPurgesSendOneUnversionedSurrogateKey(string $method, int $id, string $tag): void
+    {
+        $requests = [];
+        $httpClient = new MockHttpClient(function (string $m, string $url, array $options) use (&$requests): MockResponse {
+            $requests[] = $options['headers'] ?? [];
+
+            return new MockResponse('', ['http_code' => 200]);
+        });
+
+        $purger = new SouinCachePurger($httpClient, 'http://app:8888', $this->logger);
+        match ($method) {
+            'purgeUserContext' => $purger->purgeUserContext($id),
+            'purgeCommunityContext' => $purger->purgeCommunityContext($id),
+            default => $purger->purgeAuthor($id),
+        };
+
+        self::assertCount(1, $requests);
+        self::assertContains('Surrogate-Key: '.$tag, $requests[0]);
+    }
+
+    public function testTagPurgeRetriesOnceAndSucceeds(): void
+    {
+        $calls = 0;
+        $httpClient = new MockHttpClient(static function () use (&$calls): MockResponse {
+            return new MockResponse('', ['http_code' => ++$calls < 2 ? 503 : 200]);
+        });
+        $this->logger->expects(self::never())->method('error');
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger))->purgeUserContext(4);
+
+        self::assertSame(2, $calls);
+    }
+
+    public function testTagPurgeLogsAnErrorWhenBothAttemptsFail(): void
+    {
+        $calls = 0;
+        $httpClient = new MockHttpClient(static function () use (&$calls): never {
+            ++$calls;
+            throw new \RuntimeException('connection refused');
+        });
+        $this->logger->expects(self::once())->method('error')->with('http_cache.purge_failed');
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger))->purgeCommunityContext(9);
+
+        self::assertSame(2, $calls);
+    }
+
+    public function testFailedPermissionPurgeTripsTheCacheOff(): void
+    {
+        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 503]));
+        $switch = $this->createMock(HttpCacheSwitchInterface::class);
+        $switch->expects(self::once())->method('trip')->with(self::greaterThanOrEqual(3600));
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $switch))->purgeUserContext(4);
+    }
+
+    public function testFailedAuthorPurgeDoesNotTripTheCache(): void
+    {
+        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 503]));
+        $switch = $this->createMock(HttpCacheSwitchInterface::class);
+        $switch->expects(self::never())->method('trip');
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $switch))->purgeAuthor(4);
+    }
+
+    public function testSuccessfulPurgeDoesNotTripTheCache(): void
+    {
+        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 200]));
+        $switch = $this->createMock(HttpCacheSwitchInterface::class);
+        $switch->expects(self::never())->method('trip');
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $switch))->purgeCommunityContext(4);
     }
 
     public function testTrailingSlashOnBaseUrlIsNotDuplicated(): void

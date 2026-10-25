@@ -85,6 +85,8 @@ case "$ROLE" in
     # DB migrations — app only, never workers.
     php bin/console doctrine:migrations:migrate --no-interaction --all-or-nothing
 
+    php bin/console tyto:http-cache:sync || echo "entrypoint: http-cache sync failed (non-fatal); cache stays off"
+
     # First-boot Meilisearch backfill (guarded by a marker on the secrets volume).
     # Only set the marker on SUCCESS, so a failed first run (e.g. meili not yet
     # reachable) retries on the next boot instead of being skipped forever.

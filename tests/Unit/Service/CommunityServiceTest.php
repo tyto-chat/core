@@ -432,6 +432,7 @@ class CommunityServiceTest extends TestCase
         $this->security->method('isGranted')->willReturn(true);
 
         $this->cachePurger->expects(self::once())->method('purgeCommunityDetail')->with('doomed-community');
+        $this->cachePurger->expects(self::once())->method('purgeCommunityContext')->with($community->getId());
 
         $this->service->delete($community);
     }

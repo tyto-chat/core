@@ -15,6 +15,7 @@ use App\Service\ApiKey\ApiKeyServiceInterface;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Gdpr\AccountDeletionService;
 use App\Service\Gdpr\AccountDeletionServiceInterface;
+use App\Service\HttpCache\CachePurgerInterface;
 use App\Service\MediaObject\MediaObjectServiceInterface;
 use App\Service\Notification\PushSubscriptionServiceInterface;
 use App\Service\Security\SessionRevokerInterface;
@@ -89,6 +90,16 @@ class AccountDeletionServiceTest extends TestCase
 
         self::assertSame($user, $result);
         self::assertTrue($user->isPendingDeletion());
+    }
+
+    public function testRequestDeletionPurgesTheUsersCachedContext(): void
+    {
+        $user = $this->makeUser();
+        $purger = $this->createMock(CachePurgerInterface::class);
+        $purger->expects(self::once())->method('purgeUserContext')->with((int) $user->getId());
+        $this->service->setCachePurger($purger);
+
+        $this->service->requestDeletion();
     }
 
     public function testRequestDeletionRejectsWhenAlreadyPending(): void

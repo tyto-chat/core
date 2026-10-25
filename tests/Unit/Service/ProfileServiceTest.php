@@ -6,10 +6,12 @@ namespace App\Tests\Unit\Service;
 
 use App\Dto\Profile\UpdateProfileDto;
 use App\Entity\Profile;
+use App\Entity\User;
 use App\Exception\Profile\ProfileNotFoundException;
 use App\Repository\ProfileRepository;
 use App\Security\SecurityContext;
 use App\Service\Community\CommunityMembershipServiceInterface;
+use App\Service\HttpCache\CachePurgerInterface;
 use App\Service\User\ProfileService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -86,5 +88,20 @@ class ProfileServiceTest extends TestCase
         $result = $this->service->update($profile, new UpdateProfileDto());
 
         self::assertSame($profile, $result);
+    }
+
+    public function testUpdatePurgesCachedPagesCarryingTheAuthor(): void
+    {
+        $user = new User();
+        (new \ReflectionProperty(User::class, 'id'))->setValue($user, 31);
+        $profile = new Profile();
+        $profile->setUser($user);
+        $this->security->method('isGranted')->willReturn(true);
+
+        $purger = $this->createMock(CachePurgerInterface::class);
+        $purger->expects(self::once())->method('purgeAuthor')->with(31);
+        $this->service->setCachePurger($purger);
+
+        $this->service->update($profile, new UpdateProfileDto());
     }
 }

@@ -19,12 +19,15 @@ use App\Security\SecurityContext;
 use App\Security\Voter\ChannelVoter;
 use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityMembershipServiceInterface;
+use App\Service\HttpCache\PurgesHttpCacheTrait;
 use App\Service\Notification\NotificationServiceInterface;
 use App\Service\Realtime\StructureRealtimePublisherInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 class ChannelMembershipService extends AbstractDoctrineService implements ChannelMembershipServiceInterface
 {
+    use PurgesHttpCacheTrait;
+
     public function __construct(
         private readonly SecurityContext $security,
         private readonly CommunityMembershipServiceInterface $communityMembership,
@@ -75,6 +78,7 @@ class ChannelMembershipService extends AbstractDoctrineService implements Channe
         $channelMember->setChannel($channel);
         $channelMember->setRole($role);
         $channelMember = $this->save($channelMember);
+        $this->realtimePublisher->publishCommunityStructureChanged($channelMember->getChannel()->getCommunity());
 
         $this->notificationService->new(new CreateNotificationDto(
             recipient: $user,

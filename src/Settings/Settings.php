@@ -535,13 +535,24 @@ final class Settings
     /** @return SettingDef<int> */
     public static function httpCachePageTtlSeconds(): SettingDef
     {
-        return new SettingDef('httpCachePageTtlSeconds', SettingType::Int, 0);
+        return new SettingDef('httpCachePageTtlSeconds', SettingType::Int, self::prodOnly(3600));
     }
 
     /** @return SettingDef<int> */
     public static function httpCachePresenceTtlSeconds(): SettingDef
     {
-        return new SettingDef('httpCachePresenceTtlSeconds', SettingType::Int, 0);
+        return new SettingDef('httpCachePresenceTtlSeconds', SettingType::Int, self::prodOnly(15));
+    }
+
+    /** @return SettingDef<int> */
+    public static function httpCacheContextTtlSeconds(): SettingDef
+    {
+        return new SettingDef('httpCacheContextTtlSeconds', SettingType::Int, self::prodOnly(600));
+    }
+
+    private static function prodOnly(int $value): int
+    {
+        return 'prod' === ($_SERVER['APP_ENV'] ?? $_ENV['APP_ENV'] ?? 'prod') ? $value : 0;
     }
 
     /** @return SettingDef<int> */
@@ -617,7 +628,7 @@ final class Settings
             self::resetPasswordCodeExpiryMinutes(), self::emailChallengeExpiryMinutes(),
             self::invitationExpiryHours(), self::realtimeTokenTtlMinutes(),
             self::digestHour(), self::validateEmails(), self::mediaTokenTtlSeconds(),
-            self::httpCachePageTtlSeconds(), self::httpCachePresenceTtlSeconds(),
+            self::httpCachePageTtlSeconds(), self::httpCachePresenceTtlSeconds(), self::httpCacheContextTtlSeconds(),
             self::communityEmojiTokenTtlSeconds(), self::defaultBotId(),
             self::welcomeBotId(), self::autoModeratorBotId(),
         ];

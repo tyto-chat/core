@@ -37,7 +37,7 @@ final class SettingsRegistryTest extends TestCase
         self::assertContains('minimumAgeYears', $keys);
         self::assertContains('messageRetentionDays', $keys);
         self::assertContains('clientBaseUrl', $keys);
-        self::assertCount(91, $all);
+        self::assertCount(92, $all);
     }
 
     public function testClientBaseUrlDefaultsToOffAndDropsTrailingSlashes(): void

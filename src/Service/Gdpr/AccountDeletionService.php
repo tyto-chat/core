@@ -12,12 +12,15 @@ use App\Repository\UserRepository;
 use App\Security\SecurityContext;
 use App\Service\AbstractDoctrineService;
 use App\Service\ApiKey\ApiKeyServiceInterface;
+use App\Service\HttpCache\PurgesHttpCacheTrait;
 use App\Service\MediaObject\MediaObjectServiceInterface;
 use App\Service\Notification\PushSubscriptionServiceInterface;
 use App\Service\Security\SessionRevokerInterface;
 
 class AccountDeletionService extends AbstractDoctrineService implements AccountDeletionServiceInterface
 {
+    use PurgesHttpCacheTrait;
+
     public function __construct(
         private readonly SecurityContext $security,
         private readonly UserRepository $userRepository,
@@ -44,6 +47,7 @@ class AccountDeletionService extends AbstractDoctrineService implements AccountD
         $this->pushSubscriptionService->removeAllFor($user);
 
         $this->flush();
+        $this->cachePurger?->purgeUserContext((int) $user->getId());
 
         $this->logger?->info('gdpr.deletion.requested', [
             'channel' => 'gdpr',
@@ -64,6 +68,7 @@ class AccountDeletionService extends AbstractDoctrineService implements AccountD
 
         $user->setDeletionRequestedAt(null);
         $this->flush();
+        $this->cachePurger?->purgeUserContext((int) $user->getId());
 
         $this->logger?->info('gdpr.deletion.cancelled', [
             'channel' => 'gdpr',
@@ -116,6 +121,8 @@ class AccountDeletionService extends AbstractDoctrineService implements AccountD
 
         $this->anonymiseInPlace($user);
         $this->flush();
+        $this->cachePurger?->purgeUserContext((int) $user->getId());
+        $this->cachePurger?->purgeAuthor((int) $user->getId());
     }
 
     private function anonymiseInPlace(User $user): void

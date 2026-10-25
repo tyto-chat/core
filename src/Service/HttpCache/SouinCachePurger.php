@@ -4,16 +4,23 @@ declare(strict_types=1);
 
 namespace App\Service\HttpCache;
 
+use App\Service\Settings\SettingsServiceInterface;
+use App\Settings\Settings;
 use App\Utils\ApiVersions;
+use App\Utils\CacheTags;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class SouinCachePurger implements CachePurgerInterface
 {
+    private const int MAX_TOKEN_LIFETIME_SECONDS = 3600;
+
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly string $purgeBaseUrl,
         private readonly LoggerInterface $logger,
+        private readonly ?HttpCacheSwitchInterface $httpCacheSwitch = null,
+        private readonly ?SettingsServiceInterface $settings = null,
     ) {
     }
 
@@ -60,6 +67,58 @@ final class SouinCachePurger implements CachePurgerInterface
     {
         $path = sprintf('/api/communities/%s', $communityIdentifier);
         $this->purgeSurrogateKeys($path, $path);
+    }
+
+    #[\Override]
+    public function purgeUserContext(int $userId): void
+    {
+        $this->purgeTag(CacheTags::userContext($userId));
+    }
+
+    #[\Override]
+    public function purgeCommunityContext(int $communityId): void
+    {
+        $this->purgeTag(CacheTags::communityContext($communityId));
+    }
+
+    #[\Override]
+    public function purgeAuthor(int $userId): void
+    {
+        $this->purgeTag(CacheTags::author($userId));
+    }
+
+    private function purgeTag(string $tag): void
+    {
+        if ('' === $this->purgeBaseUrl) {
+            return;
+        }
+
+        $error = null;
+        foreach ([0.5, 2.0] as $timeout) {
+            try {
+                $status = $this->httpClient->request('PURGE', rtrim($this->purgeBaseUrl, '/').'/souin-api/souin', [
+                    'headers' => ['Surrogate-Key' => $tag],
+                    'timeout' => $timeout,
+                ])->getStatusCode();
+                if ($status < 400) {
+                    return;
+                }
+                $error = 'status '.$status;
+            } catch (\Throwable $e) {
+                $error = $e->getMessage();
+            }
+        }
+
+        $this->logger->error('http_cache.purge_failed', [
+            'channel' => 'http_cache',
+            'path' => $tag,
+            'error' => $error,
+        ]);
+
+        if (!str_starts_with($tag, 'author-')) {
+            $contextTtl = $this->settings?->get(Settings::httpCacheContextTtlSeconds()) ?? 0;
+            $this->httpCacheSwitch?->trip(max(self::MAX_TOKEN_LIFETIME_SECONDS, $contextTtl));
+        }
     }
 
     private function purgeSurrogateKeys(string $surrogateKeyHeader, string $logPath): void

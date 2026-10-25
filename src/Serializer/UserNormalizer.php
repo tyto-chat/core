@@ -6,6 +6,8 @@ namespace App\Serializer;
 
 use ApiPlatform\Metadata\HttpOperation;
 use App\Entity\User;
+use App\Service\HttpCache\CacheTagCollector;
+use App\Utils\CacheTags;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
@@ -21,6 +23,7 @@ final class UserNormalizer implements NormalizerInterface, NormalizerAwareInterf
     public function __construct(
         private readonly Security $security,
         private readonly RequestStack $requestStack,
+        private readonly CacheTagCollector $cacheTags,
     ) {
     }
 
@@ -38,6 +41,10 @@ final class UserNormalizer implements NormalizerInterface, NormalizerAwareInterf
         $context[self::ALREADY_CALLED] = true;
 
         /** @var User $object */
+        if (null !== $object->getId() && $this->isCacheFlaggedOperation()) {
+            $this->cacheTags->add(CacheTags::author($object->getId()));
+        }
+
         $current = $this->security->getUser();
         $isSelf = $current instanceof User && $current->getId() === $object->getId();
 

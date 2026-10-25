@@ -23,6 +23,7 @@ use App\Service\AbstractDoctrineService;
 use App\Service\Challenge\ChallengeServiceInterface;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Conversation\ConversationServiceInterface;
+use App\Service\HttpCache\PurgesHttpCacheTrait;
 use App\Service\IpReputation\IpReputationServiceInterface;
 use App\Service\MediaObject\MediaObjectServiceInterface;
 use App\Service\Notification\NotificationServiceInterface;
@@ -36,6 +37,8 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class UserService extends AbstractDoctrineService implements UserServiceInterface
 {
+    use PurgesHttpCacheTrait;
+
     public function __construct(
         private readonly SecurityContext $security,
         private readonly MediaObjectServiceInterface $mediaObjectService,
@@ -234,8 +237,10 @@ class UserService extends AbstractDoctrineService implements UserServiceInterfac
         // ROLE_ADMIN lets bots pass community-mod gates when invoked via runAs.
         $user->setRoles([UserRole::Admin->value]);
         $user->getProfile()->setName($displayName);
+        $saved = $this->save($user);
+        $this->cachePurger?->purgeAuthor((int) $user->getId());
 
-        return $this->save($user);
+        return $saved;
     }
 
     #[\Override]
@@ -266,8 +271,10 @@ class UserService extends AbstractDoctrineService implements UserServiceInterfac
     {
         $this->security->throwAccessDeniedUnlessAdmin();
         $user->setRoles($roles);
+        $saved = $this->save($user);
+        $this->cachePurger?->purgeUserContext((int) $user->getId());
 
-        return $this->save($user);
+        return $saved;
     }
 
     #[\Override]
@@ -279,8 +286,10 @@ class UserService extends AbstractDoctrineService implements UserServiceInterfac
         ));
         $roles[] = UserRole::Admin->value;
         $user->setRoles(array_values(array_unique($roles)));
+        $saved = $this->save($user);
+        $this->cachePurger?->purgeUserContext((int) $user->getId());
 
-        return $this->save($user);
+        return $saved;
     }
 
     #[\Override]
@@ -370,6 +379,7 @@ class UserService extends AbstractDoctrineService implements UserServiceInterfac
         $this->mediaObjectService->prepare($avatar, 'avatar');
         $user->getProfile()->setAvatar($avatar);
         $this->save($user);
+        $this->cachePurger?->purgeAuthor((int) $user->getId());
 
         if (null !== $oldAvatar && $oldAvatar !== $avatar) {
             $this->mediaObjectService->delete($oldAvatar);

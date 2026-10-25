@@ -63,6 +63,26 @@ class HttpCacheHeadersTest extends ApiTestCase
         return [$client, $community, $channel];
     }
 
+    private function flagFile(): string
+    {
+        return self::getContainer()->getParameter('kernel.project_dir').'/var/http-cache.on';
+    }
+
+    public function testSavingTtlMirrorsCacheSwitchIntoFlagFile(): void
+    {
+        $this->setHttpCacheTtl(30);
+        self::assertFileExists($this->flagFile());
+
+        $this->setHttpCacheTtl(0);
+        self::assertFileDoesNotExist($this->flagFile());
+
+        $this->setPresenceTtl(15);
+        self::assertFileExists($this->flagFile());
+
+        $this->setPresenceTtl(0);
+        self::assertFileDoesNotExist($this->flagFile());
+    }
+
     public function testPageResponseCarriesNoCacheHeadersByDefault(): void
     {
         [$client, $community, $channel] = $this->memberClientWithChannelPage();
@@ -109,6 +129,20 @@ class HttpCacheHeadersTest extends ApiTestCase
         self::assertStringContainsString('public', $headers['cache-control'][0]);
         self::assertContains('X-User-Context-Hash', $headers['vary'] ?? []);
         self::assertNotContains('Authorization', $headers['vary'] ?? []);
+    }
+
+    public function testCachedPageTagsItsAuthorsAlongsideThePath(): void
+    {
+        $this->setHttpCacheTtl(300);
+        [$client, $community, $channel] = $this->memberClientWithChannelPage();
+        $path = sprintf('/api/v1/communities/%s/channels/%s/pages/1', $community->getIdentifier(), $channel->getIdentifier());
+
+        $response = $client->request('GET', $path);
+
+        self::assertResponseIsSuccessful();
+        $keys = explode(', ', $response->getHeaders()['surrogate-key'][0] ?? '');
+        self::assertSame($path, $keys[0]);
+        self::assertNotEmpty(array_filter($keys, static fn (string $k): bool => str_starts_with($k, 'author-')));
     }
 
     public function testConversationPageNeverCarriesCacheHeaders(): void

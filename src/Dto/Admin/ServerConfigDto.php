@@ -242,6 +242,9 @@ class ServerConfigDto
     public int $httpCachePresenceTtlSeconds = 0;
 
     #[Groups(['admin_server_config:read'])]
+    public int $httpCacheContextTtlSeconds = 0;
+
+    #[Groups(['admin_server_config:read'])]
     public int $communityEmojiTokenTtlSeconds = 0;
 
     #[Groups(['admin_server_config:read'])]
@@ -331,6 +334,7 @@ class ServerConfigDto
         $dto->mediaTokenTtlSeconds = $s->get(Settings::mediaTokenTtlSeconds());
         $dto->httpCachePageTtlSeconds = $s->get(Settings::httpCachePageTtlSeconds());
         $dto->httpCachePresenceTtlSeconds = $s->get(Settings::httpCachePresenceTtlSeconds());
+        $dto->httpCacheContextTtlSeconds = $s->get(Settings::httpCacheContextTtlSeconds());
         $dto->communityEmojiTokenTtlSeconds = $s->get(Settings::communityEmojiTokenTtlSeconds());
         $dto->defaultBotId = $s->get(Settings::defaultBotId());
         $dto->welcomeBotId = $s->get(Settings::welcomeBotId());
