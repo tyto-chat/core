@@ -34,6 +34,7 @@ use App\Service\Channel\ChannelMembershipServiceInterface;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Notification\NotificationServiceInterface;
 use App\Service\Realtime\StructureRealtimePublisherInterface;
+use App\Service\User\UserBlockServiceInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 class UserGroupService extends AbstractDoctrineService implements UserGroupServiceInterface
@@ -47,7 +48,16 @@ class UserGroupService extends AbstractDoctrineService implements UserGroupServi
         private readonly NotificationServiceInterface $notificationService,
         private readonly StructureRealtimePublisherInterface $realtimePublisher,
         private readonly ChannelMembershipServiceInterface $channelMembershipService,
+        private readonly UserBlockServiceInterface $userBlocks,
     ) {
+    }
+
+    private function recipientAcceptsNotificationFromCurrentUser(User $recipient): bool
+    {
+        return [] !== $this->userBlocks->filterRecipientsNotBlocking(
+            (int) $this->security->currentUser()->getId(),
+            [(int) $recipient->getId()],
+        );
     }
 
     private function stillSeesChannel(User $user, Channel $channel, Community $community): bool
@@ -225,14 +235,16 @@ class UserGroupService extends AbstractDoctrineService implements UserGroupServi
         $member->setUserGroup($group);
         $member = $this->save($member);
 
-        $this->notificationService->new(new CreateNotificationDto(
-            recipient: $target,
-            community: $community,
-            communityIdentifier: (string) $community->getIdentifier(),
-            type: NotificationType::GroupAdded,
-            groupName: $group->getName(),
-            groupIdentifier: (string) $group->getIdentifier(),
-        ));
+        if ($this->recipientAcceptsNotificationFromCurrentUser($target)) {
+            $this->notificationService->new(new CreateNotificationDto(
+                recipient: $target,
+                community: $community,
+                communityIdentifier: (string) $community->getIdentifier(),
+                type: NotificationType::GroupAdded,
+                groupName: $group->getName(),
+                groupIdentifier: (string) $group->getIdentifier(),
+            ));
+        }
 
         $this->realtimePublisher->publishCommunityStructureChanged($community);
         foreach ($this->groupChannelPermissionRepository->findByGroup($group) as $perm) {
@@ -276,7 +288,7 @@ class UserGroupService extends AbstractDoctrineService implements UserGroupServi
             $this->publishAccessEvent($target, $perm->getChannel(), $community, false);
         }
 
-        if (!$isSelf) {
+        if (!$isSelf && $this->recipientAcceptsNotificationFromCurrentUser($target)) {
             $this->notificationService->new(new CreateNotificationDto(
                 recipient: $target,
                 community: $community,
