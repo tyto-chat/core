@@ -1051,28 +1051,29 @@ r="$(get_page "$ADMIN_TOKEN" "$COMM_T27" "$CHAN_T27" 1)"
 assert_cmd "T27 pages of the community are not stored during the quarantine window" has_no_smaxage "$(cache_control_of "$r")"
 
 # =========================================================================
-# T28: the cache switch lives on a volume shared with the worker, so a trip
-# there (flag removed) turns the app's edge cache off too.
+# T28: tyto:http-cache:purge-all (also run on every app boot) empties the edge
+# cache. Needs APP_EXEC.
 # =========================================================================
 
-echo "== T28: worker-side switch reaches the app =="
+echo "== T28: purge-all =="
 
-if [ -z "${WORKER_EXEC:-}" ]; then
-  echo "SKIP: T28 (set WORKER_EXEC to run a command inside the worker container)"
+if [ -z "${APP_EXEC:-}" ]; then
+  echo "SKIP: T28 (set APP_EXEC to run a command inside the app container)"
 else
   status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":300}')"
   [ "$status" = "200" ] || { echo "cache-smoke.sh: failed to enable httpCachePageTtlSeconds for T28" >&2; exit 1; }
-  assert_cmd "T28 the worker sees the page flag the app wrote" $WORKER_EXEC test -f /app/var/http-cache/http-cache.on
 
   get_page "" "$COMM_T26" "$CHAN_T26" 1 >/dev/null
   r="$(get_page "" "$COMM_T26" "$CHAN_T26" 1)"
-  assert_cmd "T28 page is a hit before the worker removes the flag" is_hit "$(cache_status_of "$r")"
+  assert_cmd "T28 page is a hit before purge-all" is_hit "$(cache_status_of "$r")"
 
-  $WORKER_EXEC rm -f /app/var/http-cache/http-cache.on
+  out="$($APP_EXEC php bin/console tyto:http-cache:purge-all 2>&1 || true)"
+  assert_cmd "T28 purge-all reports the purged keys ($out)" grep -q 'purged [1-9]' <<<"$out"
+
   r="$(get_page "" "$COMM_T26" "$CHAN_T26" 1)"
-  assert_cmd "T28 page is no longer served from cache once the worker removed the flag" is_not_hit "$(cache_status_of "$r")"
-
-  admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":300}' >/dev/null
+  assert_cmd "T28 page is no longer served from cache after purge-all" is_not_hit "$(cache_status_of "$r")"
+  r="$(get_page "" "$COMM_T26" "$CHAN_T26" 1)"
+  assert_cmd "T28 the cache refills right after purge-all" is_hit "$(cache_status_of "$r")"
 fi
 
 # =========================================================================

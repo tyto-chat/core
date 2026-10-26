@@ -59,8 +59,7 @@ class HttpCacheContextHashTest extends ApiTestCase
         $headers = $response->getHeaders();
         self::assertStringContainsString('s-maxage=600', $headers['cache-control'][0]);
         self::assertStringContainsString('public', $headers['cache-control'][0]);
-        self::assertContains('Authorization', $headers['vary'] ?? []);
-        self::assertContains('X-Forwarded-Uri', $headers['vary'] ?? []);
+        self::assertArrayNotHasKey('vary', $headers);
         self::assertSame(
             sprintf('ctx-u%d, ctx-c%d', $user->getId(), $community->getId()),
             $headers['surrogate-key'][0],

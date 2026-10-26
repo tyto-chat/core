@@ -40,19 +40,19 @@ x-core-image: &core-image
     CACHE_DSN: ${CACHE_DSN:-redis://redis:6379}
     # Caddy admin API, loopback-only; the worker and scheduler reach it through the app's internal :8888 listener.
     CACHE_PURGE_URL: http://localhost:2019
-    CACHE_REDIS_URL: redis:6379
+    CACHE_REDIS_URL: http-cache:6379
     TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
     TRUSTED_HOSTS: ${TRUSTED_HOSTS:-}
   volumes:
     - secrets:/secrets
     - media:/app/var/media
-    - http_cache_switch:/app/var/http-cache
     - exports:/app/var/exports
     - jwt:/app/config/jwt
   depends_on:
     secrets-init: { condition: service_completed_successfully }
     database: { condition: service_healthy }
     redis: { condition: service_started }
+    http-cache: { condition: service_started }
     meilisearch: { condition: service_started }
 
 services:
@@ -139,6 +139,12 @@ services:
     volumes:
       - redis_data:/data
 
+  # Edge-cache store, separate so evicting cache entries can never touch presence or quarantine keys.
+  http-cache:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    command: ["valkey-server", "--save", "", "--appendonly", "no", "--maxmemory", "${HTTP_CACHE_MAXMEMORY:-256mb}", "--maxmemory-policy", "allkeys-lru"]
+
   meilisearch:
     image: getmeili/meilisearch:v1.13
     restart: unless-stopped
@@ -175,6 +181,5 @@ volumes:
   meili_data:
   secrets:
   media:
-  http_cache_switch:
   exports:
   jwt:

@@ -317,6 +317,18 @@ services:
 
     App\Service\HttpCache\HttpCacheQuarantineInterface: '@App\Service\HttpCache\HttpCacheQuarantine'
 
+    app.http_cache_redis:
+        class: Predis\Client
+        arguments:
+            - 'tcp://%env(CACHE_REDIS_URL)%'
+            - { exceptions: true }
+
+    App\Service\HttpCache\SouinRedisCacheFlusher:
+        arguments:
+            $redis: '@app.http_cache_redis'
+
+    App\Service\HttpCache\HttpCacheFlusherInterface: '@App\Service\HttpCache\SouinRedisCacheFlusher'
+
     # OpenAPI documents a concrete version, not the /api/{version} routing
     # template — rewrites generated paths to the canonical version (task-3).
     App\OpenApi\VersionedPathsOpenApiFactory:

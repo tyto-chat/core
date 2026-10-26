@@ -75,7 +75,6 @@ final class HttpCacheController extends AbstractController
 
         $response->setPublic();
         $response->headers->addCacheControlDirective('s-maxage', (string) $ttl);
-        $response->setVary(['Authorization', 'X-Forwarded-Uri'], false);
         if ([] !== $tags) {
             $response->headers->set('Surrogate-Key', implode(', ', $tags));
         }

@@ -21,83 +21,26 @@ final readonly class HttpCacheSwitch implements HttpCacheSwitchInterface
     #[\Override]
     public function isOn(): bool
     {
-        return $this->flagActive($this->flagFile);
+        return is_file($this->flagFile);
     }
 
     #[\Override]
     public function isPresenceOn(): bool
     {
-        return $this->flagActive($this->presenceFlagFile());
-    }
-
-    #[\Override]
-    public function trip(int $holdSeconds): void
-    {
-        $this->locked(function () use ($holdSeconds): void {
-            $deadline = max(time() + max(1, $holdSeconds), (int) @file_get_contents($this->trippedFile()));
-            $this->filesystem->dumpFile($this->trippedFile(), (string) $deadline);
-            $this->filesystem->remove([$this->flagFile, $this->presenceFlagFile()]);
-        });
+        return is_file($this->presenceFlagFile());
     }
 
     #[\Override]
     public function sync(): bool
     {
-        return $this->locked(function (): bool {
-            $pages = $this->settings->get(Settings::httpCachePageTtlSeconds()) > 0;
-            $presence = $this->settings->get(Settings::httpCachePresenceTtlSeconds()) > 0;
+        $pages = $this->settings->get(Settings::httpCachePageTtlSeconds()) > 0;
+        $presence = $this->settings->get(Settings::httpCachePresenceTtlSeconds()) > 0;
 
-            if (is_file($this->trippedFile())) {
-                if (!$this->holdExpired()) {
-                    $this->filesystem->remove([$this->flagFile, $this->presenceFlagFile()]);
-
-                    return false;
-                }
-                $this->filesystem->remove($this->trippedFile());
-            }
-
-            $this->mirror($this->flagFile, $pages);
-            $this->mirror($this->presenceFlagFile(), $presence);
-
-            return $pages || $presence;
-        });
-    }
-
-    /**
-     * @template T
-     *
-     * @param callable(): T $action
-     *
-     * @return T
-     */
-    private function locked(callable $action): mixed
-    {
         $this->filesystem->mkdir(\dirname($this->flagFile));
-        $handle = fopen($this->flagFile.'.lock', 'c');
-        if (false === $handle) {
-            return $action();
-        }
+        $this->mirror($this->flagFile, $pages);
+        $this->mirror($this->presenceFlagFile(), $presence);
 
-        try {
-            flock($handle, LOCK_EX);
-
-            return $action();
-        } finally {
-            flock($handle, LOCK_UN);
-            fclose($handle);
-        }
-    }
-
-    private function flagActive(string $flagFile): bool
-    {
-        if (is_file($this->trippedFile())) {
-            if (!$this->holdExpired()) {
-                return false;
-            }
-            $this->sync();
-        }
-
-        return is_file($flagFile);
+        return $pages || $presence;
     }
 
     private function mirror(string $flagFile, bool $on): void
@@ -111,16 +54,6 @@ final readonly class HttpCacheSwitch implements HttpCacheSwitchInterface
 
     private function presenceFlagFile(): string
     {
-        return dirname($this->flagFile).'/http-cache-presence.on';
-    }
-
-    private function trippedFile(): string
-    {
-        return $this->flagFile.'.tripped';
-    }
-
-    private function holdExpired(): bool
-    {
-        return (int) @file_get_contents($this->trippedFile()) <= time();
+        return \dirname($this->flagFile).'/http-cache-presence.on';
     }
 }

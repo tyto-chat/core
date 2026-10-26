@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace App\Service\HttpCache;
 
 use App\Async\RepurgeHttpCacheTagMessage;
-use App\Service\Settings\SettingsServiceInterface;
-use App\Settings\Settings;
+use App\Exception\HttpCache\HttpCachePurgeFailedException;
 use App\Utils\ApiVersions;
 use App\Utils\CacheTags;
 use Psr\Log\LoggerInterface;
@@ -16,15 +15,12 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class SouinCachePurger implements CachePurgerInterface
 {
-    private const int MAX_TOKEN_LIFETIME_SECONDS = 3600;
     public const int REPURGE_DELAY_MS = 5000;
 
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly string $purgeBaseUrl,
         private readonly LoggerInterface $logger,
-        private readonly ?HttpCacheSwitchInterface $httpCacheSwitch = null,
-        private readonly ?SettingsServiceInterface $settings = null,
         private readonly ?MessageBusInterface $messageBus = null,
         private readonly ?HttpCacheQuarantineInterface $quarantine = null,
     ) {
@@ -78,45 +74,47 @@ final class SouinCachePurger implements CachePurgerInterface
     #[\Override]
     public function purgeUserContext(int $userId): void
     {
-        $this->quarantineOrTrip(fn (HttpCacheQuarantineInterface $q) => $q->quarantineUser($userId), CacheTags::userContext($userId));
-        $this->purgeTag(CacheTags::userContext($userId), failClosed: true);
+        $this->quarantine(fn (HttpCacheQuarantineInterface $q) => $q->quarantineUser($userId), CacheTags::userContext($userId));
+        $this->purgeTag(CacheTags::userContext($userId));
     }
 
     #[\Override]
     public function purgeCommunityContext(int $communityId): void
     {
-        $this->purgeTag(CacheTags::communityContext($communityId), failClosed: true);
+        $this->purgeTag(CacheTags::communityContext($communityId));
     }
 
     #[\Override]
     public function purgeCommunityPages(int $communityId): void
     {
-        $this->quarantineOrTrip(fn (HttpCacheQuarantineInterface $q) => $q->quarantineCommunity($communityId), CacheTags::communityPages($communityId));
-        $this->purgeTag(CacheTags::communityPages($communityId), failClosed: true);
+        $this->quarantine(fn (HttpCacheQuarantineInterface $q) => $q->quarantineCommunity($communityId), CacheTags::communityPages($communityId));
+        $this->purgeTag(CacheTags::communityPages($communityId));
     }
 
     #[\Override]
     public function repurgeTag(string $tag): void
     {
-        $this->purgeTag($tag, failClosed: true, scheduleRepurge: false);
+        if (!$this->purgeTag($tag, scheduleRepurge: false)) {
+            throw new HttpCachePurgeFailedException($tag);
+        }
     }
 
     #[\Override]
     public function purgeAuthor(int $userId): void
     {
-        $this->purgeTag(CacheTags::author($userId), failClosed: false, scheduleRepurge: false);
+        $this->purgeTag(CacheTags::author($userId), scheduleRepurge: false);
     }
 
     #[\Override]
     public function purgeErasedAuthor(int $userId): void
     {
-        $this->purgeTag(CacheTags::author($userId), failClosed: true);
+        $this->purgeTag(CacheTags::author($userId));
     }
 
-    private function purgeTag(string $tag, bool $failClosed, bool $scheduleRepurge = true): void
+    private function purgeTag(string $tag, bool $scheduleRepurge = true): bool
     {
         if ('' === $this->purgeBaseUrl) {
-            return;
+            return true;
         }
 
         if ($scheduleRepurge) {
@@ -131,7 +129,7 @@ final class SouinCachePurger implements CachePurgerInterface
                     'timeout' => $timeout,
                 ])->getStatusCode();
                 if ($status < 400) {
-                    return;
+                    return true;
                 }
                 $error = 'status '.$status;
             } catch (\Throwable $e) {
@@ -145,13 +143,11 @@ final class SouinCachePurger implements CachePurgerInterface
             'error' => $error,
         ]);
 
-        if ($failClosed) {
-            $this->tripSwitch();
-        }
+        return false;
     }
 
     /** @param callable(HttpCacheQuarantineInterface): void $quarantine */
-    private function quarantineOrTrip(callable $quarantine, string $tag): void
+    private function quarantine(callable $quarantine, string $tag): void
     {
         if (null === $this->quarantine) {
             return;
@@ -165,28 +161,7 @@ final class SouinCachePurger implements CachePurgerInterface
                 'path' => $tag,
                 'error' => $e->getMessage(),
             ]);
-            $this->tripSwitch();
         }
-    }
-
-    private function tripSwitch(): void
-    {
-        $this->httpCacheSwitch?->trip(max([self::MAX_TOKEN_LIFETIME_SECONDS, ...$this->cacheTtls()]));
-    }
-
-    /** @return list<int> every TTL a stored entry may still be running on */
-    private function cacheTtls(): array
-    {
-        if (null === $this->settings) {
-            return [];
-        }
-
-        return [
-            $this->settings->get(Settings::httpCacheContextTtlSeconds()),
-            $this->settings->get(Settings::httpCachePresenceTtlSeconds()),
-            $this->settings->get(Settings::httpCachePageTtlSeconds()),
-            $this->settings->get(Settings::mediaTokenTtlSeconds()),
-        ];
     }
 
     private function scheduleRepurge(string $tag): void
@@ -203,7 +178,6 @@ final class SouinCachePurger implements CachePurgerInterface
                 'path' => $tag,
                 'error' => $e->getMessage(),
             ]);
-            $this->tripSwitch();
         }
     }
 

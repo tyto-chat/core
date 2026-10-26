@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\HttpCache;
 
 use App\Async\RepurgeHttpCacheTagMessage;
+use App\Exception\HttpCache\HttpCachePurgeFailedException;
 use App\Service\HttpCache\HttpCacheQuarantineInterface;
-use App\Service\HttpCache\HttpCacheSwitchInterface;
 use App\Service\HttpCache\SouinCachePurger;
-use App\Service\Settings\SettingsServiceInterface;
-use App\Settings\Settings;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -111,7 +109,7 @@ class SouinCachePurgerTest extends TestCase
             return $envelope;
         });
         $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 200]));
-        $purge(new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, null, null, $bus));
+        $purge(new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $bus));
 
         return $envelopes;
     }
@@ -133,16 +131,21 @@ class SouinCachePurgerTest extends TestCase
         self::assertSame([], $this->dispatchedBy(static fn (SouinCachePurger $p) => $p->purgeAuthor(4)));
     }
 
-    public function testRepurgeScheduleFailureIsLoggedAndTripsTheCache(): void
+    public function testRepurgeScheduleFailureIsLoggedAndThePurgeStillRuns(): void
     {
         $this->logger->expects(self::once())->method('error')->with('http_cache.repurge_schedule_failed');
         $bus = self::createStub(MessageBusInterface::class);
         $bus->method('dispatch')->willThrowException(new \RuntimeException('db down'));
-        $switch = $this->createMock(HttpCacheSwitchInterface::class);
-        $switch->expects(self::once())->method('trip');
-        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 200]));
+        $requests = 0;
+        $httpClient = new MockHttpClient(static function () use (&$requests): MockResponse {
+            ++$requests;
 
-        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $switch, null, $bus))->purgeUserContext(3);
+            return new MockResponse('', ['http_code' => 200]);
+        });
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $bus))->purgeUserContext(3);
+
+        self::assertSame(1, $requests);
     }
 
     public function testCommunityPagesPurgeQuarantinesTheCommunityFirst(): void
@@ -151,7 +154,7 @@ class SouinCachePurgerTest extends TestCase
         $quarantine->expects(self::once())->method('quarantineCommunity')->with(3);
         $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 200]));
 
-        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, null, null, null, $quarantine))->purgeCommunityPages(3);
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, null, $quarantine))->purgeCommunityPages(3);
     }
 
     public function testUserContextPurgeQuarantinesTheUserFirst(): void
@@ -160,15 +163,14 @@ class SouinCachePurgerTest extends TestCase
         $quarantine->expects(self::once())->method('quarantineUser')->with(4);
         $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 200]));
 
-        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, null, null, null, $quarantine))->purgeUserContext(4);
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, null, $quarantine))->purgeUserContext(4);
     }
 
-    public function testFailedQuarantineTripsTheCacheButStillPurges(): void
+    public function testFailedQuarantineIsLoggedAndThePurgeStillRuns(): void
     {
         $quarantine = self::createStub(HttpCacheQuarantineInterface::class);
         $quarantine->method('quarantineCommunity')->willThrowException(new \RuntimeException('valkey down'));
-        $switch = $this->createMock(HttpCacheSwitchInterface::class);
-        $switch->expects(self::once())->method('trip');
+        $this->logger->expects(self::once())->method('error')->with('http_cache.quarantine_failed');
         $requests = 0;
         $httpClient = new MockHttpClient(static function () use (&$requests): MockResponse {
             ++$requests;
@@ -176,7 +178,7 @@ class SouinCachePurgerTest extends TestCase
             return new MockResponse('', ['http_code' => 200]);
         });
 
-        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $switch, null, null, $quarantine))->purgeCommunityPages(3);
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, null, $quarantine))->purgeCommunityPages(3);
 
         self::assertSame(1, $requests);
     }
@@ -208,48 +210,6 @@ class SouinCachePurgerTest extends TestCase
         self::assertSame(2, $calls);
     }
 
-    public function testFailedPermissionPurgeTripsTheCacheOff(): void
-    {
-        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 503]));
-        $switch = $this->createMock(HttpCacheSwitchInterface::class);
-        $switch->expects(self::once())->method('trip')->with(self::greaterThanOrEqual(3600));
-
-        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $switch))->purgeUserContext(4);
-    }
-
-    public function testTripHoldOutlastsTheLongestCacheTtl(): void
-    {
-        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 503]));
-        $settings = self::createStub(SettingsServiceInterface::class);
-        $settings->method('get')->willReturnCallback(static fn ($def): int => match ($def->key) {
-            Settings::httpCachePageTtlSeconds()->key, Settings::mediaTokenTtlSeconds()->key => 86400,
-            Settings::httpCacheContextTtlSeconds()->key => 600,
-            default => 15,
-        });
-        $switch = $this->createMock(HttpCacheSwitchInterface::class);
-        $switch->expects(self::once())->method('trip')->with(86400);
-
-        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $switch, $settings))->purgeCommunityPages(3);
-    }
-
-    public function testFailedAuthorPurgeDoesNotTripTheCache(): void
-    {
-        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 503]));
-        $switch = $this->createMock(HttpCacheSwitchInterface::class);
-        $switch->expects(self::never())->method('trip');
-
-        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $switch))->purgeAuthor(4);
-    }
-
-    public function testFailedErasedAuthorPurgeTripsTheCache(): void
-    {
-        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 503]));
-        $switch = $this->createMock(HttpCacheSwitchInterface::class);
-        $switch->expects(self::once())->method('trip');
-
-        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $switch))->purgeErasedAuthor(4);
-    }
-
     public function testErasedAuthorPurgeSchedulesARepurge(): void
     {
         $envelopes = $this->dispatchedBy(static fn (SouinCachePurger $p) => $p->purgeErasedAuthor(4));
@@ -260,22 +220,21 @@ class SouinCachePurgerTest extends TestCase
         self::assertSame('author-4', $message->tag);
     }
 
-    public function testFailedAuthorRepurgeTripsTheCache(): void
+    public function testFailedRepurgeThrowsSoTheWorkerRetriesIt(): void
     {
         $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 503]));
-        $switch = $this->createMock(HttpCacheSwitchInterface::class);
-        $switch->expects(self::once())->method('trip');
 
-        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $switch))->repurgeTag('author-4');
+        $this->expectException(HttpCachePurgeFailedException::class);
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger))->repurgeTag('ctx-u4');
     }
 
-    public function testSuccessfulPurgeDoesNotTripTheCache(): void
+    public function testFailedPurgeOutsideTheWorkerIsLoggedNotThrown(): void
     {
-        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 200]));
-        $switch = $this->createMock(HttpCacheSwitchInterface::class);
-        $switch->expects(self::never())->method('trip');
+        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 503]));
+        $this->logger->expects(self::once())->method('error')->with('http_cache.purge_failed');
 
-        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $switch))->purgeCommunityContext(4);
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger))->purgeUserContext(4);
     }
 
     public function testTrailingSlashOnBaseUrlIsNotDuplicated(): void

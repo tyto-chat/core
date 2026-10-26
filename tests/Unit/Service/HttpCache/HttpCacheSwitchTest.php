@@ -86,59 +86,6 @@ class HttpCacheSwitchTest extends TestCase
         self::assertFileExists($this->presenceFlagFile());
     }
 
-    public function testTripTurnsBothCategoriesOff(): void
-    {
-        $switch = $this->switchWith(30, 15);
-        $switch->sync();
-
-        $switch->trip(600);
-
-        self::assertFalse($switch->isOn());
-        self::assertFalse($switch->isPresenceOn());
-        self::assertFileDoesNotExist($this->presenceFlagFile());
-    }
-
-    public function testTripTurnsTheCacheOffAndHoldsItOffAgainstSync(): void
-    {
-        $switch = $this->switchWith(30, 0);
-        $switch->sync();
-        self::assertTrue($switch->isOn());
-
-        $switch->trip(600);
-
-        self::assertFalse($switch->isOn());
-        self::assertFalse($switch->sync());
-        self::assertFalse($switch->isOn());
-    }
-
-    public function testALaterShorterTripKeepsTheEarlierLongerDeadline(): void
-    {
-        $switch = $this->switchWith(30, 0);
-        $switch->trip(86400);
-        $switch->trip(60);
-
-        self::assertGreaterThanOrEqual(time() + 86000, (int) file_get_contents($this->flagFile.'.tripped'));
-    }
-
-    public function testALaterLongerTripExtendsTheDeadline(): void
-    {
-        $switch = $this->switchWith(30, 0);
-        $switch->trip(60);
-        $switch->trip(86400);
-
-        self::assertGreaterThanOrEqual(time() + 86000, (int) file_get_contents($this->flagFile.'.tripped'));
-    }
-
-    public function testCacheRearmsOnceTheHoldHasExpired(): void
-    {
-        $switch = $this->switchWith(30, 0);
-        mkdir($this->dir);
-        file_put_contents($this->flagFile.'.tripped', (string) (time() - 5));
-
-        self::assertTrue($switch->isOn());
-        self::assertFileDoesNotExist($this->flagFile.'.tripped');
-    }
-
     public function testSyncRemovesStaleFlagWhenCacheTurnedOff(): void
     {
         mkdir($this->dir);
