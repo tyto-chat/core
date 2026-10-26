@@ -115,6 +115,10 @@ class UserPreference
     #[Groups(['user_preference:read'])]
     private ?array $remoteContentHosts = null;
 
+    #[ORM\Column(nullable: true)]
+    #[Groups(['user_preference:read'])]
+    private ?bool $autoplayGifs = null;
+
     #[ORM\Column]
     #[Groups(['user_preference:read'])]
     private \DateTimeImmutable $updatedAt;
@@ -271,6 +275,18 @@ class UserPreference
     public function setRemoteContentHosts(?array $value): self
     {
         $this->remoteContentHosts = $value;
+
+        return $this;
+    }
+
+    public function getAutoplayGifs(): ?bool
+    {
+        return $this->autoplayGifs;
+    }
+
+    public function setAutoplayGifs(?bool $value): self
+    {
+        $this->autoplayGifs = $value;
 
         return $this;
     }

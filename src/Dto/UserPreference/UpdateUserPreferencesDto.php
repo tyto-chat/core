@@ -64,6 +64,9 @@ class UpdateUserPreferencesDto implements EntityDtoInterface
     #[Groups(['user_preference:write'])]
     public ?array $remoteContentHosts;
 
+    #[Groups(['user_preference:write'])]
+    public ?bool $autoplayGifs;
+
     #[\Override]
     public static function getEntityClass(): string
     {
@@ -107,6 +110,9 @@ class UpdateUserPreferencesDto implements EntityDtoInterface
         }
         if ((new \ReflectionProperty($this, 'remoteContentHosts'))->isInitialized($this)) {
             $entity->setRemoteContentHosts(null === $this->remoteContentHosts ? null : array_values(array_unique($this->remoteContentHosts)));
+        }
+        if ((new \ReflectionProperty($this, 'autoplayGifs'))->isInitialized($this)) {
+            $entity->setAutoplayGifs($this->autoplayGifs);
         }
     }
 }

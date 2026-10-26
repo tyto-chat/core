@@ -23,7 +23,7 @@ class UserPreferenceTest extends ApiTestCase
         self::assertResponseIsSuccessful();
         $data = $response->toArray();
 
-        foreach (['theme', 'submitKey', 'locale', 'timezone', 'sendTypingIndicator', 'desktopNotifications', 'convertEmoticons', 'resumeLastLocation'] as $key) {
+        foreach (['theme', 'submitKey', 'locale', 'timezone', 'sendTypingIndicator', 'desktopNotifications', 'convertEmoticons', 'resumeLastLocation', 'autoplayGifs'] as $key) {
             self::assertArrayHasKey($key, $data);
             self::assertNull($data[$key], "Expected null default for $key");
         }
@@ -52,6 +52,7 @@ class UserPreferenceTest extends ApiTestCase
                 'desktopNotifications' => true,
                 'convertEmoticons' => false,
                 'resumeLastLocation' => false,
+                'autoplayGifs' => true,
             ],
         ]);
         self::assertResponseIsSuccessful();
@@ -65,6 +66,7 @@ class UserPreferenceTest extends ApiTestCase
         self::assertTrue($get['desktopNotifications']);
         self::assertFalse($get['convertEmoticons']);
         self::assertFalse($get['resumeLastLocation']);
+        self::assertTrue($get['autoplayGifs']);
     }
 
     public function testPatchSparseLeavesOmittedFieldsAlone(): void
