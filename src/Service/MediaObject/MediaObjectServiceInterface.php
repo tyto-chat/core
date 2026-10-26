@@ -47,8 +47,9 @@ interface MediaObjectServiceInterface
     /** @internal No authz — caller must gate. Bulk rows + files cleanup before community deletion. */
     public function deleteCommunityAttachments(Community $community): void;
 
-    /** @internal No authz — caller must gate. Creates missing attachment thumbnails; returns how many were generated. */
     /**
+     * @internal No authz — caller must gate. Creates missing attachment thumbnails; returns how many were generated.
+     *
      * @param (callable(int): void)|null $onAttachment called with each attachment id before it is processed
      */
     public function generateMissingAttachmentThumbnails(?callable $onAttachment = null, int $fromId = 0): int;
