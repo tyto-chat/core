@@ -596,12 +596,6 @@ parameters:
 			path: tests/Functional/Api/ModerationTest.php
 
 		-
-			message: '#^Dynamic call to static method Zenstruck\\Foundry\\Factory\<App\\Entity\\Notification\>\:\:createMany\(\)\.$#'
-			identifier: staticMethod.dynamicCall
-			count: 2
-			path: tests/Functional/Api/NotificationTest.php
-
-		-
 			message: '#^Parameter \#1 \$user of method App\\Tests\\Factory\\MessageFactory\:\:byUser\(\) expects App\\Entity\\User, object given\.$#'
 			identifier: argument.type
 			count: 1

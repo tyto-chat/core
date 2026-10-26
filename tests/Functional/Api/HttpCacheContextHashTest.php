@@ -19,6 +19,15 @@ class HttpCacheContextHashTest extends ApiTestCase
     use Factories;
     use ResetDatabase;
 
+    private static function sMaxAge(string $cacheControl): int
+    {
+        if (1 !== preg_match('/s-maxage=(\d+)/', $cacheControl, $m)) {
+            self::fail('No s-maxage in '.$cacheControl);
+        }
+
+        return (int) $m[1];
+    }
+
     private function setContextTtl(int $seconds): void
     {
         $admin = UserFactory::new()->admin()->create();
@@ -116,9 +125,9 @@ class HttpCacheContextHashTest extends ApiTestCase
         ]);
 
         self::assertResponseStatusCodeSame(204);
-        preg_match('/s-maxage=(\d+)/', $response->getHeaders()['cache-control'][0], $m);
-        self::assertGreaterThan(0, (int) $m[1]);
-        self::assertLessThanOrEqual(40, (int) $m[1]);
+        $maxAge = self::sMaxAge($response->getHeaders()['cache-control'][0]);
+        self::assertGreaterThan(0, $maxAge);
+        self::assertLessThanOrEqual(40, $maxAge);
     }
 
     public function testLowercaseSchemeAndUnreadableTokensStillRespectTokenLifetime(): void
@@ -133,8 +142,7 @@ class HttpCacheContextHashTest extends ApiTestCase
         ]);
 
         self::assertResponseStatusCodeSame(204);
-        preg_match('/s-maxage=(\d+)/', $response->getHeaders()['cache-control'][0], $m);
-        self::assertLessThanOrEqual(40, (int) $m[1]);
+        self::assertLessThanOrEqual(40, self::sMaxAge($response->getHeaders()['cache-control'][0]));
     }
 
     public function testCookieOnlyCallerIsNeverGivenACacheableHash(): void

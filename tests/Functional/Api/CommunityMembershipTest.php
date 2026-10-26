@@ -70,15 +70,15 @@ class CommunityMembershipTest extends ApiTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testAnonymousOnPrivateCommunityGetsNotFound(): void
+    public function testAnonymousOnPrivateCommunityGetsTheSameChallengeAsEverywhere(): void
     {
-        // Existence-hiding wins over 401: the provider's voter-mapped 404 fires
-        // before the operation's ROLE_USER check would produce a 401.
         CommunityFactory::new()->private()->withIdentifier('membership-anon-private')->create();
 
         $this->plainJsonClient()->request('GET', '/api/v1/communities/membership-anon-private/membership');
+        self::assertResponseStatusCodeSame(401);
 
-        self::assertResponseStatusCodeSame(404);
+        $this->plainJsonClient()->request('GET', '/api/v1/communities/no-such-community/membership');
+        self::assertResponseStatusCodeSame(401);
     }
 
     public function testGlobalAdminWithoutRowGetsNoBypass(): void
