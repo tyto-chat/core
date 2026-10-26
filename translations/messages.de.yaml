@@ -107,6 +107,7 @@ exception:
         not_found: 'Unterhaltung nicht gefunden.'
         not_member: 'Du bist kein Mitglied dieser Unterhaltung.'
         empty_member_list: 'Mindestens ein weiterer Benutzer ist erforderlich.'
+        blocked: 'Du kannst keine Unterhaltung mit diesen Personen beginnen.'
 
 rate_limit:
     too_many_requests: 'Zu viele Anfragen. Versuch es später erneut.'

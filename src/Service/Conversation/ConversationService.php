@@ -8,6 +8,7 @@ use App\Entity\Conversation;
 use App\Entity\ConversationMember;
 use App\Entity\MessagePage;
 use App\Entity\User;
+use App\Exception\Conversation\ConversationBlockedException;
 use App\Exception\Conversation\ConversationNotFoundException;
 use App\Exception\Conversation\EmptyMemberListException;
 use App\Exception\Conversation\NoSharedCommunityException;
@@ -22,6 +23,7 @@ use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Message\MessageServiceInterface;
 use App\Service\Notification\NotificationServiceInterface;
+use App\Service\User\UserBlockServiceInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\DependencyInjection\Attribute\Lazy;
@@ -38,6 +40,7 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
         private readonly MessageServiceInterface $messageService,
         private readonly ManagerRegistry $managerRegistry,
         private readonly NotificationServiceInterface $notifications,
+        private readonly UserBlockServiceInterface $userBlocks,
     ) {
     }
 
@@ -96,6 +99,13 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
         $existing = $this->conversationRepository->findOneByParticipantsHash($hash);
         if (null !== $existing) {
             return $existing;
+        }
+
+        $relations = $this->userBlocks->enforcedRelations($caller, array_values(array_map(static fn (User $u): int => (int) $u->getId(), $others)));
+        foreach ($ids as $id) {
+            if ($id !== $callerId && $relations->hasAnyWith($id)) {
+                throw new ConversationBlockedException();
+            }
         }
 
         $conversation = new Conversation();

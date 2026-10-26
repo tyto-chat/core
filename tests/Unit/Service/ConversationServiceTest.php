@@ -51,6 +51,9 @@ class ConversationServiceTest extends TestCase
         $this->security = $this->createMock(Security::class);
         $this->notifications = $this->createMock(NotificationServiceInterface::class);
 
+        $blocks = $this->createMock(\App\Service\User\UserBlockServiceInterface::class);
+        $blocks->method('enforcedRelations')->willReturn(new \App\Dto\User\BlockRelations());
+
         $this->service = new ConversationService(
             new SecurityContext($this->security, $this->communityMembershipService),
             $this->communityMembershipService,
@@ -60,6 +63,7 @@ class ConversationServiceTest extends TestCase
             $this->messageService,
             $this->createMock(ManagerRegistry::class),
             $this->notifications,
+            $blocks,
         );
         $this->service->setEntityManager($this->entityManager);
         $this->service->setLogger(new NullLogger());

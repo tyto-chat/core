@@ -25,10 +25,12 @@ use Symfony\Component\Serializer\Attribute\Groups;
                 summary: 'List users invitable to a direct message',
                 description: 'Autocomplete source for starting a DM: returns non-bot users who share at least one community '
                     .'with the authenticated caller (global admins may look up any user). Optional `search` filters by '
-                    .'display name or email; `limit` is clamped to 1-50.',
+                    .'display name or email; `limit` is clamped to 1-50. '
+                    .'`purpose=dm` additionally omits users in an enforced block with the caller, in either direction.',
                 parameters: [
                     new Model\Parameter('search', 'query', 'Partial display-name / email filter.', false, false, false, ['type' => 'string']),
                     new Model\Parameter('limit', 'query', 'Max results (1-50, default 20).', false, false, false, ['type' => 'integer']),
+                    new Model\Parameter('purpose', 'query', 'Set to `dm` to omit users blocked by or blocking the caller.', false, false, false, ['type' => 'string', 'enum' => ['dm']]),
                 ],
             ),
         ),

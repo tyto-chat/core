@@ -112,6 +112,7 @@ exception:
         not_found: 'Sohbet bulunamadı.'
         not_member: 'Bu sohbetin üyesi değilsin.'
         empty_member_list: 'En az bir başka kullanıcı gerekli.'
+        blocked: 'Bu kişilerle sohbet başlatamazsınız.'
 
 rate_limit:
     too_many_requests: 'Çok fazla istek. Lütfen daha sonra tekrar dene.'

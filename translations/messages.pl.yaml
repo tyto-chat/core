@@ -112,6 +112,7 @@ exception:
         not_found: 'Nie znaleziono rozmowy.'
         not_member: 'Nie jesteś członkiem tej rozmowy.'
         empty_member_list: 'Wymagany jest co najmniej jeden inny użytkownik.'
+        blocked: 'Nie możesz rozpocząć rozmowy z tymi osobami.'
 
 rate_limit:
     too_many_requests: 'Zbyt wiele żądań. Spróbuj ponownie później.'

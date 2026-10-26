@@ -112,6 +112,7 @@ exception:
         not_found: 'Conversa não encontrada.'
         not_member: 'Você não é membro desta conversa.'
         empty_member_list: 'Pelo menos um outro usuário é necessário.'
+        blocked: 'Você não pode iniciar uma conversa com essas pessoas.'
 
 rate_limit:
     too_many_requests: 'Muitas solicitações. Tente novamente mais tarde.'

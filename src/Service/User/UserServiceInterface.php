@@ -81,5 +81,5 @@ interface UserServiceInterface
     /**
      * @return list<array{id: int, name: ?string, avatar: MediaObject|null}>
      */
-    public function findInvitableForCurrentUser(?string $search, int $limit): array;
+    public function findInvitableForCurrentUser(?string $search, int $limit, bool $excludeBlocked = false): array;
 }

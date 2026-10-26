@@ -112,6 +112,7 @@ exception:
         not_found: 'Gesprek niet gevonden.'
         not_member: 'Je bent geen lid van dit gesprek.'
         empty_member_list: 'Er is minstens één andere gebruiker nodig.'
+        blocked: 'Je kunt geen gesprek beginnen met deze mensen.'
 
 rate_limit:
     too_many_requests: 'Te veel verzoeken. Probeer het later opnieuw.'

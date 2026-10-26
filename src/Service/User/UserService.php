@@ -53,6 +53,7 @@ class UserService extends AbstractDoctrineService implements UserServiceInterfac
         #[Lazy]
         private readonly ConversationServiceInterface $conversationService,
         private readonly NotificationServiceInterface $notificationService,
+        private readonly UserBlockServiceInterface $userBlocks,
     ) {
     }
 
@@ -303,7 +304,7 @@ class UserService extends AbstractDoctrineService implements UserServiceInterfac
     }
 
     #[\Override]
-    public function findInvitableForCurrentUser(?string $search, int $limit): array
+    public function findInvitableForCurrentUser(?string $search, int $limit, bool $excludeBlocked = false): array
     {
         $caller = $this->security->currentUser('You must be signed in to list invitable users.');
         $limit = max(1, min(50, $limit));
@@ -316,10 +317,14 @@ class UserService extends AbstractDoctrineService implements UserServiceInterfac
                 : $this->membership->findUsersSharingCommunity($caller, $search, $limit);
         }
 
+        $relations = $excludeBlocked
+            ? $this->userBlocks->enforcedRelations($caller, array_values(array_filter(array_map(static fn (User $u): ?int => $u->getId(), $users), static fn (?int $id): bool => null !== $id)))
+            : null;
+
         $items = [];
         foreach ($users as $user) {
             $id = $user->getId();
-            if (null === $id) {
+            if (null === $id || $relations?->hasAnyWith($id)) {
                 continue;
             }
             $items[] = [
