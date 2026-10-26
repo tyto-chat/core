@@ -10,6 +10,7 @@ use App\Entity\Notification;
 use App\Entity\User;
 use App\Enum\Notification\NotificationType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -24,26 +25,38 @@ class NotificationRepository extends ServiceEntityRepository
         parent::__construct($registry, Notification::class);
     }
 
-    /** @return Notification[] */
-    public function findByRecipientAndCommunity(User $user, Community $community): array
+    /**
+     * @param list<int> $hiddenActorIds
+     *
+     * @return Notification[]
+     */
+    public function findByRecipientAndCommunity(User $user, Community $community, array $hiddenActorIds = []): array
     {
-        return $this->createQueryBuilder('n')
+        $qb = $this->createQueryBuilder('n')
             ->where('n.recipient = :user AND n.community = :community')
             ->setParameter('user', $user)
-            ->setParameter('community', $community)
+            ->setParameter('community', $community);
+
+        return $this->excludeHiddenActors($qb, $hiddenActorIds)
             ->orderBy('n.createdAt', 'DESC')
             ->setMaxResults(self::LIST_LIMIT)
             ->getQuery()
             ->getResult();
     }
 
-    /** @return array<string, int> communityId (string) → unread count; 'dm' → DM unread count */
-    public function countUnreadByRecipient(User $user): array
+    /**
+     * @param list<int> $hiddenActorIds
+     *
+     * @return array<string, int> communityId (string) → unread count; 'dm' → DM unread count
+     */
+    public function countUnreadByRecipient(User $user, array $hiddenActorIds = []): array
     {
-        $rows = $this->createQueryBuilder('n')
+        $qb = $this->createQueryBuilder('n')
             ->select('IDENTITY(n.community) AS communityId, COUNT(n.id) AS cnt')
             ->where('n.recipient = :user AND n.isRead = false')
-            ->setParameter('user', $user)
+            ->setParameter('user', $user);
+
+        $rows = $this->excludeHiddenActors($qb, $hiddenActorIds)
             ->groupBy('n.community')
             ->getQuery()
             ->getResult();
@@ -55,6 +68,18 @@ class NotificationRepository extends ServiceEntityRepository
         }
 
         return $result;
+    }
+
+    /** @param list<int> $hiddenActorIds */
+    private function excludeHiddenActors(QueryBuilder $qb, array $hiddenActorIds): QueryBuilder
+    {
+        if ([] === $hiddenActorIds) {
+            return $qb;
+        }
+
+        return $qb
+            ->andWhere('(n.actor IS NULL OR n.actor NOT IN (:hiddenActorIds))')
+            ->setParameter('hiddenActorIds', $hiddenActorIds);
     }
 
     public function markAllReadForCommunity(User $user, Community $community): void
@@ -70,12 +95,18 @@ class NotificationRepository extends ServiceEntityRepository
             ->execute();
     }
 
-    /** @return Notification[] DM (community is null) notifications for caller, newest first */
-    public function findDmByRecipient(User $user): array
+    /**
+     * @param list<int> $hiddenActorIds
+     *
+     * @return Notification[] DM (community is null) notifications for caller, newest first
+     */
+    public function findDmByRecipient(User $user, array $hiddenActorIds = []): array
     {
-        return $this->createQueryBuilder('n')
+        $qb = $this->createQueryBuilder('n')
             ->where('n.recipient = :user AND n.community IS NULL')
-            ->setParameter('user', $user)
+            ->setParameter('user', $user);
+
+        return $this->excludeHiddenActors($qb, $hiddenActorIds)
             ->orderBy('n.createdAt', 'DESC')
             ->setMaxResults(self::LIST_LIMIT)
             ->getQuery()

@@ -79,6 +79,7 @@ class MessageNotificationDispatcher implements MessageNotificationDispatcherInte
                 authorName: $authorName,
                 messageIri: $messageIri,
                 conversationIdentifier: $conversation->getIdentifier(),
+                actor: $author,
             ));
         }
     }
@@ -113,6 +114,7 @@ class MessageNotificationDispatcher implements MessageNotificationDispatcherInte
                 communityIdentifier: $communityIdentifier,
                 authorName: $authorName,
                 messageIri: $messageIri,
+                actor: $message->getCreatedBy(),
             ));
         }
 
@@ -139,6 +141,7 @@ class MessageNotificationDispatcher implements MessageNotificationDispatcherInte
                     type: NotificationType::BroadcastMention,
                     authorName: $authorName,
                     messageIri: $messageIri,
+                    actor: $message->getCreatedBy(),
                 ));
             }
         }

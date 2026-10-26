@@ -10,6 +10,7 @@ use App\Entity\User;
 use App\Enum\Notification\NotificationType;
 use App\Repository\NotificationRepository;
 use App\Service\Notification\EmailDigestService;
+use App\Service\User\UserBlockServiceInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\TestCase;
@@ -46,6 +47,7 @@ class EmailDigestServiceTest extends TestCase
             $translator,
             $this->createMock(EntityManagerInterface::class),
             new NullLogger(),
+            $this->createMock(UserBlockServiceInterface::class),
         );
 
         self::assertSame(1, $service->dispatchDue());

@@ -49,7 +49,7 @@ class NotificationServiceTest extends TestCase
         $webPushSender = $this->createMock(WebPushSenderInterface::class);
         $webPushSender->method('isConfigured')->willReturn(false);
 
-        $this->service = new NotificationService(new SecurityContext($this->security, $this->createMock(CommunityMembershipServiceInterface::class)), $this->notificationRepository, $this->publisher, $bus, $webPushSender, $this->createMock(\Doctrine\Persistence\ManagerRegistry::class));
+        $this->service = new NotificationService(new SecurityContext($this->security, $this->createMock(CommunityMembershipServiceInterface::class)), $this->notificationRepository, $this->publisher, $bus, $webPushSender, $this->createMock(\Doctrine\Persistence\ManagerRegistry::class), $this->createMock(\App\Service\User\UserBlockServiceInterface::class));
         $this->service->setEntityManager($this->entityManager);
         $this->service->setLogger(new NullLogger());
     }

@@ -7,6 +7,7 @@ namespace App\Service\Notification;
 use App\Entity\Notification;
 use App\Enum\Notification\NotificationType;
 use App\Repository\NotificationRepository;
+use App\Service\User\UserBlockServiceInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
@@ -31,6 +32,7 @@ class EmailDigestService implements EmailDigestServiceInterface
         private readonly TranslatorInterface $translator,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
+        private readonly UserBlockServiceInterface $userBlockService,
     ) {
     }
 
@@ -38,9 +40,14 @@ class EmailDigestService implements EmailDigestServiceInterface
     public function dispatchDue(): int
     {
         $candidates = $this->notificationRepository->findDigestCandidates(self::DIGEST_TYPES);
+        $hiddenByRecipient = [] === $candidates ? [] : $this->userBlockService->enforcedBlockedIdsByBlocker(array_keys($candidates));
         $sent = 0;
 
-        foreach ($candidates as $notifications) {
+        foreach ($candidates as $recipientId => $notifications) {
+            $notifications = $this->withoutHiddenActors($notifications, $hiddenByRecipient[$recipientId] ?? []);
+            if ([] === $notifications) {
+                continue;
+            }
             $recipient = $notifications[0]->getRecipient();
             $email = $recipient?->getEmail();
             if (null === $recipient || null === $email || '' === $email) {
@@ -81,6 +88,29 @@ class EmailDigestService implements EmailDigestServiceInterface
         }
 
         return $sent;
+    }
+
+    /**
+     * @param list<Notification> $notifications
+     * @param list<int>          $hiddenActorIds
+     *
+     * @return list<Notification>
+     */
+    private function withoutHiddenActors(array $notifications, array $hiddenActorIds): array
+    {
+        if ([] === $hiddenActorIds) {
+            return $notifications;
+        }
+        $hidden = array_flip($hiddenActorIds);
+
+        return array_values(array_filter(
+            $notifications,
+            static function (Notification $n) use ($hidden): bool {
+                $actorId = $n->getActor()?->getId();
+
+                return null === $actorId || !isset($hidden[$actorId]);
+            },
+        ));
     }
 
     /**
