@@ -241,6 +241,7 @@ class UserGroupService extends AbstractDoctrineService implements UserGroupServi
                 community: $community,
                 communityIdentifier: (string) $community->getIdentifier(),
                 type: NotificationType::GroupAdded,
+                actor: $this->security->currentUser(),
                 groupName: $group->getName(),
                 groupIdentifier: (string) $group->getIdentifier(),
             ));
@@ -294,6 +295,7 @@ class UserGroupService extends AbstractDoctrineService implements UserGroupServi
                 community: $community,
                 communityIdentifier: (string) $community->getIdentifier(),
                 type: NotificationType::GroupRemoved,
+                actor: $this->security->currentUser(),
                 groupName: $group->getName(),
                 groupIdentifier: (string) $group->getIdentifier(),
             ));

@@ -89,6 +89,7 @@ class ChannelMembershipService extends AbstractDoctrineService implements Channe
                 channelIdentifier: (string) $channel->getIdentifier(),
                 communityIdentifier: (string) $community->getIdentifier(),
                 type: ChannelRole::Moderator === $role ? NotificationType::ChannelModerator : NotificationType::ChannelAccess,
+                actor: $this->security->currentUser(),
             ));
         }
 

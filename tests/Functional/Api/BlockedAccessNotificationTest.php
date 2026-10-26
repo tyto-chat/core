@@ -10,6 +10,7 @@ use App\Entity\User;
 use App\Entity\UserBlock;
 use App\Enum\Channel\ChannelRole;
 use App\Enum\Notification\NotificationType;
+use App\Service\Notification\EmailDigestServiceInterface;
 use App\Tests\Factory\ChannelFactory;
 use App\Tests\Factory\ChannelMemberFactory;
 use App\Tests\Factory\CommunityFactory;
@@ -40,7 +41,7 @@ class BlockedAccessNotificationTest extends ApiTestCase
     private function blockDirectly(User $blocker, User $blocked): void
     {
         $em = static::getContainer()->get(EntityManagerInterface::class);
-        $em->persist((new UserBlock())->setBlocker($blocker)->setBlocked($blocked));
+        $em->persist((new UserBlock())->setBlocker($em->getReference(User::class, $blocker->getId()))->setBlocked($em->getReference(User::class, $blocked->getId())));
         $em->flush();
     }
 
@@ -126,5 +127,89 @@ class BlockedAccessNotificationTest extends ApiTestCase
 
         self::assertResponseStatusCodeSame(201);
         self::assertSame(1, $this->countNotifications($blocker, NotificationType::ChannelAccess));
+    }
+
+    /** @return list<string> */
+    private function listedTypes(User $user, string $community): array
+    {
+        $data = $this->jsonClient($user)->request('GET', "/api/v1/communities/{$community}/notifications")->toArray();
+        self::assertResponseIsSuccessful();
+
+        return array_values(array_map(static fn (array $n): string => $n['type'], $data['hydra:member']));
+    }
+
+    private function unread(User $user, Community $community): int
+    {
+        $data = $this->jsonClient($user)->request('GET', '/api/v1/notifications/unread-counts')->toArray();
+
+        return $data['counts'][(string) $community->getId()] ?? 0;
+    }
+
+    private function setBlock(User $blocker, User $target, bool $on): void
+    {
+        $client = $this->plainJsonClient($blocker);
+        if ($on) {
+            $client->request('POST', '/api/v1/me/blocks', ['json' => ['userId' => $target->getId()]]);
+            self::assertResponseStatusCodeSame(201);
+        } else {
+            $client->request('DELETE', '/api/v1/me/blocks/'.$target->getId());
+            self::assertResponseStatusCodeSame(204);
+        }
+    }
+
+    private function digestCount(): int
+    {
+        $svc = static::getContainer()->get(EmailDigestServiceInterface::class);
+        \assert($svc instanceof EmailDigestServiceInterface);
+
+        return $svc->dispatchDue();
+    }
+
+    private function grantBoth(User $actor, string $community, string $groupIdentifier, string $channel, User $target): void
+    {
+        $client = $this->jsonClient($actor);
+        $client->request('POST', "/api/v1/communities/{$community}/groups/{$groupIdentifier}/members", ['json' => ['userId' => $target->getId()]]);
+        self::assertResponseStatusCodeSame(201);
+        $client->request('POST', "/api/v1/communities/{$community}/channels/{$channel}/members", ['json' => ['userId' => $target->getId()]]);
+        self::assertResponseStatusCodeSame(201);
+    }
+
+    public function testAccessNotificationsHiddenWhenRecipientBlocksActorLater(): void
+    {
+        $actor = UserFactory::createOne();
+        $recipient = UserFactory::createOne(['emailNotifications' => true]);
+        $community = $this->community('ban-late', $actor, $recipient);
+        $group = UserGroupFactory::new()->inCommunity($community)->withOwner($actor)->create();
+        $channel = ChannelFactory::new()->inCommunity($community)->private()->with(['identifier' => 'late-ch'])->create();
+        ChannelMemberFactory::createForUserAndChannel($actor, $channel, ChannelRole::Moderator);
+        $this->grantBoth($actor, 'ban-late', (string) $group->getIdentifier(), 'late-ch', $recipient);
+
+        self::assertCount(2, $this->listedTypes($recipient, 'ban-late'));
+        self::assertSame(2, $this->unread($recipient, $community));
+
+        $this->setBlock($recipient, $actor, true);
+        self::assertSame([], $this->listedTypes($recipient, 'ban-late'));
+        self::assertSame(0, $this->unread($recipient, $community));
+        self::assertSame(0, $this->digestCount());
+
+        $this->setBlock($recipient, $actor, false);
+        self::assertCount(2, $this->listedTypes($recipient, 'ban-late'));
+        self::assertSame(2, $this->unread($recipient, $community));
+    }
+
+    public function testStaffActorAccessNotificationsStayVisibleAfterBlock(): void
+    {
+        $admin = UserFactory::createOne();
+        $recipient = UserFactory::createOne();
+        $community = $this->community('ban-late-staff', $recipient);
+        CommunityMemberFactory::createAdminForCommunity($admin, $community);
+        $group = UserGroupFactory::createInCommunity($community);
+        ChannelFactory::new()->inCommunity($community)->private()->with(['identifier' => 'late-ch2'])->create();
+        $this->grantBoth($admin, 'ban-late-staff', (string) $group->getIdentifier(), 'late-ch2', $recipient);
+
+        $this->blockDirectly($recipient, $admin);
+
+        self::assertCount(2, $this->listedTypes($recipient, 'ban-late-staff'));
+        self::assertSame(2, $this->unread($recipient, $community));
     }
 }
