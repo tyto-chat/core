@@ -1,5 +1,10 @@
 parameters:
 	ignoreErrors:
+		-
+			message: '#^Parameter \#1 \$type of static method Imagick\:\:getResourceLimit\(\) expects [0-9\|]+, int given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Unit/Utils/ImagickLimitsTest.php
 
 		-
 			message: '#^Only booleans are allowed in a negated boolean, string\|false given\.$#'
@@ -431,12 +436,6 @@ parameters:
 		-
 			message: '#^Only booleans are allowed in a negated boolean, string\|null given\.$#'
 			identifier: booleanNot.exprNotBoolean
-			count: 1
-			path: src/Service/Realtime/MercurePublisher.php
-
-		-
-			message: '#^Only booleans are allowed in a ternary operator condition, string\|null given\.$#'
-			identifier: ternary.condNotBoolean
 			count: 1
 			path: src/Service/Realtime/MercurePublisher.php
 

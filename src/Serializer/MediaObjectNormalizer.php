@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Serializer;
 
 use App\Entity\MediaObject;
+use App\Service\MediaObject\AttachmentUrlGeneratorInterface;
 use App\Service\MediaObject\MediaObjectServiceInterface;
 use App\Service\MediaObject\SignedUrlServiceInterface;
 use App\Service\Settings\SettingsServiceInterface;
@@ -25,12 +26,14 @@ class MediaObjectNormalizer implements NormalizerInterface
         private readonly UrlGeneratorInterface $urlGenerator,
         private readonly SignedUrlServiceInterface $signedUrlService,
         private readonly SettingsServiceInterface $settings,
+        private readonly AttachmentUrlGeneratorInterface $attachmentUrls,
     ) {
     }
 
     public function normalize($object, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
     {
         $context[self::ALREADY_CALLED] = true;
+        $object->thumbnailUrl = null;
 
         if ($object->filePath && null !== $object->type) {
             if ('avatar' === $object->type || 'logo' === $object->type) {
@@ -51,17 +54,8 @@ class MediaObjectNormalizer implements NormalizerInterface
                     MediaObjectServiceInterface::FILTERS[$object->type],
                 );
             } elseif ('attachment' === $object->type) {
-                $object->contentUrl = $this->urlGenerator->generate(
-                    'app_media_serve',
-                    [
-                        'token' => $this->signedUrlService->signStable(
-                            $object->filePath,
-                            $this->settings->get(Settings::mediaTokenTtlSeconds()),
-                        ),
-                        'filename' => $object->filePath,
-                    ],
-                    UrlGeneratorInterface::ABSOLUTE_URL,
-                );
+                $object->contentUrl = $this->attachmentUrls->contentUrl($object);
+                $object->thumbnailUrl = $this->attachmentUrls->thumbnailUrl($object);
             } elseif ('community_emoji' === $object->type) {
                 $relativePath = 'community_emoji/'.$object->filePath;
                 $object->contentUrl = $this->urlGenerator->generate(

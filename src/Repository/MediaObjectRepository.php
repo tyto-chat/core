@@ -47,6 +47,26 @@ class MediaObjectRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
+    /**
+     * @param list<string> $mimeTypes
+     *
+     * @return MediaObject[]
+     */
+    public function findImageAttachmentsAfter(int $afterId, array $mimeTypes, int $limit): array
+    {
+        return $this->createQueryBuilder('mo')
+            ->where("mo.type = 'attachment'")
+            ->andWhere('mo.id > :afterId')
+            ->andWhere('mo.mimeType IN (:mimeTypes)')
+            ->andWhere('mo.filePath IS NOT NULL')
+            ->orderBy('mo.id', 'ASC')
+            ->setMaxResults($limit)
+            ->setParameter('afterId', $afterId)
+            ->setParameter('mimeTypes', $mimeTypes)
+            ->getQuery()
+            ->getResult();
+    }
+
     public function getTotalSize(): int
     {
         $result = $this->createQueryBuilder('mo')

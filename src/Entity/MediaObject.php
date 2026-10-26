@@ -242,6 +242,10 @@ class MediaObject
     #[Groups(['media_object:read', 'user:read', 'message:read', 'community:read', 'community_emoji:read', 'member:read', 'channel_member:read', 'channel_participant:read', 'conversation:read', 'conversation_member:read', 'user:embed', 'invitable_users:read'])]
     public array|string|null $contentUrl = null;
 
+    #[ApiProperty(writable: false)]
+    #[Groups(['media_object:read', 'message:read'])]
+    public ?string $thumbnailUrl = null;
+
     #[Vich\UploadableField(mapping: 'media_object', fileNameProperty: 'filePath')]
     #[Assert\NotNull]
     #[MediaUpload(type: 'avatar', groups: ['avatar'])]

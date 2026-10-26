@@ -15,7 +15,12 @@ interface MediaObjectServiceInterface
         'avatar' => ['sm' => 'avatar_sm', 'md' => 'avatar_md', 'lg' => 'avatar_lg'],
         'logo' => ['sm' => 'logo_sm', 'md' => 'logo_md', 'lg' => 'logo_lg'],
         'community_emoji' => ['community_emoji'],
+        'attachment' => ['attachment_thumb'],
     ];
+
+    public const int MAX_THUMBNAIL_SOURCE_PIXELS = 50_000_000;
+
+    public const array THUMBNAILABLE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
     /**
      * @internal no authz — caller must gate
@@ -41,6 +46,13 @@ interface MediaObjectServiceInterface
 
     /** @internal No authz — caller must gate. Bulk rows + files cleanup before community deletion. */
     public function deleteCommunityAttachments(Community $community): void;
+
+    /**
+     * @internal No authz — caller must gate. Creates missing attachment thumbnails; returns how many were generated.
+     *
+     * @param (callable(int): void)|null $onAttachment called with each attachment id before it is processed
+     */
+    public function generateMissingAttachmentThumbnails(?callable $onAttachment = null, int $fromId = 0): int;
 
     public function getByFilePath(string $filePath): MediaObject;
 

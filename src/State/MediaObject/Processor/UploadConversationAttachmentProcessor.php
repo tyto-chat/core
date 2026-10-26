@@ -43,6 +43,10 @@ final readonly class UploadConversationAttachmentProcessor implements ProcessorI
         $data->type = 'attachment';
         $this->mediaObjectService->populateFileMetadata($data);
 
-        return $this->processor->process($data, $operation, $uriVariables, $context);
+        /** @var MediaObject $media */
+        $media = $this->processor->process($data, $operation, $uriVariables, $context);
+        $this->mediaObjectService->prepare($media, 'attachment');
+
+        return $media;
     }
 }

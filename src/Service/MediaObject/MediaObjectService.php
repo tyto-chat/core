@@ -17,6 +17,7 @@ use App\Security\Voter\MediaObjectVoter;
 use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityEmojiServiceInterface;
 use App\Service\Realtime\MessageRealtimePublisherInterface;
+use App\Utils\ImagickLimits;
 use Liip\ImagineBundle\Imagine\Filter\FilterManager;
 use Liip\ImagineBundle\Model\Binary;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -105,12 +106,41 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
         $this->security->throwAccessDeniedUnlessGranted(MediaObjectVoter::DELETE, $attachment, 'You do not have permission to delete this attachment.');
 
         $parentMessage = $attachment->message;
+        $this->deleteVariants($attachment);
         // VichUploader's preRemove listener deletes the file — bulk DQL deletes would skip it.
         $this->removeAndFlush($attachment);
 
         if (null !== $parentMessage) {
             $this->publisher->publishMessageAttachmentsUpdated($parentMessage);
         }
+    }
+
+    #[\Override]
+    public function generateMissingAttachmentThumbnails(?callable $onAttachment = null, int $fromId = 0): int
+    {
+        $generated = 0;
+        $afterId = max(0, $fromId);
+        $filter = self::FILTERS['attachment'][0];
+
+        while ([] !== ($batch = $this->mediaObjectRepository->findImageAttachmentsAfter($afterId, self::THUMBNAILABLE_MIME_TYPES, 100))) {
+            foreach ($batch as $attachment) {
+                $afterId = (int) $attachment->getId();
+                $source = $this->mediaDir.'/'.$attachment->filePath;
+                if (!is_file($source) || is_file($this->mediaDir.'/'.$filter.'/'.$attachment->filePath)) {
+                    continue;
+                }
+                if (null !== $onAttachment) {
+                    $onAttachment($afterId);
+                }
+                $this->generateVariants($attachment);
+                if (is_file($this->mediaDir.'/'.$filter.'/'.$attachment->filePath)) {
+                    ++$generated;
+                }
+            }
+            $this->entityManager->clear();
+        }
+
+        return $generated;
     }
 
     #[\Override]
@@ -131,6 +161,7 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
     {
         $message = $attachment->message;
 
+        $this->deleteVariants($attachment);
         // VichUploader's preRemove listener deletes the file — bulk DQL deletes would skip it.
         $this->entityManager->remove($attachment);
 
@@ -179,13 +210,32 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
     /** @param list<string> $paths */
     private function removeFiles(array $paths): void
     {
-        $this->filesystem->remove(array_map(
-            fn (string $path): string => $this->mediaDir.'/'.$path,
-            $paths,
-        ));
+        $targets = [];
+        foreach ($paths as $path) {
+            $targets[] = $this->mediaDir.'/'.$path;
+            foreach (self::FILTERS['attachment'] as $filter) {
+                $targets[] = $this->mediaDir.'/'.$filter.'/'.$path;
+            }
+        }
+        $this->filesystem->remove($targets);
     }
 
     private function generateVariants(MediaObject $mediaObject): void
+    {
+        if ('attachment' !== $mediaObject->type) {
+            $this->writeVariants($mediaObject);
+
+            return;
+        }
+
+        try {
+            $this->writeVariants($mediaObject);
+        } catch (\Throwable $e) {
+            $this->logger?->warning('media.thumbnail_failed', ['filePath' => $mediaObject->filePath, 'exception' => $e]);
+        }
+    }
+
+    private function writeVariants(MediaObject $mediaObject): void
     {
         if (null === $mediaObject->filePath || null === $mediaObject->type) {
             return;
@@ -194,6 +244,12 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
         $filters = self::FILTERS[$mediaObject->type] ?? [];
         $originalPath = $this->mediaDir.'/'.$mediaObject->filePath;
         $mimeType = (string) mime_content_type($originalPath);
+        if ('attachment' === $mediaObject->type && !in_array($mimeType, self::THUMBNAILABLE_MIME_TYPES, true)) {
+            return;
+        }
+        if ('attachment' === $mediaObject->type && $this->exceedsThumbnailPixelLimit($originalPath)) {
+            return;
+        }
         $format = substr($mimeType, (int) strrpos($mimeType, '/') + 1);
         $isAnimatedGif = $this->isAnimatedGif($originalPath, $mimeType);
 
@@ -207,6 +263,10 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
             return;
         }
 
+        if ('attachment' === $mediaObject->type) {
+            ImagickLimits::apply();
+        }
+
         $binary = new Binary((string) file_get_contents($originalPath), $mimeType, $format);
 
         foreach ($filters as $filter) {
@@ -214,6 +274,13 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
             $outputPath = $this->mediaDir.'/'.$filter.'/'.$mediaObject->filePath;
             $this->filesystem->dumpFile($outputPath, $filtered->getContent());
         }
+    }
+
+    private function exceedsThumbnailPixelLimit(string $path): bool
+    {
+        $size = @getimagesize($path);
+
+        return false === $size || $size[0] * $size[1] > self::MAX_THUMBNAIL_SOURCE_PIXELS;
     }
 
     private function isAnimatedGif(string $path, string $mimeType): bool
