@@ -268,6 +268,7 @@ class MercurePublisher implements RealtimePublisherInterface
                 'size' => $a->size,
                 'contentUrl' => $this->attachmentUrls->contentUrl($a),
                 'thumbnailUrl' => $this->attachmentUrls->thumbnailUrl($a),
+                'animated' => $a->animated,
             ],
             $message->getAttachments()->toArray()
         ));

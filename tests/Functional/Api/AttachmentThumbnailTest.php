@@ -22,8 +22,8 @@ class AttachmentThumbnailTest extends ApiTestCase
     use Factories;
     use ResetDatabase;
 
-    /** @return array<string, mixed> first attachment of a message posted with one PNG */
-    private function postImageAttachment(): array
+    /** @return array<string, mixed> first attachment of a message posted with one image (a 1x1 PNG by default) */
+    private function postImageAttachment(?string $bytes = null, string $name = 'test.png', string $mime = 'image/png'): array
     {
         $user = UserFactory::createOne();
         $community = CommunityFactory::new()->withIdentifier('th-c')->create();
@@ -35,8 +35,8 @@ class AttachmentThumbnailTest extends ApiTestCase
         ChannelMemberFactory::createForUserAndChannel($user, $channel);
 
         $tmp = tempnam(sys_get_temp_dir(), 'th_test_');
-        file_put_contents((string) $tmp, (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', true));
-        $file = new UploadedFile((string) $tmp, 'test.png', 'image/png', null, true);
+        file_put_contents((string) $tmp, $bytes ?? (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', true));
+        $file = new UploadedFile((string) $tmp, $name, $mime, null, true);
 
         $upload = $this->uploadClient($user)->request('POST', '/api/v1/communities/th-c/channels/th-ch/attachments', ['extra' => ['files' => ['file' => $file]]]);
         self::assertResponseStatusCodeSame(201);
@@ -92,5 +92,54 @@ class AttachmentThumbnailTest extends ApiTestCase
         $tester->execute(['--from-id' => (string) ($attachmentId - 1)]);
         self::assertStringContainsString('Generated 1 thumbnails', $tester->getDisplay());
         self::assertFileExists($file);
+    }
+
+    public function testAnimatedGifGetsAStillThumbnailAndIsFlagged(): void
+    {
+        $attachment = $this->postImageAttachment(self::gif(3), 'anim.gif', 'image/gif');
+
+        self::assertTrue($attachment['animated']);
+        $thumbPath = (string) parse_url((string) $attachment['thumbnailUrl'], PHP_URL_PATH);
+        $file = self::getContainer()->getParameter('kernel.project_dir').'/var/media/attachment_thumb/'.basename($thumbPath);
+        $thumb = new \Imagick($file);
+        self::assertSame(1, $thumb->getNumberImages());
+    }
+
+    public function testStaticGifIsThumbnailedAndNotFlagged(): void
+    {
+        $attachment = $this->postImageAttachment(self::gif(1), 'still.gif', 'image/gif');
+
+        self::assertFalse($attachment['animated']);
+        self::assertNotNull($attachment['thumbnailUrl']);
+    }
+
+    public function testBackfillFlagsAndThumbnailsAnExistingGif(): void
+    {
+        $attachment = $this->postImageAttachment(self::gif(2), 'anim.gif', 'image/gif');
+        $id = (int) basename((string) $attachment['@id']);
+        $thumbPath = (string) parse_url((string) $attachment['thumbnailUrl'], PHP_URL_PATH);
+        unlink(self::getContainer()->getParameter('kernel.project_dir').'/var/media/attachment_thumb/'.basename($thumbPath));
+        $connection = self::getContainer()->get('doctrine.dbal.default_connection');
+        $connection->executeStatement('UPDATE media_object SET animated = NULL WHERE id = ?', [$id]);
+        self::getContainer()->get('doctrine.orm.entity_manager')->clear();
+
+        $service = self::getContainer()->get(MediaObjectServiceInterface::class);
+        self::assertSame(1, $service->generateMissingAttachmentThumbnails());
+
+        self::assertSame(1, (int) $connection->fetchOne('SELECT animated FROM media_object WHERE id = ?', [$id]));
+    }
+
+    private static function gif(int $frames): string
+    {
+        $animation = new \Imagick();
+        for ($i = 0; $i < $frames; ++$i) {
+            $frame = new \Imagick();
+            $frame->newImage(64, 48, 0 === $i % 2 ? 'red' : 'blue');
+            $frame->setImageFormat('gif');
+            $animation->addImage($frame);
+        }
+        $animation->setFormat('gif');
+
+        return $animation->getImagesBlob();
     }
 }

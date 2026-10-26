@@ -28,6 +28,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 #[AllowMockObjectsWithoutExpectations]
@@ -126,27 +127,104 @@ class MediaObjectServiceTest extends TestCase
         self::assertSame('attachment', $mediaObject->type);
     }
 
-    /** @return iterable<string, array{string}> */
-    public static function gifs(): iterable
+    public function testPrepareAttachmentThumbnailsOnlyTheFirstFrameOfAnAnimatedGif(): void
     {
-        yield 'looping animation' => ["GIF89a\x01\x00\x01\x00\x00\x00\x00!\xff\x0bNETSCAPE2.0\x03\x01\x00\x00\x00;"];
-        yield 'play-once animation without NETSCAPE2.0' => ["GIF89a\x01\x00\x01\x00\x00\x00\x00!\xf9\x04\x00\x0a\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x01\x00\x00!\xf9\x04\x00\x0a\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x01\x00\x00;"];
-        yield 'static' => ["GIF89a\x01\x00\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x01\x00\x00;"];
+        $dir = $this->mediaDirWith('pic.gif', self::gif(['red', 'blue', 'green']));
+        $service = $this->serviceWithMediaDir($dir);
+        $mediaObject = new MediaObject();
+        $mediaObject->filePath = 'pic.gif';
+
+        $source = null;
+        $this->filterManager->expects(self::once())->method('applyFilter')
+            ->with(self::isInstanceOf(Binary::class), 'attachment_thumb')
+            ->willReturnCallback(static function (Binary $binary) use (&$source): Binary {
+                $source = $binary;
+
+                return new Binary('thumb', 'image/gif', 'gif');
+            });
+        $this->filesystem->expects(self::never())->method('copy');
+        $this->filesystem->expects(self::once())->method('dumpFile')->with($dir.'/attachment_thumb/pic.gif', 'thumb');
+
+        $service->prepare($mediaObject, 'attachment');
+
+        self::assertInstanceOf(Binary::class, $source);
+        self::assertSame('image/gif', $source->getMimeType());
+        $decoded = new \Imagick();
+        $decoded->readImageBlob($source->getContent());
+        self::assertSame(1, $decoded->getNumberImages());
+        self::assertSame('red', self::dominantColour($decoded));
     }
 
-    #[DataProvider('gifs')]
-    public function testPrepareAttachmentNeverThumbnailsGifs(string $gif): void
+    public function testPrepareAttachmentThumbnailsAStaticGif(): void
     {
-        $dir = $this->mediaDirWith('pic.gif', $gif);
+        $dir = $this->mediaDirWith('still.gif', self::gif(['blue']));
+        $service = $this->serviceWithMediaDir($dir);
+        $mediaObject = new MediaObject();
+        $mediaObject->filePath = 'still.gif';
+
+        $this->filterManager->expects(self::once())->method('applyFilter')->willReturn(new Binary('thumb', 'image/gif', 'gif'));
+        $this->filesystem->expects(self::once())->method('dumpFile')->with($dir.'/attachment_thumb/still.gif', 'thumb');
+
+        $service->prepare($mediaObject, 'attachment');
+    }
+
+    public function testPrepareAvatarKeepsAnimatedGifsWhole(): void
+    {
+        $dir = $this->mediaDirWith('pic.gif', "GIF89a\x01\x00\x01\x00\x00\x00\x00!\xff\x0bNETSCAPE2.0\x03\x01\x00\x00\x00;");
         $service = $this->serviceWithMediaDir($dir);
         $mediaObject = new MediaObject();
         $mediaObject->filePath = 'pic.gif';
 
         $this->filterManager->expects(self::never())->method('applyFilter');
-        $this->filesystem->expects(self::never())->method('copy');
-        $this->filesystem->expects(self::never())->method('dumpFile');
+        $this->filesystem->expects(self::exactly(3))->method('copy');
 
-        $service->prepare($mediaObject, 'attachment');
+        $service->prepare($mediaObject, 'avatar');
+    }
+
+    /** @return iterable<string, array{string, string, ?bool}> */
+    public static function uploads(): iterable
+    {
+        yield 'animated gif' => ['pic.gif', self::gif(['red', 'blue']), true];
+        yield 'static gif' => ['still.gif', self::gif(['red']), false];
+        yield 'png' => ['a.png', (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', true), null];
+    }
+
+    #[DataProvider('uploads')]
+    public function testPopulateFileMetadataFlagsAnimatedGifs(string $name, string $bytes, ?bool $animated): void
+    {
+        $dir = $this->mediaDirWith($name, $bytes);
+        $mediaObject = new MediaObject();
+        $mediaObject->file = new UploadedFile($dir.'/'.$name, $name, null, null, true);
+
+        $this->service->populateFileMetadata($mediaObject);
+
+        self::assertSame($animated, $mediaObject->animated);
+    }
+
+    /** @param list<string> $colours */
+    private static function gif(array $colours): string
+    {
+        $animation = new \Imagick();
+        foreach ($colours as $colour) {
+            $frame = new \Imagick();
+            $frame->newImage(40, 30, $colour);
+            $frame->setImageFormat('gif');
+            $animation->addImage($frame);
+        }
+        $animation->setFormat('gif');
+
+        return $animation->getImagesBlob();
+    }
+
+    private static function dominantColour(\Imagick $image): string
+    {
+        $pixel = $image->getImagePixelColor(0, 0)->getColor();
+
+        return match (true) {
+            $pixel['r'] > 200 && $pixel['b'] < 50 => 'red',
+            $pixel['b'] > 200 && $pixel['r'] < 50 => 'blue',
+            default => 'other',
+        };
     }
 
     public function testPrepareAttachmentSurvivesThumbnailFailure(): void

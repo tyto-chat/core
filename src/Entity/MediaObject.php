@@ -288,6 +288,11 @@ class MediaObject
     public ?int $height = null;
 
     #[ApiProperty(writable: false)]
+    #[ORM\Column(nullable: true)]
+    #[Groups(['media_object:read', 'message:read'])]
+    public ?bool $animated = null;
+
+    #[ApiProperty(writable: false)]
     #[ORM\ManyToOne(targetEntity: Message::class, inversedBy: 'attachments')]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     public ?Message $message = null;
