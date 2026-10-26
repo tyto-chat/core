@@ -39,9 +39,10 @@ class UserBlockRepository extends ServiceEntityRepository
     {
         /** @var list<UserBlock> $rows */
         $rows = $this->createQueryBuilder('b')
-            ->addSelect('u', 'p')
+            ->addSelect('u', 'p', 'a')
             ->innerJoin('b.blocked', 'u')
             ->leftJoin('u.profile', 'p')
+            ->leftJoin('p.avatar', 'a')
             ->where('b.blocker = :blocker')
             ->setParameter('blocker', $blocker)
             ->orderBy('b.createdAt', 'DESC')

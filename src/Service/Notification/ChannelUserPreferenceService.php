@@ -128,7 +128,7 @@ class ChannelUserPreferenceService extends AbstractDoctrineService implements Ch
     }
 
     #[\Override]
-    public function filterRecipients(Channel $channel, array $candidateUserIds, string $category, ?int $actorId = null): array
+    public function filterRecipients(Channel $channel, array $candidateUserIds, string $category, ?int $actorId): array
     {
         if (null !== $actorId) {
             $candidateUserIds = $this->userBlockService->filterRecipientsNotBlocking($actorId, array_values($candidateUserIds));

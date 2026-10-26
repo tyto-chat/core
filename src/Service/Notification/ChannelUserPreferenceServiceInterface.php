@@ -32,5 +32,5 @@ interface ChannelUserPreferenceServiceInterface
      *
      * @return int[]
      */
-    public function filterRecipients(Channel $channel, array $candidateUserIds, string $category, ?int $actorId = null): array;
+    public function filterRecipients(Channel $channel, array $candidateUserIds, string $category, ?int $actorId): array;
 }
