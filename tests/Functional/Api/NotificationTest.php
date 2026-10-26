@@ -78,7 +78,7 @@ class NotificationTest extends ApiTestCase
     {
         $user = UserFactory::createOne();
         $community = CommunityFactory::createOne();
-        NotificationFactory::new()->forRecipient($user)->inCommunity($community)->createMany(2);
+        NotificationFactory::new()->forRecipient($user)->inCommunity($community)->many(2)->create();
 
         $response = $this->jsonClient($user)->request('GET', '/api/v1/notifications/unread-counts');
 
@@ -98,7 +98,7 @@ class NotificationTest extends ApiTestCase
     {
         $user = UserFactory::createOne();
         $community = CommunityFactory::new()->withIdentifier('mark-all-c')->create();
-        NotificationFactory::new()->forRecipient($user)->inCommunity($community)->createMany(3);
+        NotificationFactory::new()->forRecipient($user)->inCommunity($community)->many(3)->create();
 
         $this->jsonClient($user)->request('POST', '/api/v1/communities/mark-all-c/notifications/mark-all-read');
 

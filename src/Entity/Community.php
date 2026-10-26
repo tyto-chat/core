@@ -171,7 +171,8 @@ use Symfony\Component\Validator\Constraints as Assert;
         summary: 'Get my membership in a community',
         description: 'Returns the caller\'s own standing: real membership role (no global-admin bypass), '
             .'whether a membership row exists, and merged per-channel roles (direct plus group-derived). '
-            .'Private communities the caller may not view return `404` to hide their existence.',
+            .'Private communities the caller may not view return `404` to hide their existence; '
+            .'anonymous callers always get `401`, whether or not the community exists.',
     ),
 )]
 #[GetCollection(

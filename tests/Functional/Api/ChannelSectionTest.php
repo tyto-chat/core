@@ -23,7 +23,7 @@ class ChannelSectionTest extends ApiTestCase
         $em = static::getContainer()->get(EntityManagerInterface::class);
         $section = new ChannelSection();
         $section->setName($name);
-        $section->setCommunity($community);
+        $community->addChannelSection($section);
         $em->persist($section);
         $em->flush();
 

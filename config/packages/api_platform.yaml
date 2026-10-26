@@ -2,6 +2,8 @@ api_platform:
     title: tyto.chat API
     version: 1.0.0
     show_webby: false
+    enable_scalar: false
+    enable_head_request_optimization: true
     serializer:
         hydra_prefix: true
     defaults:
