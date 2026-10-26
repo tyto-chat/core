@@ -15,7 +15,7 @@ use App\Security\PermissionResolverInterface;
 
 final class CacheContextService implements CacheContextServiceInterface
 {
-    private const string ANON = 'v1:anon';
+    private const string ANON = 'v2:anon';
 
     public function __construct(
         private readonly CommunityRepository $communities,
@@ -58,6 +58,26 @@ final class CacheContextService implements CacheContextServiceInterface
         return $this->bucketForCommunity($user, $community);
     }
 
+    #[\Override]
+    public function communityIdFor(string $uri): ?int
+    {
+        $path = parse_url($uri, PHP_URL_PATH);
+        if (!is_string($path)) {
+            return null;
+        }
+        $path = rawurldecode($path);
+
+        if (1 === preg_match('#^/api/v\d+/messages/([0-9a-f\-]{36})(?:/thread)?$#', $path, $m)) {
+            return $this->messages->findOneBy(['id' => $m[1]])?->getChannel()?->getCommunity()?->getId();
+        }
+
+        if (1 === preg_match('#^/api/v\d+/communities/([^/]+)#', $path, $m)) {
+            return $this->communities->findOneBy(['identifier' => $m[1]])?->getId();
+        }
+
+        return null;
+    }
+
     private function bucketForMessage(User $user, string $uuid): string
     {
         $message = $this->messages->findOneBy(['id' => $uuid]);
@@ -86,7 +106,7 @@ final class CacheContextService implements CacheContextServiceInterface
             'D'.($conversation->getId() ?? 0),
         ]);
 
-        return 'v1:'.hash('sha256', $material);
+        return 'v2:'.hash('sha256', $material);
     }
 
     private function bucketForCommunity(User $user, Community $community): string
@@ -105,7 +125,7 @@ final class CacheContextService implements CacheContextServiceInterface
             return self::ANON;
         }
 
-        return sprintf('v1:C%d:standard', $community->getId());
+        return sprintf('v2:C%d:standard', $community->getId());
     }
 
     /**
@@ -135,6 +155,6 @@ final class CacheContextService implements CacheContextServiceInterface
             $serialize($groupRoles),
         ]);
 
-        return 'v1:'.hash('sha256', $material);
+        return 'v2:'.hash('sha256', $material);
     }
 }

@@ -116,7 +116,7 @@ get_resource() {
 }
 
 http_status_of() { grep -o 'HTTP_STATUS:[0-9]*' <<<"$1" | cut -d: -f2; }
-cache_status_of() { grep -i '^cache-status:' <<<"$1" | tr -d '\r'; }
+cache_status_of() { { grep -i '^cache-status:' <<<"$1" || true; } | tr -d '\r'; }
 cache_control_of() { grep -i '^cache-control:' <<<"$1" | tr -d '\r'; }
 
 # Predicates below are plain functions returning the natural grep exit
@@ -543,7 +543,7 @@ done
 # =========================================================================
 # T15: community emojis. Anon store/hit on a public community, purge on
 # upload, and the separate-variant proof: a member's FIRST GET must be a
-# miss, not a hit against the anon-bucket entry (v1:anon vs v1:C{id}:standard
+# miss, not a hit against the anon-bucket entry (v2:anon vs v2:C{id}:standard
 # are different Souin cache entries even for the same underlying data).
 # =========================================================================
 
@@ -826,6 +826,9 @@ done
 
 echo "== T21: community detail =="
 
+# Permission purges repeat after REPURGE_DELAY_MS (5s); let the ones from earlier steps land first.
+sleep 7
+
 DETAIL_PATH_T21="/api/v1/communities/$COMM1"
 
 r="$(get_resource "$M1_TOKEN" "$DETAIL_PATH_T21")"
@@ -885,6 +888,225 @@ for attempt in 1 2; do
   assert_cmd "T21 GET .../membership #$attempt carries no s-maxage" has_no_smaxage "$cc"
   assert_cmd "T21 GET .../membership #$attempt is never a cache hit" is_not_hit "$cs"
 done
+
+# =========================================================================
+# T22: PATs bypass the cache entirely (a HIT would skip the per-scope check),
+# and a PAT without messages:read is still refused on a URL others have cached.
+# T23: renaming an author purges cached pages that embed them.
+# =========================================================================
+
+echo "== T22/T23: PAT bypass + author purge =="
+
+admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":300,"httpCacheContextTtlSeconds":600}' >/dev/null
+
+issue_pat() {
+  api_json "$M1_TOKEN" POST /api/v1/me/api-keys "{\"name\":\"smoke-$RUN_ID-$2\",\"scopes\":$1}" | jq -r '.plainToken // empty'
+}
+
+PAT_OK="$(issue_pat '["messages:read","communities:read"]' ok)"
+PAT_NO="$(issue_pat '["profile:read"]' no)"
+[ -n "$PAT_OK" ] && [ -n "$PAT_NO" ] || { echo "cache-smoke.sh: PAT issuance failed" >&2; exit 1; }
+
+get_page "" "$COMM1" "$CHAN1" 1 >/dev/null
+r="$(get_page "" "$COMM1" "$CHAN1" 1)"
+assert_cmd "T22 anonymous page is cached (hit) before the PAT checks" is_hit "$(cache_status_of "$r")"
+
+r="$(get_page "$PAT_OK" "$COMM1" "$CHAN1" 1)"
+assert_eq "T22 PAT with messages:read gets the page" "200" "$(http_status_of "$r")"
+assert_cmd "T22 PAT response is never a cache hit" is_not_hit "$(cache_status_of "$r" || true)"
+assert_cmd "T22 PAT response carries no s-maxage" has_no_smaxage "$(cache_control_of "$r" || true)"
+
+r="$(get_page "$PAT_NO" "$COMM1" "$CHAN1" 1)"
+assert_eq "T22 PAT without messages:read is refused on a URL that is cached for others" "403" "$(http_status_of "$r")"
+
+M1_PROFILE_PATH="$(api_json "$M1_TOKEN" GET /api/v1/me | jq -r '.profile["@id"] // .profile // empty')"
+get_page "" "$COMM1" "$CHAN1" 1 >/dev/null
+r="$(get_page "" "$COMM1" "$CHAN1" 1)"
+assert_cmd "T23 page embedding member1 is cached before the rename" is_hit "$(cache_status_of "$r")"
+status="$(curl -s -o /dev/null -w '%{http_code}' -X PATCH "$BASE$M1_PROFILE_PATH" \
+  -H "Authorization: Bearer $M1_TOKEN" -H 'Content-Type: application/merge-patch+json' -d "{\"name\":\"Renamed $RUN_ID\"}")"
+assert_eq "T23 member1 renames themselves" "200" "$status"
+r="$(get_page "" "$COMM1" "$CHAN1" 1)"
+assert_cmd "T23 the cached page embedding the renamed author was purged" is_miss "$(cache_status_of "$r")"
+body_contains "Renamed $RUN_ID" && pass "T23 the fresh page carries the new name" || fail "T23 the fresh page carries the new name"
+
+# =========================================================================
+# T24: a cookie-only caller (BEARER cookie, no Authorization header) is
+# authenticated by lexik but would vary the cached permission hash on an empty
+# Authorization -- the same variant as anonymous callers. It must never seed
+# the anonymous variant.
+# =========================================================================
+
+echo "== T24: cookie-only caller cannot poison the anonymous hash =="
+
+COMM_T24="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t24-$RUN_ID\"}" | jq -r '.identifier // empty')"
+[ -n "$COMM_T24" ] || { echo "cache-smoke.sh: failed to create T24 community" >&2; exit 1; }
+CHAN_T24="$(create_channel "$COMM_T24")"
+[ -n "$CHAN_T24" ] || { echo "cache-smoke.sh: failed to create T24 channel" >&2; exit 1; }
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T24/channels/$CHAN_T24/messages" '{"text":"t24 seed"}' >/dev/null
+
+curl -s -o /dev/null -D- -H "Cookie: BEARER=$ADMIN_TOKEN" -H "$ACCEPT_HEADER" \
+  "$BASE/api/v1/communities/$COMM_T24/channels/$CHAN_T24/pages/1" >/dev/null
+r="$(get_page "" "$COMM_T24" "$CHAN_T24" 1)"
+assert_cmd "T24 anonymous page after an admin cookie-only request is a miss (own bucket, not the admin's)" is_miss "$(cache_status_of "$r")"
+
+# =========================================================================
+# T25: each cache category switches off on its own. Disabling the page TTL
+# while the presence TTL stays on must stop serving already-warmed page entries.
+# =========================================================================
+
+echo "== T25: page cache off while presence stays on =="
+
+status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":60,"httpCachePresenceTtlSeconds":15}')"
+[ "$status" = "200" ] || { echo "cache-smoke.sh: failed to enable both TTLs for T25" >&2; exit 1; }
+
+COMM_T25="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t25-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+[ -n "$COMM_T25" ] || { echo "cache-smoke.sh: failed to create community for T25" >&2; exit 1; }
+CHAN_T25="$(create_channel "$COMM_T25")"
+[ -n "$CHAN_T25" ] || { echo "cache-smoke.sh: failed to create channel for T25" >&2; exit 1; }
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T25/channels/$CHAN_T25/messages" '{"text":"t25 seed"}' >/dev/null
+
+get_page "" "$COMM_T25" "$CHAN_T25" 1 >/dev/null
+r="$(get_page "" "$COMM_T25" "$CHAN_T25" 1)"
+assert_cmd "T25 warmed page is a hit while both caches are on" is_hit "$(cache_status_of "$r")"
+
+status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":0}')"
+[ "$status" = "200" ] || { echo "cache-smoke.sh: failed to disable httpCachePageTtlSeconds for T25" >&2; exit 1; }
+
+r="$(get_page "" "$COMM_T25" "$CHAN_T25" 1)"
+assert_cmd "T25 warmed page is no longer served from cache once the page TTL is 0" is_not_hit "$(cache_status_of "$r" || true)"
+
+PRESENCE_PATH_T25="/api/v1/communities/$COMM_T25/presence/summary"
+get_resource "" "$PRESENCE_PATH_T25" >/dev/null
+r="$(get_resource "" "$PRESENCE_PATH_T25")"
+assert_cmd "T25 presence summary is still cached while only the page TTL is 0" is_hit "$(cache_status_of "$r")"
+
+# =========================================================================
+# T26: the worker/scheduler containers purge through the app's internal :8888
+# listener. Needs a command that runs inside a non-app container of the stack,
+# e.g. WORKER_EXEC="docker compose -p tytosmoke exec -T worker". Skipped when unset.
+# =========================================================================
+
+echo "== T26: purge from the worker container =="
+
+if [ -z "${WORKER_EXEC:-}" ]; then
+  echo "SKIP: T26 (set WORKER_EXEC to run a command inside the worker container)"
+else
+  status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":60}')"
+  [ "$status" = "200" ] || { echo "cache-smoke.sh: failed to enable httpCachePageTtlSeconds for T26" >&2; exit 1; }
+
+  COMM_T26="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t26-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+  [ -n "$COMM_T26" ] || { echo "cache-smoke.sh: failed to create community for T26" >&2; exit 1; }
+  CHAN_T26="$(create_channel "$COMM_T26")"
+  [ -n "$CHAN_T26" ] || { echo "cache-smoke.sh: failed to create channel for T26" >&2; exit 1; }
+  api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T26/channels/$CHAN_T26/messages" '{"text":"t26 seed"}' >/dev/null
+
+  get_page "" "$COMM_T26" "$CHAN_T26" 1 >/dev/null
+  r="$(get_page "" "$COMM_T26" "$CHAN_T26" 1)"
+  assert_cmd "T26 anonymous page is a hit before the worker-side purge" is_hit "$(cache_status_of "$r")"
+
+  PAGE_KEY="/api/v1/communities/$COMM_T26/channels/$CHAN_T26/pages/1"
+  st="$($WORKER_EXEC curl -s -o /dev/null -w '%{http_code}' -X PURGE -H "Surrogate-Key: $PAGE_KEY" http://app:8888/souin-api/souin || true)"
+  assert_cmd "T26 PURGE from the worker container succeeds (HTTP $st)" [ "${st:0:1}" = "2" ]
+
+  r="$(get_page "" "$COMM_T26" "$CHAN_T26" 1)"
+  assert_cmd "T26 the page is a miss after the worker-side purge" is_miss "$(cache_status_of "$r")"
+
+  st="$($WORKER_EXEC curl -s -o /dev/null -w '%{http_code}' http://app:8888/config/ || true)"
+  assert_cmd "T26 the admin config API is not reachable through :8888 (HTTP $st)" [ "$st" != "200" ]
+  st="$($WORKER_EXEC curl -s -o /dev/null -w '%{http_code}' -X PURGE http://app:8888/config/ || true)"
+  assert_cmd "T26 PURGE is proxied only for the Souin path (HTTP $st)" [ "$st" != "200" ]
+fi
+
+# =========================================================================
+# T27: making a channel private purges every cached page of its community, so
+# the anonymous (and standard) buckets stop serving the now-private content.
+# =========================================================================
+
+echo "== T27: privacy change purges cached pages =="
+
+status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":300}')"
+[ "$status" = "200" ] || { echo "cache-smoke.sh: failed to enable httpCachePageTtlSeconds for T27" >&2; exit 1; }
+
+COMM_T27="$(api_json "$ADMIN_TOKEN" POST /api/v1/communities "{\"name\":\"cache-t27-$RUN_ID\",\"isPrivate\":false}" | jq -r '.identifier // empty')"
+[ -n "$COMM_T27" ] || { echo "cache-smoke.sh: failed to create community for T27" >&2; exit 1; }
+CHAN_T27="$(create_channel "$COMM_T27")"
+[ -n "$CHAN_T27" ] || { echo "cache-smoke.sh: failed to create channel for T27" >&2; exit 1; }
+api_json "$ADMIN_TOKEN" POST "/api/v1/communities/$COMM_T27/channels/$CHAN_T27/messages" '{"text":"t27 secret soon"}' >/dev/null
+
+get_page "" "$COMM_T27" "$CHAN_T27" 1 >/dev/null
+r="$(get_page "" "$COMM_T27" "$CHAN_T27" 1)"
+assert_cmd "T27 anonymous page is a hit while the channel is public" is_hit "$(cache_status_of "$r")"
+
+status="$(curl -s -o /dev/null -w '%{http_code}' -X PATCH "$BASE/api/v1/communities/$COMM_T27/channels/$CHAN_T27" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/merge-patch+json' -d '{"isPrivate":true}')"
+assert_eq "T27 making the channel private succeeds" "200" "$status"
+
+r="$(get_page "" "$COMM_T27" "$CHAN_T27" 1)"
+assert_cmd "T27 anonymous page is no longer served from cache once the channel is private" is_not_hit "$(cache_status_of "$r")"
+st="$(grep -o 'HTTP_STATUS:[0-9]*' <<<"$r" | cut -d: -f2)"
+assert_cmd "T27 anonymous caller is refused the now-private page (HTTP $st)" [ "${st:0:1}" = "4" ]
+
+r="$(get_page "$ADMIN_TOKEN" "$COMM_T27" "$CHAN_T27" 1)"
+assert_cmd "T27 pages of the community are not stored during the quarantine window" has_no_smaxage "$(cache_control_of "$r")"
+
+# =========================================================================
+# T28: tyto:http-cache:purge-all (also run on every app boot) empties the edge
+# cache. Needs APP_EXEC.
+# =========================================================================
+
+echo "== T28: purge-all =="
+
+if [ -z "${APP_EXEC:-}" ]; then
+  echo "SKIP: T28 (set APP_EXEC to run a command inside the app container)"
+else
+  status="$(admin_patch_config "$ADMIN_TOKEN" '{"httpCachePageTtlSeconds":300}')"
+  [ "$status" = "200" ] || { echo "cache-smoke.sh: failed to enable httpCachePageTtlSeconds for T28" >&2; exit 1; }
+
+  get_page "" "$COMM_T26" "$CHAN_T26" 1 >/dev/null
+  r="$(get_page "" "$COMM_T26" "$CHAN_T26" 1)"
+  assert_cmd "T28 page is a hit before purge-all" is_hit "$(cache_status_of "$r")"
+
+  out="$($APP_EXEC php bin/console tyto:http-cache:purge-all 2>&1 || true)"
+  assert_cmd "T28 purge-all reports the purged keys ($out)" grep -q 'purged [1-9]' <<<"$out"
+
+  r="$(get_page "" "$COMM_T26" "$CHAN_T26" 1)"
+  assert_cmd "T28 page is no longer served from cache after purge-all" is_not_hit "$(cache_status_of "$r")"
+  r="$(get_page "" "$COMM_T26" "$CHAN_T26" 1)"
+  assert_cmd "T28 the cache refills right after purge-all" is_hit "$(cache_status_of "$r")"
+fi
+
+# =========================================================================
+# T29: every permission purge is repeated after a short delay, so a permission
+# hash stored by a request that was in flight during the first purge is dropped
+# too. The hash cache is not visible from outside; check that the delayed
+# message is queued and that the worker consumes it once the delay has passed.
+# Needs APP_EXEC, a command prefix that runs inside the app container (its
+# console has the database settings), e.g. "docker compose -p tytosmoke exec -T app".
+# =========================================================================
+
+echo "== T29: delayed second purge =="
+
+if [ -z "${APP_EXEC:-}" ]; then
+  echo "SKIP: T29 (set APP_EXEC to run a command inside the app container)"
+else
+  pending_repurges() {
+    $APP_EXEC php bin/console dbal:run-sql --no-ansi \
+      "SELECT COUNT(*) AS n FROM messenger_messages WHERE body LIKE '%RepurgeHttpCacheTagMessage%' AND delivered_at IS NULL" 2>/dev/null \
+      | grep -oE '[0-9]+' | tail -1 || true
+  }
+
+  status="$(curl -s -o /dev/null -w '%{http_code}' -X PATCH "$BASE/api/v1/communities/$COMM1/members/$M2_MEMBER_ID" \
+    -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/merge-patch+json' -d '{"role":"member"}')"
+  assert_eq "T29 demoting member2 succeeds" "200" "$status"
+
+  n="$(pending_repurges)"
+  assert_cmd "T29 the role change queued a delayed repurge (pending: ${n:-?})" [ "${n:-0}" -ge 1 ]
+
+  sleep 10
+  n="$(pending_repurges)"
+  assert_cmd "T29 the worker consumed the repurge after the delay (pending: ${n:-?})" [ "${n:-1}" -eq 0 ]
+fi
 
 echo "=============================="
 if [ "$FAILED" -eq 0 ]; then

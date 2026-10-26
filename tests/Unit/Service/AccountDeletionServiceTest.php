@@ -15,6 +15,7 @@ use App\Service\ApiKey\ApiKeyServiceInterface;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Gdpr\AccountDeletionService;
 use App\Service\Gdpr\AccountDeletionServiceInterface;
+use App\Service\HttpCache\CachePurgerInterface;
 use App\Service\MediaObject\MediaObjectServiceInterface;
 use App\Service\Notification\PushSubscriptionServiceInterface;
 use App\Service\Security\SessionRevokerInterface;
@@ -89,6 +90,16 @@ class AccountDeletionServiceTest extends TestCase
 
         self::assertSame($user, $result);
         self::assertTrue($user->isPendingDeletion());
+    }
+
+    public function testRequestDeletionPurgesTheUsersCachedContext(): void
+    {
+        $user = $this->makeUser();
+        $purger = $this->createMock(CachePurgerInterface::class);
+        $purger->expects(self::once())->method('purgeUserContext')->with((int) $user->getId());
+        $this->service->setCachePurger($purger);
+
+        $this->service->requestDeletion();
     }
 
     public function testRequestDeletionRejectsWhenAlreadyPending(): void
@@ -190,6 +201,33 @@ class AccountDeletionServiceTest extends TestCase
         $this->mediaObjectService->expects(self::once())->method('delete')->with($avatar);
 
         $this->service->purgeExpired();
+    }
+
+    public function testPurgeExpiredPurgesCachedContextAndAuthorPagesAfterTheFlush(): void
+    {
+        $user = new User();
+        $user->setEmail('alice@example.com');
+        $user->setPassword('hash');
+        $user->setDeletionRequestedAt(new \DateTimeImmutable('-8 days'));
+        (new \ReflectionClass(User::class))->getProperty('id')->setValue($user, 99);
+        $this->userRepository->method('findExpiredForPurge')->willReturn([$user]);
+
+        $calls = [];
+        $this->entityManager->method('flush')->willReturnCallback(static function () use (&$calls): void {
+            $calls[] = 'flush';
+        });
+        $purger = $this->createMock(CachePurgerInterface::class);
+        $purger->method('purgeUserContext')->willReturnCallback(static function (int $id) use (&$calls): void {
+            $calls[] = 'context:'.$id;
+        });
+        $purger->method('purgeErasedAuthor')->willReturnCallback(static function (int $id) use (&$calls): void {
+            $calls[] = 'author:'.$id;
+        });
+        $this->service->setCachePurger($purger);
+
+        $this->service->purgeExpired();
+
+        self::assertSame(['flush', 'context:99', 'author:99'], $calls);
     }
 
     public function testPurgeExpiredNoOpWhenEmpty(): void

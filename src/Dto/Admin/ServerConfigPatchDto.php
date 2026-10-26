@@ -319,6 +319,10 @@ class ServerConfigPatchDto
     #[Groups(['admin_server_config:write'])]
     public int $httpCachePresenceTtlSeconds;
 
+    #[Assert\Range(min: 0, max: 86400)]
+    #[Groups(['admin_server_config:write'])]
+    public int $httpCacheContextTtlSeconds;
+
     #[Assert\Range(min: 60, max: 31536000)]
     #[Groups(['admin_server_config:write'])]
     public int $communityEmojiTokenTtlSeconds;

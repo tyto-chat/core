@@ -13,6 +13,14 @@
 	{$CADDY_GLOBAL_OPTIONS}
 }
 
+(edge_cache) {
+	forward_auth localhost:8888 {
+		uri /api/http-cache/context-hash
+		copy_headers X-User-Context-Hash
+	}
+	cache
+}
+
 # The extra :8890 addresses exist for Symfony's internal Mercure publishes
 # (MERCURE_URL): once CADDY_SITE_ADDRESS is a real domain, a request with
 # Host: localhost or Host: app matches no site and Caddy drops it with an
@@ -62,13 +70,31 @@
 	# The `(/(...))?` group is optional so a bare /api/communities/{c} (community
 	# detail, task-3) matches too, without swallowing subresources such as
 	# /membership, /invites, /moderation, /unread-channels, or a bare /channels/{ch}.
-	@cacheable path_regexp ^/api/v[0-9]+/(communities/[^/]+(/(channels/[^/]+/(pages/[0-9]+|messages/current|pinned-messages)|emojis|presence/summary))?|messages/[0-9a-f-]{36}(/thread)?)$
-	route @cacheable {
-		forward_auth localhost:8888 {
-			uri /api/http-cache/context-hash
-			copy_headers X-User-Context-Hash
+	# The flag files in /app/var/http-cache
+	# are written by tyto:http-cache:sync / the server-config save: http-cache.on while the page TTL is > 0,
+	# http-cache-presence.on while the presence TTL is > 0. Each category is switched off independently.
+	# PAT callers bypass the cache: a HIT would skip the app's per-scope check.
+	@cacheablePages {
+		path_regexp ^/api/v[0-9]+/(communities/[^/]+(/(channels/[^/]+/(pages/[0-9]+|messages/current|pinned-messages)|emojis))?|messages/[0-9a-f-]{36}(/thread)?)$
+		file {
+			root /app/var/http-cache
+			try_files http-cache.on
 		}
-		cache
+		not header Authorization "Bearer pat_*"
+	}
+	@cacheablePresence {
+		path_regexp ^/api/v[0-9]+/communities/[^/]+/presence/summary$
+		file {
+			root /app/var/http-cache
+			try_files http-cache-presence.on
+		}
+		not header Authorization "Bearer pat_*"
+	}
+	route @cacheablePages {
+		import edge_cache
+	}
+	route @cacheablePresence {
+		import edge_cache
 	}
 
 	root * /app/public
@@ -81,10 +107,31 @@
 import sites.d/*.caddyfile
 
 # Internal-only listener for the forward_auth hash sub-request above. Never
-# published by compose. (Souin's purge/admin API is separate: it rides
-# Caddy's built-in Admin API on loopback :2019, not this site block — see
-# CACHE_PURGE_URL in compose.yaml.)
+# published by compose. Souin's purge API rides Caddy's Admin API on loopback
+# :2019; the one PURGE route below proxies only that call so the worker and
+# scheduler containers (CACHE_PURGE_URL=http://app:8888) can invalidate too.
 :8888 {
 	root * /app/public
-	php_server
+	@souinPurge {
+		method PURGE
+		path /souin-api/souin
+	}
+	handle @souinPurge {
+		reverse_proxy localhost:2019 {
+			header_up Host localhost:2019
+		}
+	}
+	handle {
+		@noBearerCookie not header_regexp Cookie (?:^|;\s*)BEARER=
+		route @noBearerCookie {
+			cache {
+				key {
+					headers Authorization X-Forwarded-Uri
+					hash
+					hide
+				}
+			}
+		}
+		php_server
+	}
 }

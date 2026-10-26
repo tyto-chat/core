@@ -307,6 +307,24 @@ class CommunityServiceTest extends TestCase
         $this->service->leave($community);
     }
 
+    public function testLeaveQuarantinesAndPurgesTheLeaversPermissionHash(): void
+    {
+        $user = $this->createMock(User::class);
+        $user->method('getId')->willReturn(9);
+        $member = $this->createMock(CommunityMember::class);
+        $member->method('getRole')->willReturn(CommunityRole::Member);
+        $this->security->method('getUser')->willReturn($user);
+        $this->security->method('isGranted')->willReturnMap([
+            [UserRole::User->value, null, true],
+            [UserRole::Admin->value, null, false],
+        ]);
+        $this->communityMembershipService->method('findOneByUserAndCommunity')->willReturn($member);
+
+        $this->cachePurger->expects(self::once())->method('purgeUserContext')->with(9);
+
+        $this->service->leave($this->community(identifier: 'c1'));
+    }
+
     public function testLeaveDispatchesVoiceDisconnect(): void
     {
         $user = $this->createMock(User::class);
@@ -432,6 +450,8 @@ class CommunityServiceTest extends TestCase
         $this->security->method('isGranted')->willReturn(true);
 
         $this->cachePurger->expects(self::once())->method('purgeCommunityDetail')->with('doomed-community');
+        $this->cachePurger->expects(self::once())->method('purgeCommunityContext')->with($community->getId());
+        $this->cachePurger->expects(self::once())->method('purgeCommunityPages')->with($community->getId());
 
         $this->service->delete($community);
     }
@@ -509,11 +529,38 @@ class CommunityServiceTest extends TestCase
     public function testUpdatePrivacyFlipFlagsGrants(): void
     {
         $community = new Community()->setPrivate(false);
+        new \ReflectionProperty(Community::class, 'id')->setValue($community, 9);
         $dto = new UpdateCommunityDto();
         $dto->isPrivate = true;
         $this->security->method('isGranted')->willReturn(true);
 
         $this->realtimePublisher->expects(self::once())->method('publishCommunityStructureChanged')->with($community, true);
+
+        $this->service->update($community, $dto);
+    }
+
+    public function testPrivacyFlipPurgesEveryCachedPageOfTheCommunity(): void
+    {
+        $community = new Community()->setPrivate(false);
+        new \ReflectionProperty(Community::class, 'id')->setValue($community, 9);
+        $dto = new UpdateCommunityDto();
+        $dto->isPrivate = true;
+        $this->security->method('isGranted')->willReturn(true);
+
+        $this->cachePurger->expects(self::once())->method('purgeCommunityPages')->with(9);
+
+        $this->service->update($community, $dto);
+    }
+
+    public function testRenameKeepsCachedCommunityPages(): void
+    {
+        $community = new Community()->setPrivate(false);
+        new \ReflectionProperty(Community::class, 'id')->setValue($community, 9);
+        $dto = new UpdateCommunityDto();
+        $dto->name = 'Renamed';
+        $this->security->method('isGranted')->willReturn(true);
+
+        $this->cachePurger->expects(self::never())->method('purgeCommunityPages');
 
         $this->service->update($community, $dto);
     }

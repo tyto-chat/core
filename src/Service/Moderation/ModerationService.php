@@ -27,6 +27,7 @@ use App\Service\AbstractDoctrineService;
 use App\Service\Channel\ChannelMembershipServiceInterface;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Community\CommunityServiceInterface;
+use App\Service\HttpCache\PurgesHttpCacheTrait;
 use App\Service\Notification\NotificationServiceInterface;
 use App\Service\Realtime\StructureRealtimePublisherInterface;
 use App\Service\Webhook\WebhookEmitterInterface;
@@ -35,6 +36,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 class ModerationService extends AbstractDoctrineService implements ModerationServiceInterface
 {
+    use PurgesHttpCacheTrait;
+
     public function __construct(
         private readonly SecurityContext $security,
         private readonly CommunityMembershipServiceInterface $communityMembership,
@@ -150,9 +153,10 @@ class ModerationService extends AbstractDoctrineService implements ModerationSer
         $this->liftActiveTimeoutsInternal($community, $target, $actor);
         $this->flush();
 
+        // Publishing purges the cached permission hash; it must not wait behind side effects that can throw.
+        $this->realtimePublisher->publishUserEvent((int) $target->getId(), 'server.banned');
         $this->dispatchNotification($action);
         $this->emitWebhookEvent($action);
-        $this->realtimePublisher->publishUserEvent((int) $target->getId(), 'server.banned');
         $this->messageBus->dispatch(new DisconnectVoiceParticipantMessage((int) $target->getId()));
 
         return $action;
@@ -168,6 +172,7 @@ class ModerationService extends AbstractDoctrineService implements ModerationSer
 
         $this->persist($action);
         $this->flush();
+        $this->cachePurger?->purgeUserContext((int) $action->getTargetUser()->getId());
 
         $this->notifyLifted($action);
 

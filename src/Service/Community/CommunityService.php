@@ -347,6 +347,7 @@ class CommunityService extends AbstractDoctrineService implements CommunityServi
         $this->removeAccessResidue($currentUser, $community);
         $this->communityPinService->unpinFor($currentUser, $community);
         $this->realtimePublisher->publishCommunityStructureChanged($community);
+        $this->cachePurger->purgeUserContext((int) $currentUser->getId());
         $this->messageBus->dispatch(new DisconnectVoiceParticipantMessage(
             (int) $currentUser->getId(),
             communityIdentifier: $community->getIdentifier(),
@@ -413,6 +414,7 @@ class CommunityService extends AbstractDoctrineService implements CommunityServi
         $this->communityPinService->pinFor($user, $community);
 
         $this->welcomeMessageService->sendIfConfigured($community, $user);
+        $this->realtimePublisher->publishCommunityStructureChanged($community);
 
         return $saved;
     }
@@ -445,6 +447,9 @@ class CommunityService extends AbstractDoctrineService implements CommunityServi
         $wasPrivate = $community->isPrivate();
         $saved = $this->save($community, $updateCommunityDto);
         $this->realtimePublisher->publishCommunityStructureChanged($saved, grantsChanged: $saved->isPrivate() !== $wasPrivate);
+        if ($saved->isPrivate() !== $wasPrivate) {
+            $this->cachePurger->purgeCommunityPages($saved->getId());
+        }
 
         return $saved;
     }
@@ -458,6 +463,7 @@ class CommunityService extends AbstractDoctrineService implements CommunityServi
         $this->security->throwAccessDeniedUnlessAdmin('Only admins can delete communities.');
 
         $identifier = (string) $community->getIdentifier();
+        $communityId = $community->getId();
         $channelIds = array_map(
             static fn ($channel): int => (int) $channel->getId(),
             $community->getChannels()->toArray(),
@@ -469,6 +475,8 @@ class CommunityService extends AbstractDoctrineService implements CommunityServi
         }
         // No structure-publish on delete — without a direct purge the cached detail outlives the entity.
         $this->cachePurger->purgeCommunityDetail($identifier);
+        $this->cachePurger->purgeCommunityContext($communityId);
+        $this->cachePurger->purgeCommunityPages($communityId);
     }
 
     /**

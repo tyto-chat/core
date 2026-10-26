@@ -5,8 +5,14 @@ declare(strict_types=1);
 namespace App\EventListener;
 
 use ApiPlatform\Metadata\HttpOperation;
+use App\Security\Authentication\ApiKeyAuthenticator;
+use App\Service\HttpCache\CacheContextServiceInterface;
+use App\Service\HttpCache\CacheTagCollector;
+use App\Service\HttpCache\HttpCacheQuarantineInterface;
+use App\Service\HttpCache\HttpCacheSwitchInterface;
 use App\Service\Settings\SettingsServiceInterface;
 use App\Settings\Settings;
+use App\Utils\CacheTags;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
@@ -14,8 +20,13 @@ use Symfony\Component\HttpKernel\KernelEvents;
 #[AsEventListener(event: KernelEvents::RESPONSE)]
 final class HttpCacheHeadersListener
 {
-    public function __construct(private readonly SettingsServiceInterface $settings)
-    {
+    public function __construct(
+        private readonly SettingsServiceInterface $settings,
+        private readonly HttpCacheSwitchInterface $httpCacheSwitch,
+        private readonly CacheTagCollector $cacheTags,
+        private readonly CacheContextServiceInterface $cacheContext,
+        private readonly HttpCacheQuarantineInterface $quarantine,
+    ) {
     }
 
     public function __invoke(ResponseEvent $event): void
@@ -37,8 +48,22 @@ final class HttpCacheHeadersListener
             return;
         }
 
+        if (!('presence' === $flag ? $this->httpCacheSwitch->isPresenceOn() : $this->httpCacheSwitch->isOn()) || $event->getRequest()->attributes->has(ApiKeyAuthenticator::REQUEST_SCOPES_ATTRIBUTE)) {
+            $response->headers->set('Cache-Control', 'no-store, private');
+
+            return;
+        }
+
         if (null !== $event->getRequest()->getQueryString()) {
             // Souin's auto Surrogate-Key is the bare path — query-string variants are purge-invisible and must never be stored.
+            $response->headers->set('Cache-Control', 'no-store, private');
+
+            return;
+        }
+
+        $communityId = $this->cacheContext->communityIdFor($event->getRequest()->getPathInfo());
+        if (null !== $communityId && $this->quarantine->isCommunityQuarantined($communityId)) {
+            // A response started before a permission change could otherwise be stored after its purge.
             $response->headers->set('Cache-Control', 'no-store, private');
 
             return;
@@ -63,5 +88,14 @@ final class HttpCacheHeadersListener
         $response->setPublic();
         $response->headers->addCacheControlDirective('s-maxage', (string) $ttl);
         $response->setVary(['X-User-Context-Hash'], false);
+
+        $tags = $this->cacheTags->all();
+        if (null !== $communityId) {
+            $tags[] = CacheTags::communityPages($communityId);
+        }
+        if ([] !== $tags) {
+            // An explicit Surrogate-Key replaces Souin's automatic path key, so the path must be listed or path purges stop matching.
+            $response->headers->set('Surrogate-Key', implode(', ', [$event->getRequest()->getPathInfo(), ...$tags]));
+        }
     }
 }

@@ -24,6 +24,7 @@ use App\Repository\MessagePageRepository;
 use App\Security\SecurityContext;
 use App\Security\Voter\ChannelVoter;
 use App\Service\AbstractDoctrineService;
+use App\Service\HttpCache\PurgesHttpCacheTrait;
 use App\Service\MediaObject\MediaObjectServiceInterface;
 use App\Service\Message\MessageServiceInterface;
 use App\Service\Realtime\StructureRealtimePublisherInterface;
@@ -37,6 +38,8 @@ use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 class ChannelService extends AbstractDoctrineService implements ChannelServiceInterface
 {
+    use PurgesHttpCacheTrait;
+
     public function __construct(
         private readonly SecurityContext $security,
         private readonly ChannelRepository $channelRepository,
@@ -99,6 +102,9 @@ class ChannelService extends AbstractDoctrineService implements ChannelServiceIn
         $community = $updated->getCommunity();
         if (null !== $community) {
             $this->realtimePublisher->publishCommunityStructureChanged($community, grantsChanged: $updated->isPrivate() !== $wasPrivate);
+            if ($updated->isPrivate() !== $wasPrivate) {
+                $this->cachePurger?->purgeCommunityPages($community->getId());
+            }
         }
 
         return $updated;
@@ -174,6 +180,7 @@ class ChannelService extends AbstractDoctrineService implements ChannelServiceIn
         $this->searchService->removeChannelDocuments($channelId);
         if (null !== $community) {
             $this->realtimePublisher->publishCommunityStructureChanged($community);
+            $this->cachePurger?->purgeCommunityPages($community->getId());
         }
     }
 

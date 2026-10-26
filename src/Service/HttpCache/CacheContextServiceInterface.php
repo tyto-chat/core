@@ -9,4 +9,6 @@ use App\Entity\User;
 interface CacheContextServiceInterface
 {
     public function bucketFor(?User $user, string $uri): string;
+
+    public function communityIdFor(string $uri): ?int;
 }

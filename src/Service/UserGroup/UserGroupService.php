@@ -33,7 +33,7 @@ use App\Service\AbstractDoctrineService;
 use App\Service\Channel\ChannelMembershipServiceInterface;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Notification\NotificationServiceInterface;
-use App\Service\Realtime\RealtimePublisherInterface;
+use App\Service\Realtime\StructureRealtimePublisherInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 class UserGroupService extends AbstractDoctrineService implements UserGroupServiceInterface
@@ -45,7 +45,7 @@ class UserGroupService extends AbstractDoctrineService implements UserGroupServi
         private readonly UserGroupMemberRepository $userGroupMemberRepository,
         private readonly GroupChannelPermissionRepository $groupChannelPermissionRepository,
         private readonly NotificationServiceInterface $notificationService,
-        private readonly RealtimePublisherInterface $realtimePublisher,
+        private readonly StructureRealtimePublisherInterface $realtimePublisher,
         private readonly ChannelMembershipServiceInterface $channelMembershipService,
     ) {
     }

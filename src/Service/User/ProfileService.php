@@ -14,9 +14,12 @@ use App\Security\SecurityContext;
 use App\Security\Voter\MediaObjectVoter;
 use App\Security\Voter\ProfileVoter;
 use App\Service\AbstractDoctrineService;
+use App\Service\HttpCache\PurgesHttpCacheTrait;
 
 class ProfileService extends AbstractDoctrineService implements ProfileServiceInterface
 {
+    use PurgesHttpCacheTrait;
+
     public function __construct(
         private readonly SecurityContext $security,
         private readonly ProfileRepository $profileRepository,
@@ -51,7 +54,10 @@ class ProfileService extends AbstractDoctrineService implements ProfileServiceIn
             }
         }
 
-        return $this->save($profile, $updateProfileDto);
+        $saved = $this->save($profile, $updateProfileDto);
+        $this->cachePurger?->purgeAuthor((int) $profile->getUser()?->getId());
+
+        return $saved;
     }
 
     /**

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\HttpCache;
 
+use App\Async\RepurgeHttpCacheTagMessage;
+use App\Exception\HttpCache\HttpCachePurgeFailedException;
+use App\Service\HttpCache\HttpCacheQuarantineInterface;
 use App\Service\HttpCache\SouinCachePurger;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -11,6 +14,9 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
 
 #[AllowMockObjectsWithoutExpectations]
 class SouinCachePurgerTest extends TestCase
@@ -55,6 +61,180 @@ class SouinCachePurgerTest extends TestCase
         self::assertSame('PURGE', $capturedMethod);
         self::assertSame('http://app:8888/souin-api/souin', $capturedUrl);
         self::assertContains('Surrogate-Key: /api/v1/communities/comm/channels/chan/pages/7', $capturedOptions['headers'] ?? []);
+    }
+
+    /** @return iterable<string, array{string, int, string}> */
+    public static function tagPurges(): iterable
+    {
+        yield 'user context' => ['purgeUserContext', 12, 'ctx-u12'];
+        yield 'community context' => ['purgeCommunityContext', 5, 'ctx-c5'];
+        yield 'author' => ['purgeAuthor', 12, 'author-12'];
+        yield 'community pages' => ['purgeCommunityPages', 5, 'pages-k5'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('tagPurges')]
+    public function testTagPurgesSendOneUnversionedSurrogateKey(string $method, int $id, string $tag): void
+    {
+        $requests = [];
+        $httpClient = new MockHttpClient(function (string $m, string $url, array $options) use (&$requests): MockResponse {
+            $requests[] = $options['headers'] ?? [];
+
+            return new MockResponse('', ['http_code' => 200]);
+        });
+
+        $purger = new SouinCachePurger($httpClient, 'http://app:8888', $this->logger);
+        match ($method) {
+            'purgeUserContext' => $purger->purgeUserContext($id),
+            'purgeCommunityContext' => $purger->purgeCommunityContext($id),
+            'purgeCommunityPages' => $purger->purgeCommunityPages($id),
+            default => $purger->purgeAuthor($id),
+        };
+
+        self::assertCount(1, $requests);
+        self::assertContains('Surrogate-Key: '.$tag, $requests[0]);
+    }
+
+    /** @return list<Envelope> */
+    private function dispatchedBy(callable $purge, ?\Throwable $failure = null): array
+    {
+        $envelopes = [];
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->method('dispatch')->willReturnCallback(static function (object $message, array $stamps) use (&$envelopes, $failure): Envelope {
+            if (null !== $failure) {
+                throw $failure;
+            }
+            $envelope = new Envelope($message, $stamps);
+            $envelopes[] = $envelope;
+
+            return $envelope;
+        });
+        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 200]));
+        $purge(new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $bus));
+
+        return $envelopes;
+    }
+
+    public function testPermissionPurgeSchedulesADelayedRepurgeOfTheSameTag(): void
+    {
+        $envelopes = $this->dispatchedBy(static fn (SouinCachePurger $p) => $p->purgeUserContext(4));
+
+        self::assertCount(1, $envelopes);
+        $message = $envelopes[0]->getMessage();
+        self::assertInstanceOf(RepurgeHttpCacheTagMessage::class, $message);
+        self::assertSame('ctx-u4', $message->tag);
+        self::assertSame(SouinCachePurger::REPURGE_DELAY_MS, $envelopes[0]->last(DelayStamp::class)?->getDelay());
+    }
+
+    public function testRepurgeAndAuthorPurgesScheduleNothing(): void
+    {
+        self::assertSame([], $this->dispatchedBy(static fn (SouinCachePurger $p) => $p->repurgeTag('ctx-u4')));
+        self::assertSame([], $this->dispatchedBy(static fn (SouinCachePurger $p) => $p->purgeAuthor(4)));
+    }
+
+    public function testRepurgeScheduleFailureIsLoggedAndThePurgeStillRuns(): void
+    {
+        $this->logger->expects(self::once())->method('error')->with('http_cache.repurge_schedule_failed');
+        $bus = self::createStub(MessageBusInterface::class);
+        $bus->method('dispatch')->willThrowException(new \RuntimeException('db down'));
+        $requests = 0;
+        $httpClient = new MockHttpClient(static function () use (&$requests): MockResponse {
+            ++$requests;
+
+            return new MockResponse('', ['http_code' => 200]);
+        });
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $bus))->purgeUserContext(3);
+
+        self::assertSame(1, $requests);
+    }
+
+    public function testCommunityPagesPurgeQuarantinesTheCommunityFirst(): void
+    {
+        $quarantine = $this->createMock(HttpCacheQuarantineInterface::class);
+        $quarantine->expects(self::once())->method('quarantineCommunity')->with(3);
+        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 200]));
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, null, $quarantine))->purgeCommunityPages(3);
+    }
+
+    public function testUserContextPurgeQuarantinesTheUserFirst(): void
+    {
+        $quarantine = $this->createMock(HttpCacheQuarantineInterface::class);
+        $quarantine->expects(self::once())->method('quarantineUser')->with(4);
+        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 200]));
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, null, $quarantine))->purgeUserContext(4);
+    }
+
+    public function testFailedQuarantineIsLoggedAndThePurgeStillRuns(): void
+    {
+        $quarantine = self::createStub(HttpCacheQuarantineInterface::class);
+        $quarantine->method('quarantineCommunity')->willThrowException(new \RuntimeException('valkey down'));
+        $this->logger->expects(self::once())->method('error')->with('http_cache.quarantine_failed');
+        $requests = 0;
+        $httpClient = new MockHttpClient(static function () use (&$requests): MockResponse {
+            ++$requests;
+
+            return new MockResponse('', ['http_code' => 200]);
+        });
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, null, $quarantine))->purgeCommunityPages(3);
+
+        self::assertSame(1, $requests);
+    }
+
+    public function testTagPurgeRetriesOnceAndSucceeds(): void
+    {
+        $calls = 0;
+        $httpClient = new MockHttpClient(static function () use (&$calls): MockResponse {
+            return new MockResponse('', ['http_code' => ++$calls < 2 ? 503 : 200]);
+        });
+        $this->logger->expects(self::never())->method('error');
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger))->purgeUserContext(4);
+
+        self::assertSame(2, $calls);
+    }
+
+    public function testTagPurgeLogsAnErrorWhenBothAttemptsFail(): void
+    {
+        $calls = 0;
+        $httpClient = new MockHttpClient(static function () use (&$calls): never {
+            ++$calls;
+            throw new \RuntimeException('connection refused');
+        });
+        $this->logger->expects(self::once())->method('error')->with('http_cache.purge_failed');
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger))->purgeCommunityContext(9);
+
+        self::assertSame(2, $calls);
+    }
+
+    public function testErasedAuthorPurgeSchedulesARepurge(): void
+    {
+        $envelopes = $this->dispatchedBy(static fn (SouinCachePurger $p) => $p->purgeErasedAuthor(4));
+
+        self::assertCount(1, $envelopes);
+        $message = $envelopes[0]->getMessage();
+        self::assertInstanceOf(RepurgeHttpCacheTagMessage::class, $message);
+        self::assertSame('author-4', $message->tag);
+    }
+
+    public function testFailedRepurgeThrowsSoTheWorkerRetriesIt(): void
+    {
+        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 503]));
+
+        $this->expectException(HttpCachePurgeFailedException::class);
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger))->repurgeTag('ctx-u4');
+    }
+
+    public function testFailedPurgeOutsideTheWorkerIsLoggedNotThrown(): void
+    {
+        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 503]));
+        $this->logger->expects(self::once())->method('error')->with('http_cache.purge_failed');
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger))->purgeUserContext(4);
     }
 
     public function testTrailingSlashOnBaseUrlIsNotDuplicated(): void

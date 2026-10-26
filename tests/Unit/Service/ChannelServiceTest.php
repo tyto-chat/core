@@ -18,6 +18,7 @@ use App\Repository\MessagePageRepository;
 use App\Security\SecurityContext;
 use App\Service\Channel\ChannelService;
 use App\Service\Community\CommunityMembershipServiceInterface;
+use App\Service\HttpCache\CachePurgerInterface;
 use App\Service\MediaObject\MediaObjectServiceInterface;
 use App\Service\Message\MessageServiceInterface;
 use App\Service\Realtime\RealtimePublisherInterface;
@@ -142,6 +143,30 @@ class ChannelServiceTest extends TestCase
         $this->service->update($channel, $dto);
     }
 
+    public function testPrivacyFlipPurgesEveryCachedPageOfTheCommunity(): void
+    {
+        $channel = $this->channel(private: false);
+        $dto = new UpdateChannelDto();
+        $dto->isPrivate = true;
+        $purger = $this->createMock(CachePurgerInterface::class);
+        $purger->expects(self::once())->method('purgeCommunityPages')->with(5);
+        $this->service->setCachePurger($purger);
+
+        $this->service->update($channel, $dto);
+    }
+
+    public function testRenameKeepsCachedPages(): void
+    {
+        $channel = $this->channel(private: false);
+        $dto = new UpdateChannelDto();
+        $dto->name = 'renamed';
+        $purger = $this->createMock(CachePurgerInterface::class);
+        $purger->expects(self::never())->method('purgeCommunityPages');
+        $this->service->setCachePurger($purger);
+
+        $this->service->update($channel, $dto);
+    }
+
     public function testArchiveDoesNotFlagGrants(): void
     {
         $this->expectStructureChange(grantsChanged: false);
@@ -174,6 +199,22 @@ class ChannelServiceTest extends TestCase
                 && 12 === $m->channelId
                 && null === $m->communityIdentifier))
             ->willReturn(new Envelope(new DisconnectVoiceParticipantMessage(7)));
+
+        $this->service->delete($channel);
+    }
+
+    public function testDeletePurgesEveryCachedPageOfTheCommunity(): void
+    {
+        $community = $this->createMock(Community::class);
+        $community->method('getId')->willReturn(5);
+        $channel = $this->createMock(Channel::class);
+        $channel->method('getCommunity')->willReturn($community);
+        $channel->method('getId')->willReturn(12);
+        $this->security->method('isGranted')->willReturn(true);
+
+        $purger = $this->createMock(CachePurgerInterface::class);
+        $purger->expects(self::once())->method('purgeCommunityPages')->with(5);
+        $this->service->setCachePurger($purger);
 
         $this->service->delete($channel);
     }
@@ -217,7 +258,9 @@ class ChannelServiceTest extends TestCase
         $channel = new Channel();
         $channel->setType(ChannelType::Text);
         $channel->setPrivate($private);
-        $channel->setCommunity(new Community());
+        $community = new Community();
+        new \ReflectionProperty(Community::class, 'id')->setValue($community, 5);
+        $channel->setCommunity($community);
         new \ReflectionProperty(Channel::class, 'id')->setValue($channel, 42);
 
         return $channel;

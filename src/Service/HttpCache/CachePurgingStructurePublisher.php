@@ -14,6 +14,8 @@ use Symfony\Component\DependencyInjection\Attribute\AsDecorator;
 #[AsDecorator(decorates: StructureRealtimePublisherInterface::class)]
 final class CachePurgingStructurePublisher implements StructureRealtimePublisherInterface
 {
+    private const array PERMISSION_EVENTS = ['channel.access.granted', 'channel.access.revoked', 'community.removed', 'role.changed', 'server.banned'];
+
     public function __construct(
         private readonly StructureRealtimePublisherInterface $inner,
         private readonly CachePurgerInterface $purger,
@@ -25,12 +27,16 @@ final class CachePurgingStructurePublisher implements StructureRealtimePublisher
     {
         $this->inner->publishCommunityStructureChanged($community, $grantsChanged);
         $this->purger->purgeCommunityDetail((string) $community->getIdentifier());
+        $this->purger->purgeCommunityContext($community->getId());
     }
 
     #[\Override]
     public function publishUserEvent(int $userId, string $event, array $payload = []): void
     {
         $this->inner->publishUserEvent($userId, $event, $payload);
+        if (\in_array($event, self::PERMISSION_EVENTS, true)) {
+            $this->purger->purgeUserContext($userId);
+        }
     }
 
     #[\Override]
