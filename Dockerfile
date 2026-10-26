@@ -51,6 +51,10 @@ FROM dunglas/frankenphp:1.13-php8.5@sha256:73053ec45f0ad33c8e6f71f60ec3a11133899
 # direct GD usage.
 RUN install-php-extensions pdo_mysql intl gd imagick zip opcache
 
+COPY docker/imagemagick/policy.xml /etc/ImageMagick-7/policy.xml
+# Fails the build if the policy is not in effect (e.g. ImageMagick moved its config directory).
+RUN php -r '$i = new Imagick(); try { $i->readImageBlob("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1\" height=\"1\"/>"); } catch (ImagickException) { exit(0); } fwrite(STDERR, "ImageMagick policy not applied\n"); exit(1);'
+
 COPY --from=caddy-builder /usr/local/bin/frankenphp /usr/local/bin/frankenphp
 
 ENV APP_ENV=prod
