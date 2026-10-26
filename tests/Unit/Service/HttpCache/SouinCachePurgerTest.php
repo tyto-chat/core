@@ -241,6 +241,34 @@ class SouinCachePurgerTest extends TestCase
         (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $switch))->purgeAuthor(4);
     }
 
+    public function testFailedErasedAuthorPurgeTripsTheCache(): void
+    {
+        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 503]));
+        $switch = $this->createMock(HttpCacheSwitchInterface::class);
+        $switch->expects(self::once())->method('trip');
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $switch))->purgeErasedAuthor(4);
+    }
+
+    public function testErasedAuthorPurgeSchedulesARepurge(): void
+    {
+        $envelopes = $this->dispatchedBy(static fn (SouinCachePurger $p) => $p->purgeErasedAuthor(4));
+
+        self::assertCount(1, $envelopes);
+        $message = $envelopes[0]->getMessage();
+        self::assertInstanceOf(RepurgeHttpCacheTagMessage::class, $message);
+        self::assertSame('author-4', $message->tag);
+    }
+
+    public function testFailedAuthorRepurgeTripsTheCache(): void
+    {
+        $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 503]));
+        $switch = $this->createMock(HttpCacheSwitchInterface::class);
+        $switch->expects(self::once())->method('trip');
+
+        (new SouinCachePurger($httpClient, 'http://app:8888', $this->logger, $switch))->repurgeTag('author-4');
+    }
+
     public function testSuccessfulPurgeDoesNotTripTheCache(): void
     {
         $httpClient = new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 200]));

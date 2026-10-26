@@ -220,7 +220,7 @@ class AccountDeletionServiceTest extends TestCase
         $purger->method('purgeUserContext')->willReturnCallback(static function (int $id) use (&$calls): void {
             $calls[] = 'context:'.$id;
         });
-        $purger->method('purgeAuthor')->willReturnCallback(static function (int $id) use (&$calls): void {
+        $purger->method('purgeErasedAuthor')->willReturnCallback(static function (int $id) use (&$calls): void {
             $calls[] = 'author:'.$id;
         });
         $this->service->setCachePurger($purger);

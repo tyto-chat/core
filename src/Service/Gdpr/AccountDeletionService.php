@@ -130,7 +130,7 @@ class AccountDeletionService extends AbstractDoctrineService implements AccountD
     private function purgeCachesFor(User $user): void
     {
         $this->cachePurger?->purgeUserContext((int) $user->getId());
-        $this->cachePurger?->purgeAuthor((int) $user->getId());
+        $this->cachePurger?->purgeErasedAuthor((int) $user->getId());
     }
 
     private function anonymiseInPlace(User $user): void

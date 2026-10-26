@@ -79,41 +79,47 @@ final class SouinCachePurger implements CachePurgerInterface
     public function purgeUserContext(int $userId): void
     {
         $this->quarantineOrTrip(fn (HttpCacheQuarantineInterface $q) => $q->quarantineUser($userId), CacheTags::userContext($userId));
-        $this->purgeTag(CacheTags::userContext($userId));
+        $this->purgeTag(CacheTags::userContext($userId), failClosed: true);
     }
 
     #[\Override]
     public function purgeCommunityContext(int $communityId): void
     {
-        $this->purgeTag(CacheTags::communityContext($communityId));
+        $this->purgeTag(CacheTags::communityContext($communityId), failClosed: true);
     }
 
     #[\Override]
     public function purgeCommunityPages(int $communityId): void
     {
         $this->quarantineOrTrip(fn (HttpCacheQuarantineInterface $q) => $q->quarantineCommunity($communityId), CacheTags::communityPages($communityId));
-        $this->purgeTag(CacheTags::communityPages($communityId));
+        $this->purgeTag(CacheTags::communityPages($communityId), failClosed: true);
     }
 
     #[\Override]
     public function repurgeTag(string $tag): void
     {
-        $this->purgeTag($tag, false);
+        $this->purgeTag($tag, failClosed: true, scheduleRepurge: false);
     }
 
     #[\Override]
     public function purgeAuthor(int $userId): void
     {
-        $this->purgeTag(CacheTags::author($userId));
+        $this->purgeTag(CacheTags::author($userId), failClosed: false, scheduleRepurge: false);
     }
 
-    private function purgeTag(string $tag, bool $scheduleRepurge = true): void
+    #[\Override]
+    public function purgeErasedAuthor(int $userId): void
+    {
+        $this->purgeTag(CacheTags::author($userId), failClosed: true);
+    }
+
+    private function purgeTag(string $tag, bool $failClosed, bool $scheduleRepurge = true): void
     {
         if ('' === $this->purgeBaseUrl) {
             return;
         }
 
-        if ($scheduleRepurge && !str_starts_with($tag, 'author-')) {
+        if ($scheduleRepurge) {
             $this->scheduleRepurge($tag);
         }
 
@@ -139,7 +145,7 @@ final class SouinCachePurger implements CachePurgerInterface
             'error' => $error,
         ]);
 
-        if (!str_starts_with($tag, 'author-')) {
+        if ($failClosed) {
             $this->tripSwitch();
         }
     }
