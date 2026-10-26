@@ -125,6 +125,47 @@ class ConversationPolicyEventTest extends ApiTestCase
         }
     }
 
+    public function testMutualBlockSendsNoEventToMemberWhoseStateIsUnchanged(): void
+    {
+        [[$a, $b], $conversation] = $this->conversationOf(2);
+        $this->block($b, $a);
+        RecordingMercureHub::reset();
+
+        $this->block($a, $b);
+
+        self::assertCount(1, $this->policyUpdates());
+        self::assertNull($this->policyFor((int) $b->getId()));
+        self::assertSame(
+            ['type' => 'conversation.policy', 'conversationIdentifier' => $conversation->getIdentifier(), 'readOnly' => true, 'readOnlyReason' => 'blocked'],
+            $this->policyFor((int) $a->getId()),
+        );
+    }
+
+    public function testUnblockWhileOtherSideStillBlocksOnlyNotifiesTheUnblocker(): void
+    {
+        [[$a, $b]] = $this->conversationOf(2);
+        $this->block($a, $b);
+        $this->block($b, $a);
+        RecordingMercureHub::reset();
+
+        $this->unblock($a, $b);
+
+        self::assertCount(1, $this->policyUpdates());
+        self::assertNull($this->policyFor((int) $b->getId()));
+        self::assertSame('unavailable', $this->policyFor((int) $a->getId())['readOnlyReason'] ?? null);
+    }
+
+    public function testRepeatedBlockPublishesNoPolicyEvents(): void
+    {
+        [[$a, $b]] = $this->conversationOf(2);
+        $this->block($a, $b);
+        RecordingMercureHub::reset();
+
+        $this->block($a, $b);
+
+        self::assertSame([], $this->policyUpdates());
+    }
+
     public function testNoEventWithoutExistingConversation(): void
     {
         $community = CommunityFactory::createOne();

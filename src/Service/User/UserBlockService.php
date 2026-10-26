@@ -7,6 +7,7 @@ namespace App\Service\User;
 use App\Dto\User\BlockRelations;
 use App\Entity\User;
 use App\Entity\UserBlock;
+use App\Enum\Conversation\ReadOnlyReason;
 use App\Exception\User\BlockLimitReachedException;
 use App\Exception\User\CannotBlockSelfException;
 use App\Exception\User\CannotBlockStaffException;
@@ -18,6 +19,8 @@ use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Conversation\ConversationServiceInterface;
 use App\Service\Realtime\StructureRealtimePublisherInterface;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\DependencyInjection\Attribute\Lazy;
 
 class UserBlockService extends AbstractDoctrineService implements UserBlockServiceInterface
@@ -30,6 +33,7 @@ class UserBlockService extends AbstractDoctrineService implements UserBlockServi
         private readonly UserRepository $users,
         private readonly CommunityMembershipServiceInterface $memberships,
         private readonly StructureRealtimePublisherInterface $realtimePublisher,
+        private readonly ManagerRegistry $managerRegistry,
         #[Lazy]
         private readonly ConversationServiceInterface $conversations,
     ) {
@@ -50,9 +54,11 @@ class UserBlockService extends AbstractDoctrineService implements UserBlockServi
             throw new CannotBlockStaffException();
         }
 
+        $before = $this->conversations->policySnapshotForPair($me, $target);
+
         $existing = $this->blocks->findOneByPair($me, $target);
         if (null !== $existing) {
-            $this->publishChanged($me, $target);
+            $this->publishChanged($me, $target, $before);
 
             return $existing;
         }
@@ -63,8 +69,18 @@ class UserBlockService extends AbstractDoctrineService implements UserBlockServi
 
         $block = (new UserBlock())->setBlocker($me)->setBlocked($target);
         $this->persist($block);
-        $this->flush();
-        $this->publishChanged($me, $target);
+        try {
+            $this->flush();
+        } catch (UniqueConstraintViolationException $e) {
+            // Lost the find→insert race; the EM closed on the failed flush — reset before re-querying.
+            $this->managerRegistry->resetManager();
+            $existing = $this->blocks->findOneByPair($me, $target);
+            if (null === $existing) {
+                throw $e;
+            }
+            $block = $existing;
+        }
+        $this->publishChanged($me, $target, $before);
 
         return $block;
     }
@@ -78,17 +94,19 @@ class UserBlockService extends AbstractDoctrineService implements UserBlockServi
             return;
         }
 
+        $before = $this->conversations->policySnapshotForPair($me, $target);
         $existing = $this->blocks->findOneByPair($me, $target);
         if (null !== $existing) {
             $this->removeAndFlush($existing);
         }
-        $this->publishChanged($me, $target);
+        $this->publishChanged($me, $target, $before);
     }
 
-    private function publishChanged(User $blocker, User $target): void
+    /** @param array<int, ?ReadOnlyReason>|null $policyBefore */
+    private function publishChanged(User $blocker, User $target, ?array $policyBefore): void
     {
         $this->realtimePublisher->publishUserEvent((int) $blocker->getId(), 'blocks.changed', ['userId' => (int) $target->getId()]);
-        $this->conversations->publishPolicyForPair($blocker, $target);
+        $this->conversations->publishPolicyChangesForPair($blocker, $target, $policyBefore);
     }
 
     #[\Override]

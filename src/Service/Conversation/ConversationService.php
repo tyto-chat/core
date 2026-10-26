@@ -168,19 +168,41 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
     }
 
     #[\Override]
-    public function publishPolicyForPair(User $a, User $b): void
+    public function policySnapshotForPair(User $a, User $b): ?array
     {
-        $conversation = $this->conversationRepository->findOneByParticipantsHash(
-            Conversation::hashParticipants([(int) $a->getId(), (int) $b->getId()]),
-        );
+        $conversation = $this->findPairConversation($a, $b);
         if (null === $conversation) {
+            return null;
+        }
+
+        return [
+            (int) $a->getId() => $this->readOnlyReason($conversation, $a),
+            (int) $b->getId() => $this->readOnlyReason($conversation, $b),
+        ];
+    }
+
+    #[\Override]
+    public function publishPolicyChangesForPair(User $a, User $b, ?array $before): void
+    {
+        $conversation = $this->findPairConversation($a, $b);
+        if (null === $conversation || null === $before) {
             return;
         }
 
         foreach ([$a, $b] as $member) {
             $reason = $this->readOnlyReason($conversation, $member);
+            if ($reason === ($before[(int) $member->getId()] ?? null)) {
+                continue;
+            }
             $this->publisher->publishConversationPolicy((int) $member->getId(), $conversation->getIdentifier(), null !== $reason, $reason);
         }
+    }
+
+    private function findPairConversation(User $a, User $b): ?Conversation
+    {
+        return $this->conversationRepository->findOneByParticipantsHash(
+            Conversation::hashParticipants([(int) $a->getId(), (int) $b->getId()]),
+        );
     }
 
     #[\Override]

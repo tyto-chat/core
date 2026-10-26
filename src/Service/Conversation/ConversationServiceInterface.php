@@ -22,7 +22,11 @@ interface ConversationServiceInterface
 
     public function readOnlyReason(Conversation $conversation, User $viewer): ?ReadOnlyReason;
 
-    public function publishPolicyForPair(User $a, User $b): void;
+    /** @return array<int, ?ReadOnlyReason>|null per-member read-only reason keyed by user id, null when the pair has no conversation */
+    public function policySnapshotForPair(User $a, User $b): ?array;
+
+    /** @param array<int, ?ReadOnlyReason>|null $before */
+    public function publishPolicyChangesForPair(User $a, User $b, ?array $before): void;
 
     public function assertWritable(Conversation $conversation, ConversationWrite $write): void;
 
