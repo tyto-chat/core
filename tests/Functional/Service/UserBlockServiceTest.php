@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Service;
 
 use App\Entity\User;
 use App\Entity\UserBlock;
+use App\Enum\Channel\ChannelRole;
 use App\Exception\User\BlockLimitReachedException;
 use App\Exception\User\CannotBlockSelfException;
 use App\Exception\User\CannotBlockStaffException;
@@ -14,6 +15,8 @@ use App\Repository\UserBlockRepository;
 use App\Service\User\UserBlockService;
 use App\Service\User\UserBlockServiceInterface;
 use App\Service\UserContextServiceInterface;
+use App\Tests\Factory\ChannelFactory;
+use App\Tests\Factory\ChannelMemberFactory;
 use App\Tests\Factory\CommunityFactory;
 use App\Tests\Factory\CommunityMemberFactory;
 use App\Tests\Factory\UserFactory;
@@ -69,13 +72,6 @@ class UserBlockServiceTest extends ApiTestCase
     private function id(User $user): int
     {
         return (int) $user->getId();
-    }
-
-    private function share(User $a, User $b): void
-    {
-        $community = CommunityFactory::createOne();
-        CommunityMemberFactory::createForUserAndCommunity($a, $community);
-        CommunityMemberFactory::createForUserAndCommunity($b, $community);
     }
 
     public function testBlockCreatesRowAndIsIdempotent(): void
@@ -166,10 +162,23 @@ class UserBlockServiceTest extends ApiTestCase
     public function testChannelModeratorIsNotStaff(): void
     {
         $me = UserFactory::createOne();
-        $other = UserFactory::createOne();
-        $this->share($me, $other);
+        $channelMod = UserFactory::createOne();
+        $community = CommunityFactory::createOne();
+        CommunityMemberFactory::createForUserAndCommunity($me, $community);
+        CommunityMemberFactory::createForUserAndCommunity($channelMod, $community);
+        $channel = ChannelFactory::new()->inCommunity($community)->create();
+        ChannelMemberFactory::createForUserAndChannel($channelMod, $channel, ChannelRole::Moderator);
 
-        self::assertFalse($this->service()->isStaffFor($other, $me));
+        self::assertFalse($this->service()->isStaffFor($channelMod, $me));
+
+        $block = $this->as($me, fn () => $this->service()->block($this->id($channelMod)));
+
+        self::assertNotNull($block->getId());
+        self::assertSame([$this->id($channelMod)], $this->service()->enforcedRelations($me, [$this->id($channelMod)])->blockedByUser);
+        self::assertSame(
+            ['blocked' => true, 'blockable' => true, 'inEffect' => true],
+            $this->as($me, fn () => $this->service()->statusForCurrentUser($this->id($channelMod))),
+        );
     }
 
     public function testIsStaffForReflectsRoles(): void
