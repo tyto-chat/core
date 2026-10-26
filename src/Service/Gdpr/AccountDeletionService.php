@@ -16,6 +16,7 @@ use App\Service\HttpCache\PurgesHttpCacheTrait;
 use App\Service\MediaObject\MediaObjectServiceInterface;
 use App\Service\Notification\PushSubscriptionServiceInterface;
 use App\Service\Security\SessionRevokerInterface;
+use App\Service\User\UserBlockServiceInterface;
 
 class AccountDeletionService extends AbstractDoctrineService implements AccountDeletionServiceInterface
 {
@@ -29,6 +30,7 @@ class AccountDeletionService extends AbstractDoctrineService implements AccountD
         private readonly MediaObjectServiceInterface $mediaObjectService,
         private readonly RecoveryCodeRepository $recoveryCodeRepository,
         private readonly SessionRevokerInterface $sessionRevoker,
+        private readonly UserBlockServiceInterface $userBlockService,
     ) {
     }
 
@@ -149,6 +151,7 @@ class AccountDeletionService extends AbstractDoctrineService implements AccountD
         $user->setTotpEnabledAt(null);
         $user->setTotpLastUsedTimestep(null);
         $this->recoveryCodeRepository->deleteAllForUser($user);
+        $this->userBlockService->deleteAllInvolving($user);
         // deletionRequestedAt stays set — it marks the row as purge-anonymised for audits.
 
         $profile = $user->getProfile();

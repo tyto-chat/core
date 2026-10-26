@@ -12,6 +12,7 @@ use App\Entity\ModerationAction;
 use App\Entity\Notification;
 use App\Entity\Reaction;
 use App\Entity\User;
+use App\Entity\UserBlock;
 use App\Service\MediaObject\SignedUrlServiceInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -293,6 +294,37 @@ class DataExportCollector
                 'messageIri' => $n->getMessageIri(),
                 'messageCount' => $n->getMessageCount(),
                 'createdAt' => self::formatDateTimeOrNull($n->getCreatedAt()),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return list<array{userId: int, displayName: ?string, blockedAt: string}>
+     */
+    public function blocks(User $user): array
+    {
+        /** @var UserBlock[] $rows */
+        $rows = $this->em->createQueryBuilder()
+            ->select('b', 'u', 'p')
+            ->from(UserBlock::class, 'b')
+            ->join('b.blocked', 'u')
+            ->leftJoin('u.profile', 'p')
+            ->where('b.blocker = :u')
+            ->setParameter('u', $user)
+            ->orderBy('b.createdAt', 'ASC')
+            ->addOrderBy('b.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $out = [];
+        foreach ($rows as $block) {
+            $blocked = $block->getBlocked();
+            $out[] = [
+                'userId' => (int) $blocked->getId(),
+                'displayName' => $blocked->getProfile()?->getName(),
+                'blockedAt' => $block->getCreatedAt()->format(\DateTimeInterface::ATOM),
             ];
         }
 

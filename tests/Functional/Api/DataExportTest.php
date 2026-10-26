@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Api;
 
 use App\Entity\DataExportRequest;
 use App\Entity\User;
+use App\Entity\UserBlock;
 use App\Service\Gdpr\DataExportServiceInterface;
 use App\Tests\Factory\ChannelFactory;
 use App\Tests\Factory\CommunityFactory;
@@ -203,6 +204,49 @@ class DataExportTest extends ApiTestCase
             $messages = json_decode((string) $zip->getFromName('messages.json'), true, flags: JSON_THROW_ON_ERROR);
             self::assertCount(1, $messages);
             self::assertSame('hello world', $messages[0]['history'][0]['body']);
+        } finally {
+            $zip->close();
+        }
+    }
+
+    public function testZipContainsBlocksOfBlockerOnly(): void
+    {
+        $blocker = UserFactory::createOne();
+        $blocked = UserFactory::createOne();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        \assert($em instanceof EntityManagerInterface);
+        $block = new UserBlock();
+        $block->setBlocker($blocker);
+        $block->setBlocked($blocked);
+        $em->persist($block);
+        $em->flush();
+
+        $blockerBlocks = $this->exportedBlocks($blocker);
+        self::assertCount(1, $blockerBlocks);
+        self::assertSame($blocked->getId(), $blockerBlocks[0]['userId']);
+        self::assertSame($blocked->getProfile()?->getName(), $blockerBlocks[0]['displayName']);
+        self::assertNotEmpty($blockerBlocks[0]['blockedAt']);
+
+        self::assertSame([], $this->exportedBlocks($blocked));
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function exportedBlocks(User $user): array
+    {
+        $this->plainJsonClient($user)->request('POST', '/api/v1/me/data-export');
+        self::assertResponseStatusCodeSame(201);
+
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        \assert($em instanceof EntityManagerInterface);
+        $request = $em->getRepository(DataExportRequest::class)->findOneBy(['user' => $user->getId()]);
+        self::assertNotNull($request);
+
+        $zip = new \ZipArchive();
+        self::assertTrue(true === $zip->open($_ENV['APP_EXPORT_DIR'].'/'.$request->getFilePath()));
+        try {
+            return json_decode((string) $zip->getFromName('blocks.json'), true, flags: JSON_THROW_ON_ERROR);
         } finally {
             $zip->close();
         }

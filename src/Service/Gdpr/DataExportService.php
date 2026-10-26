@@ -159,6 +159,7 @@ class DataExportService extends AbstractDoctrineService implements DataExportSer
             $zip->addFromString('reactions.json', self::asJson($this->collector->reactions($user)));
             $zip->addFromString('moderation.json', self::asJson($this->collector->moderationAsTarget($user)));
             $zip->addFromString('notifications.json', self::asJson($this->collector->notifications($user)));
+            $zip->addFromString('blocks.json', self::asJson($this->collector->blocks($user)));
 
             $zip->close();
         } catch (\Throwable $e) {

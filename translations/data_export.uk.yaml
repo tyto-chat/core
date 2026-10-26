@@ -23,6 +23,7 @@ readme:
     file_reactions: 'reactions.json       — Реакції, які ти поставив на повідомлення інших.'
     file_moderation: 'moderation.json      — Дії модерації щодо твого облікового запису.'
     file_notifications: 'notifications.json   — Сповіщення, які ти отримав.'
+    file_blocks: 'blocks.json          — користувачі, яких ти заблокував, і коли.'
 
     excluded_heading: 'Чого тут НЕМАЄ'
     excluded_rule: '--------------------'

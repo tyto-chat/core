@@ -6,7 +6,9 @@ namespace App\Tests\Functional\Api;
 
 use App\Entity\RecoveryCode;
 use App\Entity\User;
+use App\Entity\UserBlock;
 use App\Repository\RecoveryCodeRepository;
+use App\Repository\UserBlockRepository;
 use App\Service\Gdpr\AccountDeletionServiceInterface;
 use App\Tests\Factory\ApiKeyFactory;
 use App\Tests\Factory\UserFactory;
@@ -226,6 +228,55 @@ class AccountDeletionTest extends ApiTestCase
         $this->jsonClient($user)->request('GET', '/api/v1/communities');
 
         self::assertResponseIsSuccessful();
+    }
+
+    public function testAnonymiseDeletesBlocksInBothDirections(): void
+    {
+        $a = UserFactory::createOne();
+        $b = UserFactory::createOne();
+        $c = UserFactory::createOne();
+        $this->block($a, $b);
+        $this->block($c, $a);
+        $this->block($b, $c);
+        $this->markPendingDeletion($a, new \DateTimeImmutable('-10 days'));
+
+        $service = static::getContainer()->get(AccountDeletionServiceInterface::class);
+        \assert($service instanceof AccountDeletionServiceInterface);
+        self::assertSame(1, $service->purgeExpired());
+
+        $repository = static::getContainer()->get(UserBlockRepository::class);
+        \assert($repository instanceof UserBlockRepository);
+        self::assertSame(0, $repository->count(['blocker' => $a]));
+        self::assertSame(0, $repository->count(['blocked' => $a]));
+        self::assertSame(1, $repository->count([]));
+    }
+
+    public function testBlocksStayDuringGracePeriod(): void
+    {
+        $a = UserFactory::createOne();
+        $b = UserFactory::createOne();
+        $this->block($a, $b);
+        $this->block($b, $a);
+        $this->markPendingDeletion($a, new \DateTimeImmutable('-1 day'));
+
+        $service = static::getContainer()->get(AccountDeletionServiceInterface::class);
+        \assert($service instanceof AccountDeletionServiceInterface);
+        self::assertSame(0, $service->purgeExpired());
+
+        $repository = static::getContainer()->get(UserBlockRepository::class);
+        \assert($repository instanceof UserBlockRepository);
+        self::assertSame(2, $repository->count([]));
+    }
+
+    private function block(User $blocker, User $blocked): void
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        \assert($em instanceof EntityManagerInterface);
+        $block = new UserBlock();
+        $block->setBlocker($blocker);
+        $block->setBlocked($blocked);
+        $em->persist($block);
+        $em->flush();
     }
 
     private function markPendingDeletion(User $user, \DateTimeImmutable $at): void
