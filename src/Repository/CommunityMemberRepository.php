@@ -158,6 +158,40 @@ class CommunityMemberRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<int> $staffCandidateIds
+     * @param list<int> $memberIds
+     *
+     * @return array<int, list<int>> staffId → memberIds sharing a community where staffId is admin or moderator
+     */
+    public function findStaffSharedPairs(array $staffCandidateIds, array $memberIds): array
+    {
+        if ([] === $staffCandidateIds || [] === $memberIds) {
+            return [];
+        }
+
+        /** @var list<array{staffId: int|string, memberId: int|string}> $rows */
+        $rows = $this->createQueryBuilder('staff')
+            ->select('DISTINCT IDENTITY(staff.user) AS staffId', 'IDENTITY(peer.user) AS memberId')
+            ->innerJoin(CommunityMember::class, 'peer', 'WITH', 'peer.community = staff.community')
+            ->where('IDENTITY(staff.user) IN (:staffIds)')
+            ->andWhere('IDENTITY(peer.user) IN (:memberIds)')
+            ->andWhere('staff.role IN (:roles)')
+            ->andWhere('IDENTITY(staff.user) != IDENTITY(peer.user)')
+            ->setParameter('staffIds', $staffCandidateIds)
+            ->setParameter('memberIds', $memberIds)
+            ->setParameter('roles', [CommunityRole::Admin->value, CommunityRole::Moderator->value])
+            ->getQuery()
+            ->getArrayResult();
+
+        $pairs = [];
+        foreach ($rows as $row) {
+            $pairs[(int) $row['staffId']][] = (int) $row['memberId'];
+        }
+
+        return $pairs;
+    }
+
+    /**
      * @return array<int, array{communityId: int, communityIdentifier: string, role: CommunityRole}>
      */
     public function findMembershipsForUser(User $user): array

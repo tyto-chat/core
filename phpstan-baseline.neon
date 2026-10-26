@@ -266,6 +266,12 @@ parameters:
 			path: src/Entity/User.php
 
 		-
+			message: '#^Property App\\Entity\\UserBlock\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/UserBlock.php
+
+		-
 			message: '#^Property App\\Entity\\UserGroup\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
 			identifier: property.unusedType
 			count: 1

@@ -25,6 +25,9 @@ exception:
     invalid_report_target: 'Deze inhoud kan niet gemeld worden.'
     invalid_report_transition: 'Deze melding kan niet naar die status worden gezet.'
     user:
+        cannot_block_self: 'Je kunt jezelf niet blokkeren.'
+        cannot_block_staff: 'Je kunt beheerders of moderatoren niet blokkeren.'
+        block_limit_reached: 'Je hebt het maximale aantal geblokkeerde gebruikers bereikt.'
         invalid_current_password: 'Het huidige wachtwoord is onjuist.'
         two_factor_already_enabled: 'Tweestapsverificatie is al ingeschakeld.'
         two_factor_setup_not_started: 'De installatie van tweestapsverificatie is niet gestart.'

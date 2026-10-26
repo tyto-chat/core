@@ -25,6 +25,9 @@ exception:
     invalid_report_target: 'На цей вміст не можна поскаржитися.'
     invalid_report_transition: 'Цю скаргу не можна перевести в такий статус.'
     user:
+        cannot_block_self: 'Ви не можете заблокувати самого себе.'
+        cannot_block_staff: 'Ви не можете блокувати адміністраторів або модераторів.'
+        block_limit_reached: 'Досягнуто максимальної кількості заблокованих користувачів.'
         invalid_current_password: 'Поточний пароль неправильний.'
         two_factor_already_enabled: 'Двофакторну автентифікацію вже ввімкнено.'
         two_factor_setup_not_started: 'Налаштування двофакторної автентифікації не розпочато.'

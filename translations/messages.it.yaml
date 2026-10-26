@@ -25,6 +25,9 @@ exception:
     invalid_report_target: 'Questo contenuto non può essere segnalato.'
     invalid_report_transition: 'Questa segnalazione non può passare a quello stato.'
     user:
+        cannot_block_self: 'Non puoi bloccare te stesso.'
+        cannot_block_staff: 'Non puoi bloccare amministratori o moderatori.'
+        block_limit_reached: 'Hai raggiunto il numero massimo di utenti bloccati.'
         invalid_current_password: 'La password attuale non è corretta.'
         two_factor_already_enabled: 'L''autenticazione a due fattori è già abilitata.'
         two_factor_setup_not_started: 'La configurazione dell''autenticazione a due fattori non è stata avviata.'
