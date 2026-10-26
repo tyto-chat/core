@@ -7,9 +7,7 @@ namespace App\State\Conversation\Processor;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Entity\Conversation;
-use App\Entity\User;
-use App\Service\Realtime\RealtimePublisherInterface;
-use Symfony\Bundle\SecurityBundle\Security;
+use App\Service\Conversation\ConversationServiceInterface;
 
 /**
  * @implements ProcessorInterface<mixed, null>
@@ -17,8 +15,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 final readonly class PublishConversationTypingProcessor implements ProcessorInterface
 {
     public function __construct(
-        private RealtimePublisherInterface $publisher,
-        private Security $security,
+        private ConversationServiceInterface $conversationService,
     ) {
     }
 
@@ -26,10 +23,8 @@ final readonly class PublishConversationTypingProcessor implements ProcessorInte
     {
         /** @var Conversation $conversation */
         $conversation = $context['read_data'];
-        /** @var User $user */
-        $user = $this->security->getUser();
 
-        $this->publisher->publishConversationTyping($conversation, (int) $user->getId(), $user->getProfile()?->getName() ?? 'Unknown');
+        $this->conversationService->publishTyping($conversation);
 
         return null;
     }

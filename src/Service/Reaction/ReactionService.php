@@ -8,6 +8,7 @@ use App\Dto\Webhook\WebhookEventContext;
 use App\Entity\Community;
 use App\Entity\Message;
 use App\Entity\Reaction;
+use App\Enum\Conversation\ConversationWrite;
 use App\Exception\Channel\ChannelArchivedException;
 use App\Exception\Reaction\EmojiNotAllowedException;
 use App\Repository\ReactionRepository;
@@ -17,6 +18,7 @@ use App\Security\Voter\ConversationVoter;
 use App\Security\Voter\ReactionVoter;
 use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityEmojiServiceInterface;
+use App\Service\Conversation\ConversationServiceInterface;
 use App\Service\Realtime\MessageRealtimePublisherInterface;
 use App\Service\Webhook\WebhookEmitterInterface;
 
@@ -28,6 +30,7 @@ class ReactionService extends AbstractDoctrineService implements ReactionService
         private readonly MessageRealtimePublisherInterface $publisher,
         private readonly CommunityEmojiServiceInterface $communityEmojiService,
         private readonly WebhookEmitterInterface $webhookEmitter,
+        private readonly ConversationServiceInterface $conversationService,
     ) {
     }
 
@@ -63,6 +66,7 @@ class ReactionService extends AbstractDoctrineService implements ReactionService
             }
         } elseif (null !== $conversation) {
             $this->security->throwAccessDeniedUnlessGranted(ConversationVoter::VIEW, $conversation, 'You must be a member of this conversation to react to messages.');
+            $this->conversationService->assertWritable($conversation, ConversationWrite::React);
 
             if ($isShortcode) {
                 throw new EmojiNotAllowedException('Custom emoji are not supported in direct messages.');
@@ -113,6 +117,10 @@ class ReactionService extends AbstractDoctrineService implements ReactionService
         }
 
         $message = $reaction->getMessage();
+        $conversation = $message?->getConversation();
+        if (null !== $conversation) {
+            $this->conversationService->assertWritable($conversation, ConversationWrite::Unreact);
+        }
 
         $this->removeAndFlush($reaction);
 

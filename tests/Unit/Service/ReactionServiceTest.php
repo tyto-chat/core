@@ -16,6 +16,7 @@ use App\Repository\ReactionRepository;
 use App\Security\SecurityContext;
 use App\Service\Community\CommunityEmojiServiceInterface;
 use App\Service\Community\CommunityMembershipServiceInterface;
+use App\Service\Conversation\ConversationServiceInterface;
 use App\Service\Reaction\ReactionService;
 use App\Service\Realtime\RealtimePublisherInterface;
 use App\Service\Webhook\WebhookEmitterInterface;
@@ -51,6 +52,7 @@ class ReactionServiceTest extends TestCase
             $this->publisher,
             $this->communityEmojiService,
             $this->createMock(WebhookEmitterInterface::class),
+            $this->createMock(ConversationServiceInterface::class),
         );
         $this->service->setEntityManager($this->entityManager);
     }

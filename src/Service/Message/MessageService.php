@@ -15,6 +15,7 @@ use App\Entity\Message;
 use App\Entity\MessagePage;
 use App\Entity\MessageRevision;
 use App\Enum\Community\BroadcastMentionRole;
+use App\Enum\Conversation\ConversationWrite;
 use App\Enum\Message\MessageKind;
 use App\Exception\Channel\ChannelArchivedException;
 use App\Exception\Conversation\NotMemberException;
@@ -157,6 +158,7 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
         if (!$this->conversationService->isMember($conversation, $caller)) {
             throw new NotMemberException();
         }
+        $this->conversationService->assertWritable($conversation, ConversationWrite::Send);
 
         $attachments = $this->resolveAttachments($attachmentIris);
 
@@ -214,6 +216,11 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
             $this->hydrateText($message);
             $added = array_diff(MentionExtractor::extractBroadcasts($text), MentionExtractor::extractBroadcasts($message->getText() ?? ''));
             $this->assertCanBroadcast($channel, array_values($added));
+        }
+
+        $conversation = $message->getConversation();
+        if (null !== $conversation) {
+            $this->conversationService->assertWritable($conversation, ConversationWrite::Edit);
         }
 
         $message = $this->transactional(function () use ($message, $text): Message {
@@ -283,6 +290,11 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
     {
         $this->security->throwAccessDeniedUnlessGranted(MessageVoter::DELETE, $message, 'You do not have permission to delete this message.');
 
+        $conversation = $message->getConversation();
+        if (null !== $conversation) {
+            $this->conversationService->assertWritable($conversation, ConversationWrite::DeleteMessage);
+        }
+
         $this->mediaObjectService->deleteMessageAttachments($message);
 
         $message->setDeleted(true);
@@ -329,6 +341,7 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
             if (!$this->conversationService->isMember($conversation, $user)) {
                 throw new NotMemberException();
             }
+            $this->conversationService->assertWritable($conversation, ConversationWrite::Reply);
         }
 
         $page = $root->getPage();

@@ -113,6 +113,7 @@ exception:
         not_member: 'You are not a member of this conversation.'
         empty_member_list: 'At least one other user is required.'
         blocked: 'You can''t start a conversation with these people.'
+        read_only: 'You can''t send messages in this conversation.'
 
 rate_limit:
     too_many_requests: 'Too many requests. Please try again later.'

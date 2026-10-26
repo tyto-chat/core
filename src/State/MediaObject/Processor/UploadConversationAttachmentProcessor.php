@@ -7,11 +7,8 @@ namespace App\State\MediaObject\Processor;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Entity\MediaObject;
-use App\Exception\AccessDeniedException;
-use App\Security\Voter\ConversationVoter;
 use App\Service\Conversation\ConversationServiceInterface;
 use App\Service\MediaObject\MediaObjectServiceInterface;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
@@ -24,7 +21,6 @@ final readonly class UploadConversationAttachmentProcessor implements ProcessorI
         private ProcessorInterface $processor,
         private readonly ConversationServiceInterface $conversationService,
         private readonly MediaObjectServiceInterface $mediaObjectService,
-        private readonly Security $security,
         private readonly RequestStack $requestStack,
     ) {
     }
@@ -36,9 +32,7 @@ final readonly class UploadConversationAttachmentProcessor implements ProcessorI
         $identifier = (string) $request?->attributes->get('conversation', '');
         $conversation = $this->conversationService->getByIdentifier($identifier);
 
-        if (!$this->security->isGranted(ConversationVoter::WRITE, $conversation)) {
-            throw new AccessDeniedException('You must be an active member of this conversation to upload attachments.');
-        }
+        $this->conversationService->assertCanUpload($conversation);
 
         $data->type = 'attachment';
         $this->mediaObjectService->populateFileMetadata($data);

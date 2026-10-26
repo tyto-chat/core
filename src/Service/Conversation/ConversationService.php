@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Service\Conversation;
 
+use App\Dto\User\BlockRelations;
 use App\Entity\Conversation;
 use App\Entity\ConversationMember;
 use App\Entity\MessagePage;
 use App\Entity\User;
+use App\Enum\Conversation\ConversationWrite;
+use App\Enum\Conversation\ReadOnlyReason;
 use App\Exception\Conversation\ConversationBlockedException;
 use App\Exception\Conversation\ConversationNotFoundException;
+use App\Exception\Conversation\ConversationReadOnlyException;
 use App\Exception\Conversation\EmptyMemberListException;
 use App\Exception\Conversation\NoSharedCommunityException;
 use App\Exception\Conversation\NotMemberException;
@@ -23,6 +27,7 @@ use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Message\MessageServiceInterface;
 use App\Service\Notification\NotificationServiceInterface;
+use App\Service\Realtime\RealtimePublisherInterface;
 use App\Service\User\UserBlockServiceInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
@@ -41,6 +46,7 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
         private readonly ManagerRegistry $managerRegistry,
         private readonly NotificationServiceInterface $notifications,
         private readonly UserBlockServiceInterface $userBlocks,
+        private readonly RealtimePublisherInterface $publisher,
     ) {
     }
 
@@ -98,7 +104,7 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
 
         $existing = $this->conversationRepository->findOneByParticipantsHash($hash);
         if (null !== $existing) {
-            return $existing;
+            return $this->attachReadOnly($existing, $caller);
         }
 
         $relations = $this->userBlocks->enforcedRelations($caller, array_values(array_map(static fn (User $u): int => (int) $u->getId(), $others)));
@@ -127,7 +133,7 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
                 throw $e;
             }
 
-            return $existing;
+            return $this->attachReadOnly($existing, $caller);
         }
 
         return $conversation;
@@ -147,7 +153,92 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
         $caller = $this->security->getUser();
         \assert($caller instanceof User);
 
-        return $this->attachUnreadCount($conversation, $caller);
+        return $this->attachReadOnly($this->attachUnreadCount($conversation, $caller), $caller);
+    }
+
+    #[\Override]
+    public function readOnlyReason(Conversation $conversation, User $viewer): ?ReadOnlyReason
+    {
+        $otherId = $this->soleCounterpartId($conversation, $viewer);
+        if (null === $otherId) {
+            return null;
+        }
+
+        return $this->reasonFrom($this->userBlocks->enforcedRelations($viewer, [$otherId]), $otherId);
+    }
+
+    #[\Override]
+    public function assertWritable(Conversation $conversation, ConversationWrite $write): void
+    {
+        if (ConversationWrite::Unreact === $write || ConversationWrite::DeleteMessage === $write) {
+            return;
+        }
+
+        if (null !== $this->readOnlyReason($conversation, $this->security->currentUser())) {
+            throw new ConversationReadOnlyException();
+        }
+    }
+
+    #[\Override]
+    public function assertCanUpload(Conversation $conversation): void
+    {
+        $this->security->throwAccessDeniedUnlessGranted(ConversationVoter::WRITE, $conversation, 'You must be an active member of this conversation to upload attachments.');
+        $this->assertWritable($conversation, ConversationWrite::Attach);
+    }
+
+    #[\Override]
+    public function publishTyping(Conversation $conversation): void
+    {
+        $this->assertWritable($conversation, ConversationWrite::Typing);
+
+        $user = $this->security->currentUser();
+        $this->publisher->publishConversationTyping($conversation, (int) $user->getId(), $user->getProfile()?->getName() ?? 'Unknown');
+    }
+
+    private function attachReadOnly(Conversation $conversation, User $viewer): Conversation
+    {
+        $reason = $this->readOnlyReason($conversation, $viewer);
+        $conversation->setReadOnly(null !== $reason);
+        $conversation->setReadOnlyReason($reason);
+
+        return $conversation;
+    }
+
+    private function soleCounterpartId(Conversation $conversation, User $viewer): ?int
+    {
+        $members = $conversation->getMembers();
+        if (2 !== $members->count()) {
+            return null;
+        }
+
+        $viewerId = $viewer->getId();
+        $ids = [];
+        foreach ($members as $member) {
+            $ids[] = $member->getUserId();
+        }
+        if (!in_array($viewerId, $ids, true)) {
+            return null;
+        }
+
+        foreach ($ids as $id) {
+            if (null !== $id && $id !== $viewerId) {
+                return $id;
+            }
+        }
+
+        return null;
+    }
+
+    private function reasonFrom(BlockRelations $relations, int $otherId): ?ReadOnlyReason
+    {
+        if (in_array($otherId, $relations->blockedByUser, true)) {
+            return ReadOnlyReason::Blocked;
+        }
+        if (in_array($otherId, $relations->blockingUser, true)) {
+            return ReadOnlyReason::Unavailable;
+        }
+
+        return null;
     }
 
     #[\Override]
@@ -169,8 +260,28 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
 
         $conversations = $this->conversationMemberRepository->findConversationsForUser($caller, $startedOnly);
         $unreadByConversation = $this->messageService->countUnreadPerConversationFor($caller);
+        $counterparts = [];
         foreach ($conversations as $conversation) {
             $conversation->setUnreadCount($unreadByConversation[(int) $conversation->getId()] ?? 0);
+            $otherId = $this->soleCounterpartId($conversation, $caller);
+            if (null !== $otherId) {
+                $counterparts[(int) $conversation->getId()] = $otherId;
+            }
+        }
+
+        if ([] === $counterparts) {
+            return $conversations;
+        }
+
+        $relations = $this->userBlocks->enforcedRelations($caller, array_values(array_unique($counterparts)));
+        foreach ($conversations as $conversation) {
+            $otherId = $counterparts[(int) $conversation->getId()] ?? null;
+            if (null === $otherId) {
+                continue;
+            }
+            $reason = $this->reasonFrom($relations, $otherId);
+            $conversation->setReadOnly(null !== $reason);
+            $conversation->setReadOnlyReason($reason);
         }
 
         return $conversations;

@@ -108,6 +108,7 @@ exception:
         not_member: 'Non sei membro di questa conversazione.'
         empty_member_list: 'È richiesto almeno un altro utente.'
         blocked: 'Non puoi avviare una conversazione con queste persone.'
+        read_only: 'Non puoi inviare messaggi in questa conversazione.'
 
 rate_limit:
     too_many_requests: 'Troppe richieste. Riprova più tardi.'

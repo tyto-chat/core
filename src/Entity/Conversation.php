@@ -12,6 +12,7 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\Dto\Conversation\CreateConversationDto;
 use App\Dto\Conversation\MuteConversationDto;
+use App\Enum\Conversation\ReadOnlyReason;
 use App\Repository\ConversationRepository;
 use App\State\Conversation\Processor\CreateConversationProcessor;
 use App\State\Conversation\Processor\MarkReadConversationProcessor;
@@ -42,7 +43,9 @@ use Symfony\Component\Uid\Ulid;
     openapi: new Model\Operation(
         summary: 'List the conversations of the current user',
         description: 'Returns every conversation the caller participates in, each with a caller-scoped '
-            .'`unreadCount` derived from the last-read timestamp of the caller.',
+            .'`unreadCount` derived from the last-read timestamp of the caller, plus caller-scoped `readOnly` and '
+            .'`readOnlyReason`: a one-to-one conversation is read-only while either participant holds an enforced '
+            .'block on the other (`blocked` when the caller holds one, otherwise `unavailable`).',
     ),
     security: "is_granted('ROLE_USER')",
     provider: ConversationsProvider::class,
@@ -67,8 +70,10 @@ use Symfony\Component\Uid\Ulid;
     uriVariables: ['conversation' => new Link(fromClass: Conversation::class, identifiers: ['identifier'])],
     openapi: new Model\Operation(
         summary: 'Get a conversation',
-        description: 'Returns the conversation with its members and a caller-scoped `unreadCount`. Participants '
-            .'only — global admins have no bypass into direct messages.',
+        description: 'Returns the conversation with its members, a caller-scoped `unreadCount` and caller-scoped '
+            .'`readOnly` / `readOnlyReason` (`blocked` when the caller holds an enforced block on the other '
+            .'participant, `unavailable` when the other participant holds one on the caller; one-to-one '
+            .'conversations only). Participants only — global admins have no bypass into direct messages.',
     ),
     security: "is_granted('CONVERSATION_VIEW', object)",
     provider: ConversationProvider::class,
@@ -144,6 +149,12 @@ class Conversation
     /** Transient, caller-scoped — hydrated by ConversationService before serialization, reads 0 otherwise. */
     #[Groups(['conversation:read'])]
     private int $unreadCount = 0;
+
+    #[Groups(['conversation:read'])]
+    private bool $readOnly = false;
+
+    #[Groups(['conversation:read'])]
+    private ?ReadOnlyReason $readOnlyReason = null;
 
     /**
      * @var Collection<int, ConversationMember>
@@ -249,6 +260,30 @@ class Conversation
     public function setUnreadCount(int $unreadCount): static
     {
         $this->unreadCount = $unreadCount;
+
+        return $this;
+    }
+
+    public function isReadOnly(): bool
+    {
+        return $this->readOnly;
+    }
+
+    public function setReadOnly(bool $readOnly): static
+    {
+        $this->readOnly = $readOnly;
+
+        return $this;
+    }
+
+    public function getReadOnlyReason(): ?ReadOnlyReason
+    {
+        return $this->readOnlyReason;
+    }
+
+    public function setReadOnlyReason(?ReadOnlyReason $readOnlyReason): static
+    {
+        $this->readOnlyReason = $readOnlyReason;
 
         return $this;
     }
