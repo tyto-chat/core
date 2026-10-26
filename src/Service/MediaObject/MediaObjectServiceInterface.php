@@ -20,7 +20,7 @@ interface MediaObjectServiceInterface
 
     public const int MAX_THUMBNAIL_SOURCE_PIXELS = 50_000_000;
 
-    public const array THUMBNAILABLE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    public const array THUMBNAILABLE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
     /**
      * @internal no authz — caller must gate

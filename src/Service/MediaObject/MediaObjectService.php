@@ -17,6 +17,7 @@ use App\Security\Voter\MediaObjectVoter;
 use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityEmojiServiceInterface;
 use App\Service\Realtime\MessageRealtimePublisherInterface;
+use App\Utils\GifFrames;
 use App\Utils\ImagickLimits;
 use Liip\ImagineBundle\Imagine\Filter\FilterManager;
 use Liip\ImagineBundle\Model\Binary;
@@ -65,6 +66,7 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
                 $mediaObject->height = $imageSize[1];
             }
         }
+        $mediaObject->animated = 'image/gif' === $mediaObject->mimeType ? GifFrames::isAnimated($mediaObject->file->getPathname()) : null;
     }
 
     #[\Override]
@@ -126,6 +128,9 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
             foreach ($batch as $attachment) {
                 $afterId = (int) $attachment->getId();
                 $source = $this->mediaDir.'/'.$attachment->filePath;
+                if ('image/gif' === $attachment->mimeType && null === $attachment->animated && is_file($source)) {
+                    $attachment->animated = GifFrames::isAnimated($source);
+                }
                 if (!is_file($source) || is_file($this->mediaDir.'/'.$filter.'/'.$attachment->filePath)) {
                     continue;
                 }
@@ -137,6 +142,7 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
                     ++$generated;
                 }
             }
+            $this->entityManager->flush();
             $this->entityManager->clear();
         }
 
@@ -251,6 +257,12 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
             return;
         }
         $format = substr($mimeType, (int) strrpos($mimeType, '/') + 1);
+        if ('attachment' === $mediaObject->type && 'image/gif' === $mimeType) {
+            ImagickLimits::apply();
+            $this->writeFilters($filters, $mediaObject->filePath, new Binary(self::firstGifFrame($originalPath), $mimeType, $format));
+
+            return;
+        }
         $isAnimatedGif = $this->isAnimatedGif($originalPath, $mimeType);
 
         if ($isAnimatedGif) {
@@ -267,13 +279,26 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
             ImagickLimits::apply();
         }
 
-        $binary = new Binary((string) file_get_contents($originalPath), $mimeType, $format);
+        $this->writeFilters($filters, $mediaObject->filePath, new Binary((string) file_get_contents($originalPath), $mimeType, $format));
+    }
 
+    /** @param array<string> $filters */
+    private function writeFilters(array $filters, string $filePath, Binary $binary): void
+    {
         foreach ($filters as $filter) {
             $filtered = $this->filterManager->applyFilter($binary, $filter);
-            $outputPath = $this->mediaDir.'/'.$filter.'/'.$mediaObject->filePath;
-            $this->filesystem->dumpFile($outputPath, $filtered->getContent());
+            $this->filesystem->dumpFile($this->mediaDir.'/'.$filter.'/'.$filePath, $filtered->getContent());
         }
+    }
+
+    private static function firstGifFrame(string $path): string
+    {
+        $frame = new \Imagick();
+        // The [0] suffix makes ImageMagick decode only the first frame; reading the whole file decodes every frame.
+        $frame->readImage($path.'[0]');
+        $frame->setImageFormat('gif');
+
+        return $frame->getImageBlob();
     }
 
     private function exceedsThumbnailPixelLimit(string $path): bool

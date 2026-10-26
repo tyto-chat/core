@@ -250,6 +250,7 @@ final class MercurePublisherTest extends TestCase
     {
         $withThumb = new MediaObject();
         $withThumb->filePath = 'a.png';
+        $withThumb->animated = true;
         $withoutThumb = new MediaObject();
         $withoutThumb->filePath = 'b.pdf';
         $message = $this->rootInChannel();
@@ -267,6 +268,8 @@ final class MercurePublisherTest extends TestCase
         self::assertSame('https://x/c/a.png', $attachments[0]['contentUrl']);
         self::assertArrayHasKey('thumbnailUrl', $attachments[1]);
         self::assertNull($attachments[1]['thumbnailUrl']);
+        self::assertTrue($attachments[0]['animated']);
+        self::assertNull($attachments[1]['animated']);
     }
 
     public function testPublishMessagePinnedUsesContainerTopic(): void
