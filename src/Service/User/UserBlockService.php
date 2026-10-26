@@ -16,7 +16,9 @@ use App\Repository\UserRepository;
 use App\Security\SecurityContext;
 use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityMembershipServiceInterface;
+use App\Service\Conversation\ConversationServiceInterface;
 use App\Service\Realtime\StructureRealtimePublisherInterface;
+use Symfony\Component\DependencyInjection\Attribute\Lazy;
 
 class UserBlockService extends AbstractDoctrineService implements UserBlockServiceInterface
 {
@@ -28,6 +30,8 @@ class UserBlockService extends AbstractDoctrineService implements UserBlockServi
         private readonly UserRepository $users,
         private readonly CommunityMembershipServiceInterface $memberships,
         private readonly StructureRealtimePublisherInterface $realtimePublisher,
+        #[Lazy]
+        private readonly ConversationServiceInterface $conversations,
     ) {
     }
 
@@ -48,7 +52,7 @@ class UserBlockService extends AbstractDoctrineService implements UserBlockServi
 
         $existing = $this->blocks->findOneByPair($me, $target);
         if (null !== $existing) {
-            $this->publishChanged($me, $targetUserId);
+            $this->publishChanged($me, $target);
 
             return $existing;
         }
@@ -60,7 +64,7 @@ class UserBlockService extends AbstractDoctrineService implements UserBlockServi
         $block = (new UserBlock())->setBlocker($me)->setBlocked($target);
         $this->persist($block);
         $this->flush();
-        $this->publishChanged($me, $targetUserId);
+        $this->publishChanged($me, $target);
 
         return $block;
     }
@@ -78,12 +82,13 @@ class UserBlockService extends AbstractDoctrineService implements UserBlockServi
         if (null !== $existing) {
             $this->removeAndFlush($existing);
         }
-        $this->publishChanged($me, $targetUserId);
+        $this->publishChanged($me, $target);
     }
 
-    private function publishChanged(User $blocker, int $targetUserId): void
+    private function publishChanged(User $blocker, User $target): void
     {
-        $this->realtimePublisher->publishUserEvent((int) $blocker->getId(), 'blocks.changed', ['userId' => $targetUserId]);
+        $this->realtimePublisher->publishUserEvent((int) $blocker->getId(), 'blocks.changed', ['userId' => (int) $target->getId()]);
+        $this->conversations->publishPolicyForPair($blocker, $target);
     }
 
     #[\Override]

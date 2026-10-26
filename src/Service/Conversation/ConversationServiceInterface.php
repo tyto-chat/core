@@ -22,6 +22,8 @@ interface ConversationServiceInterface
 
     public function readOnlyReason(Conversation $conversation, User $viewer): ?ReadOnlyReason;
 
+    public function publishPolicyForPair(User $a, User $b): void;
+
     public function assertWritable(Conversation $conversation, ConversationWrite $write): void;
 
     public function assertCanUpload(Conversation $conversation): void;

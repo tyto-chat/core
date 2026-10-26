@@ -7,6 +7,7 @@ namespace App\Service\HttpCache;
 use App\Entity\Channel;
 use App\Entity\Conversation;
 use App\Entity\Message;
+use App\Enum\Conversation\ReadOnlyReason;
 use App\Repository\MessagePageRepository;
 use App\Service\Realtime\MessageRealtimePublisherInterface;
 use Symfony\Component\DependencyInjection\Attribute\AsDecorator;
@@ -77,6 +78,12 @@ final class CachePurgingMessagePublisher implements MessageRealtimePublisherInte
     public function publishConversationActivity(Conversation $conversation): void
     {
         $this->inner->publishConversationActivity($conversation);
+    }
+
+    #[\Override]
+    public function publishConversationPolicy(int $userId, string $conversationIdentifier, bool $readOnly, ?ReadOnlyReason $reason): void
+    {
+        $this->inner->publishConversationPolicy($userId, $conversationIdentifier, $readOnly, $reason);
     }
 
     private function purgeThreadFor(Message $message): void

@@ -168,6 +168,22 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
     }
 
     #[\Override]
+    public function publishPolicyForPair(User $a, User $b): void
+    {
+        $conversation = $this->conversationRepository->findOneByParticipantsHash(
+            Conversation::hashParticipants([(int) $a->getId(), (int) $b->getId()]),
+        );
+        if (null === $conversation) {
+            return;
+        }
+
+        foreach ([$a, $b] as $member) {
+            $reason = $this->readOnlyReason($conversation, $member);
+            $this->publisher->publishConversationPolicy((int) $member->getId(), $conversation->getIdentifier(), null !== $reason, $reason);
+        }
+    }
+
+    #[\Override]
     public function assertWritable(Conversation $conversation, ConversationWrite $write): void
     {
         if (ConversationWrite::Unreact === $write || ConversationWrite::DeleteMessage === $write) {
