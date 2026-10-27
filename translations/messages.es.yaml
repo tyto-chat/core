@@ -6,6 +6,8 @@ exception:
         device_exists: 'Este dispositivo ya está registrado.'
         device_not_found: 'Dispositivo no encontrado.'
         device_limit: 'Esta cuenta ya tiene el número máximo de dispositivos. Elimina uno primero.'
+        disabled: 'Los mensajes directos cifrados están desactivados en este servidor.'
+        mode_not_available: 'Exigir mensajes directos cifrados aún no está disponible.'
         invalid_revocation: 'La eliminación del dispositivo no tiene una firma válida.'
         device_revoked: 'Este dispositivo fue eliminado y ya no puede publicar claves.'
         key_package_limit: 'Este dispositivo ya tiene el número máximo de paquetes de claves guardados.'

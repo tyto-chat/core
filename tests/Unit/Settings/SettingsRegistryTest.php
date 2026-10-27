@@ -39,7 +39,8 @@ final class SettingsRegistryTest extends TestCase
         self::assertContains('clientBaseUrl', $keys);
         self::assertContains('rateKeyPackageClaimLimit', $keys);
         self::assertContains('rateKeyPackageClaimIntervalSeconds', $keys);
-        self::assertCount(94, $all);
+        self::assertContains('encryptedDmsMode', $keys);
+        self::assertCount(95, $all);
     }
 
     public function testClientBaseUrlDefaultsToOffAndDropsTrailingSlashes(): void

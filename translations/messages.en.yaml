@@ -6,6 +6,8 @@ exception:
         device_exists: 'This device is already registered.'
         device_not_found: 'Device not found.'
         device_limit: 'This account already has the maximum number of devices. Remove one first.'
+        disabled: 'Encrypted direct messages are turned off on this server.'
+        mode_not_available: 'Requiring encrypted direct messages is not available yet.'
         invalid_revocation: 'The device removal is not validly signed.'
         device_revoked: 'This device was removed and can no longer publish keys.'
         key_package_limit: 'This device already has the maximum number of stored key packages.'

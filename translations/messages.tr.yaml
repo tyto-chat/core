@@ -6,6 +6,8 @@ exception:
         device_exists: 'Bu cihaz zaten kayıtlı.'
         device_not_found: 'Cihaz bulunamadı.'
         device_limit: 'Bu hesap zaten azami cihaz sayısına ulaştı. Önce birini kaldırın.'
+        disabled: 'Şifreli doğrudan mesajlar bu sunucuda kapalı.'
+        mode_not_available: 'Şifreli doğrudan mesajları zorunlu kılmak henüz kullanılamıyor.'
         invalid_revocation: 'Cihaz kaldırma işlemi geçerli şekilde imzalanmamış.'
         device_revoked: 'Bu cihaz kaldırıldı ve artık anahtar yayımlayamaz.'
         key_package_limit: 'Bu cihazda zaten en fazla sayıda anahtar paketi kayıtlı.'

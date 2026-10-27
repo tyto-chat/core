@@ -143,6 +143,9 @@ class ServerConfigDto
     public ?string $smtpEncryption = null;
 
     #[Groups(['admin_server_config:read'])]
+    public string $encryptedDmsMode = 'enabled';
+
+    #[Groups(['admin_server_config:read'])]
     public ?string $smtpFromEmail = null;
 
     #[Groups(['admin_server_config:read'])]
@@ -309,6 +312,7 @@ class ServerConfigDto
         $dto->smtpUsername = $s->get(Settings::smtpUsername());
         $dto->smtpPasswordSet = $s->has(Settings::smtpPassword());
         $dto->smtpEncryption = $s->get(Settings::smtpEncryption())?->value;
+        $dto->encryptedDmsMode = $s->get(Settings::encryptedDmsMode())->value;
         $dto->smtpFromEmail = $s->get(Settings::smtpFromEmail());
         $dto->smtpFromName = $s->get(Settings::smtpFromName());
         $dto->avatarMaxSizeMb = $s->get(Settings::avatarMaxSizeMb());

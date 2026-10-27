@@ -6,6 +6,8 @@ exception:
         device_exists: 'Dit apparaat is al geregistreerd.'
         device_not_found: 'Apparaat niet gevonden.'
         device_limit: 'Dit account heeft al het maximale aantal apparaten. Verwijder er eerst één.'
+        disabled: 'Versleutelde privéberichten zijn uitgeschakeld op deze server.'
+        mode_not_available: 'Versleutelde privéberichten verplicht stellen is nog niet beschikbaar.'
         invalid_revocation: 'De verwijdering van het apparaat is niet geldig ondertekend.'
         device_revoked: 'Dit apparaat is verwijderd en kan geen sleutels meer publiceren.'
         key_package_limit: 'Dit apparaat heeft al het maximale aantal opgeslagen sleutelpakketten.'

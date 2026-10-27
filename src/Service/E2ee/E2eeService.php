@@ -11,6 +11,7 @@ use App\Entity\E2eeAccount;
 use App\Entity\E2eeDevice;
 use App\Entity\E2eeKeyPackage;
 use App\Entity\User;
+use App\Enum\Settings\EncryptedDmsMode;
 use App\Exception\E2ee\E2eeAccountAlreadyExistsException;
 use App\Exception\E2ee\E2eeAccountRequiredException;
 use App\Exception\E2ee\E2eeDeviceAlreadyExistsException;
@@ -21,6 +22,7 @@ use App\Exception\E2ee\E2eeKeyPackageLimitException;
 use App\Exception\E2ee\E2eeLastResortRequiredException;
 use App\Exception\E2ee\E2eeStaleLastResortException;
 use App\Exception\E2ee\E2eeUserNotReachableException;
+use App\Exception\E2ee\EncryptedDmsDisabledException;
 use App\Exception\E2ee\InvalidE2eeCredentialException;
 use App\Exception\E2ee\InvalidE2eeKeyPackageException;
 use App\Exception\E2ee\InvalidE2eeRevocationException;
@@ -33,6 +35,8 @@ use App\Repository\UserRepository;
 use App\Security\SecurityContext;
 use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityMembershipServiceInterface;
+use App\Service\Settings\SettingsServiceInterface;
+use App\Settings\Settings;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -48,6 +52,7 @@ class E2eeService extends AbstractDoctrineService implements E2eeServiceInterfac
         private readonly UserRepository $users,
         private readonly CommunityMembershipServiceInterface $memberships,
         private readonly RequestStack $requestStack,
+        private readonly SettingsServiceInterface $settings,
     ) {
     }
 
@@ -55,6 +60,7 @@ class E2eeService extends AbstractDoctrineService implements E2eeServiceInterfac
     public function registerAccount(string $publicKey): E2eeAccount
     {
         $me = $this->currentHuman();
+        $this->assertSetupAllowed();
 
         if (null !== $this->accounts->findOneByUser($me)) {
             throw new E2eeAccountAlreadyExistsException();
@@ -75,7 +81,12 @@ class E2eeService extends AbstractDoctrineService implements E2eeServiceInterfac
     public function registerDevice(string $id, string $name, string $publicKey, string $server, string $credential): E2eeDevice
     {
         $me = $this->currentHuman();
-        $account = $this->accounts->findOneByUser($me) ?? throw new E2eeAccountRequiredException();
+        $account = $this->accounts->findOneByUser($me);
+        if (null === $account) {
+            $this->assertSetupAllowed();
+
+            throw new E2eeAccountRequiredException();
+        }
 
         if (!$this->isThisServer($server)) {
             throw new InvalidE2eeCredentialException();
@@ -352,6 +363,20 @@ class E2eeService extends AbstractDoctrineService implements E2eeServiceInterfac
         }
 
         return (new \DateTimeImmutable())->setTimestamp($expiresAt);
+    }
+
+    #[\Override]
+    public function mode(): EncryptedDmsMode
+    {
+        return $this->settings->get(Settings::encryptedDmsMode());
+    }
+
+    #[\Override]
+    public function assertSetupAllowed(): void
+    {
+        if (EncryptedDmsMode::Disabled === $this->mode()) {
+            throw new EncryptedDmsDisabledException();
+        }
     }
 
     #[\Override]

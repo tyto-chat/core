@@ -6,6 +6,8 @@ exception:
         device_exists: 'To urządzenie jest już zarejestrowane.'
         device_not_found: 'Nie znaleziono urządzenia.'
         device_limit: 'To konto ma już maksymalną liczbę urządzeń. Najpierw usuń jedno z nich.'
+        disabled: 'Szyfrowane wiadomości prywatne są wyłączone na tym serwerze.'
+        mode_not_available: 'Wymaganie szyfrowanych wiadomości prywatnych nie jest jeszcze dostępne.'
         invalid_revocation: 'Usunięcie urządzenia nie ma prawidłowego podpisu.'
         device_revoked: 'To urządzenie zostało usunięte i nie może już publikować kluczy.'
         key_package_limit: 'To urządzenie ma już maksymalną liczbę zapisanych pakietów kluczy.'

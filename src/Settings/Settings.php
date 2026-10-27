@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Settings;
 
+use App\Enum\Settings\EncryptedDmsMode;
 use App\Enum\Settings\SettingType;
 use App\Enum\Settings\SmtpEncryption;
 use App\Enum\Settings\SupportedLocale;
@@ -296,6 +297,12 @@ final class Settings
     public static function smtpHost(): SettingDef
     {
         return new SettingDef('smtpHost', SettingType::String, null, normalizer: self::emptyToNull());
+    }
+
+    /** @return SettingDef<EncryptedDmsMode> */
+    public static function encryptedDmsMode(): SettingDef
+    {
+        return new SettingDef('encryptedDmsMode', SettingType::Enum, EncryptedDmsMode::Enabled, false, EncryptedDmsMode::class);
     }
 
     /** @return SettingDef<?int> */
@@ -625,6 +632,7 @@ final class Settings
             self::rateTwoFactorLimit(), self::rateTwoFactorIntervalSeconds(),
             self::rateReportLimit(), self::rateReportIntervalSeconds(),
             self::rateKeyPackageClaimLimit(), self::rateKeyPackageClaimIntervalSeconds(),
+            self::encryptedDmsMode(),
             self::smtpHost(), self::smtpPort(), self::smtpUsername(), self::smtpPassword(),
             self::smtpEncryption(), self::smtpFromEmail(), self::smtpFromName(),
             self::webhookLogRetentionDays(), self::webhookMaxQueued(),

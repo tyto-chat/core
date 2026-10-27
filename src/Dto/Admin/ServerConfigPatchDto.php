@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Admin;
 
+use App\Enum\Settings\EncryptedDmsMode;
 use App\Enum\Settings\SmtpEncryption;
 use App\Enum\Settings\SupportedLocale;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -199,6 +200,9 @@ class ServerConfigPatchDto
 
     #[Groups(['admin_server_config:write'])]
     public ?SmtpEncryption $smtpEncryption;
+
+    #[Groups(['admin_server_config:write'])]
+    public EncryptedDmsMode $encryptedDmsMode;
 
     #[Assert\Email]
     #[Groups(['admin_server_config:write'])]

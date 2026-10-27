@@ -6,6 +6,8 @@ exception:
         device_exists: 'Dieses Gerät ist bereits registriert.'
         device_not_found: 'Gerät nicht gefunden.'
         device_limit: 'Dieses Konto hat bereits die maximale Anzahl an Geräten. Entferne zuerst eines.'
+        disabled: 'Verschlüsselte Direktnachrichten sind auf diesem Server deaktiviert.'
+        mode_not_available: 'Verschlüsselte Direktnachrichten verpflichtend zu machen ist noch nicht verfügbar.'
         invalid_revocation: 'Die Geräteentfernung ist nicht gültig signiert.'
         device_revoked: 'Dieses Gerät wurde entfernt und kann keine Schlüssel mehr veröffentlichen.'
         key_package_limit: 'Dieses Gerät hat bereits die maximale Anzahl gespeicherter Schlüsselpakete.'

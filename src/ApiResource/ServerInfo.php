@@ -55,6 +55,9 @@ class ServerInfo
     public bool $voiceEnabled = true;
 
     #[Groups(['server_info:read'])]
+    public string $encryptedDmsMode = 'enabled';
+
+    #[Groups(['server_info:read'])]
     public string $webPushPublicKey = '';
 
     #[Groups(['server_info:read'])]

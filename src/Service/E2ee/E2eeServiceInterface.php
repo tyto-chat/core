@@ -7,6 +7,7 @@ namespace App\Service\E2ee;
 use App\Entity\E2eeAccount;
 use App\Entity\E2eeDevice;
 use App\Entity\User;
+use App\Enum\Settings\EncryptedDmsMode;
 
 interface E2eeServiceInterface
 {
@@ -43,4 +44,9 @@ interface E2eeServiceInterface
     public function isReachable(User $user): bool;
 
     public function isAccountEnabled(User $user): bool;
+
+    public function mode(): EncryptedDmsMode;
+
+    /** Refuses new encryption setup while the operator mode is disabled; existing accounts keep working. */
+    public function assertSetupAllowed(): void;
 }

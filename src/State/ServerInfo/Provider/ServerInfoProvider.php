@@ -10,6 +10,7 @@ use App\ApiResource\ServerInfo;
 use App\Dto\ServerInfo\UploadConstraintsDto;
 use App\Enum\Legal\LegalDocumentType;
 use App\Service\Community\CommunityServiceInterface;
+use App\Service\E2ee\E2eeServiceInterface;
 use App\Service\Legal\LegalDocumentServiceInterface;
 use App\Service\Settings\SettingsServiceInterface;
 use App\Settings\Settings;
@@ -23,6 +24,7 @@ final readonly class ServerInfoProvider implements ProviderInterface
         private CommunityServiceInterface $communityService,
         private SettingsServiceInterface $settings,
         private LegalDocumentServiceInterface $legalDocumentService,
+        private E2eeServiceInterface $e2ee,
         private string $serverApiUrl,
         private string $mercurePublicUrl,
         private string $liveKitPublicUrl,
@@ -51,6 +53,7 @@ final readonly class ServerInfoProvider implements ProviderInterface
         $dto->mercureUrl = $this->mercurePublicUrl;
         $dto->liveKitUrl = $this->liveKitPublicUrl;
         $dto->voiceEnabled = $this->voiceEnabled;
+        $dto->encryptedDmsMode = $this->e2ee->mode()->value;
         $dto->webPushPublicKey = $this->webPushPublicKey;
         $dto->uploads = new UploadConstraintsDto(
             avatarMaxSize: $this->settings->get(Settings::avatarMaxSizeMb()).'M',
