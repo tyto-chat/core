@@ -51,6 +51,7 @@ final readonly class RateLimitListener
         private RateLimiterFactoryInterface $passwordResetLimiter,
         private RateLimiterFactoryInterface $searchLimiter,
         private RateLimiterFactoryInterface $reportLimiter,
+        private RateLimiterFactoryInterface $keyPackageClaimLimiter,
         private Security $security,
         private RateLimitResponseFactory $rateLimitResponses,
         private bool $enabled = true,
@@ -121,6 +122,12 @@ final readonly class RateLimitListener
             if (!$this->enforce($event, $this->messageSendLimiter, 'message-'.$this->resolveUserKey($ip))) {
                 $request->attributes->set(self::MESSAGE_FLOOD_ATTRIBUTE, true);
             }
+
+            return;
+        }
+
+        if (str_ends_with($routeName, '/key-package_post')) {
+            $this->enforce($event, $this->keyPackageClaimLimiter, 'key-package-claim-'.$this->resolveUserKey($ip));
 
             return;
         }

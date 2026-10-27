@@ -21,9 +21,20 @@ final class Base64BytesValidator extends ConstraintValidator
         }
 
         $decoded = \is_string($value) ? base64_decode($value, true) : false;
-        if (false === $decoded || \strlen($decoded) !== $constraint->length || base64_encode($decoded) !== $value) {
-            $this->context->buildViolation($constraint->message)
-                ->setParameter('{{ length }}', (string) $constraint->length)
+        if (false === $decoded || '' === $decoded || base64_encode($decoded) !== $value
+            || (null !== $constraint->length && \strlen($decoded) !== $constraint->length)
+        ) {
+            $violation = null === $constraint->length
+                ? $this->context->buildViolation($constraint->formatMessage)
+                : $this->context->buildViolation($constraint->message)->setParameter('{{ length }}', (string) $constraint->length);
+            $violation->addViolation();
+
+            return;
+        }
+
+        if (null !== $constraint->max && \strlen($decoded) > $constraint->max) {
+            $this->context->buildViolation($constraint->maxMessage)
+                ->setParameter('{{ max }}', (string) $constraint->max)
                 ->addViolation();
         }
     }

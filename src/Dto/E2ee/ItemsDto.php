@@ -8,7 +8,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
 
 final readonly class ItemsDto
 {
-    /** @param list<OwnDeviceDto>|list<RevocationDto> $items */
+    /** @param list<OwnDeviceDto>|list<RevocationDto>|list<ClaimedKeyPackageDto> $items */
     public function __construct(
         #[Groups(['e2ee:read'])]
         public array $items,

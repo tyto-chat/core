@@ -23,6 +23,7 @@ final class ConfigurableRateLimiterFactory implements RateLimiterFactoryInterfac
     public const string SCOPE_SEARCH = 'search';
     public const string SCOPE_REPORT = 'report';
     public const string SCOPE_TWO_FACTOR = 'two_factor';
+    public const string SCOPE_KEY_PACKAGE_CLAIM = 'key_package_claim';
 
     public function __construct(
         private readonly string $scope,
@@ -44,6 +45,7 @@ final class ConfigurableRateLimiterFactory implements RateLimiterFactoryInterfac
             self::SCOPE_PASSWORD_RESET => [$this->settings->get(Settings::ratePasswordResetLimit()), $this->settings->get(Settings::ratePasswordResetIntervalSeconds())],
             self::SCOPE_SEARCH => [$this->settings->get(Settings::rateSearchLimit()), $this->settings->get(Settings::rateSearchIntervalSeconds())],
             self::SCOPE_REPORT => [$this->settings->get(Settings::rateReportLimit()), $this->settings->get(Settings::rateReportIntervalSeconds())],
+            self::SCOPE_KEY_PACKAGE_CLAIM => [$this->settings->get(Settings::rateKeyPackageClaimLimit()), $this->settings->get(Settings::rateKeyPackageClaimIntervalSeconds())],
             self::SCOPE_TWO_FACTOR => [$this->settings->get(Settings::rateTwoFactorLimit()), $this->settings->get(Settings::rateTwoFactorIntervalSeconds())],
             default => throw new \InvalidArgumentException(sprintf('Unknown rate-limit scope "%s".', $this->scope)),
         };

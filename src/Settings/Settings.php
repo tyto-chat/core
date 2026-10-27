@@ -280,6 +280,18 @@ final class Settings
         return new SettingDef('rateReportIntervalSeconds', SettingType::Int, 3600);
     }
 
+    /** @return SettingDef<int> */
+    public static function rateKeyPackageClaimLimit(): SettingDef
+    {
+        return new SettingDef('rateKeyPackageClaimLimit', SettingType::Int, 30);
+    }
+
+    /** @return SettingDef<int> */
+    public static function rateKeyPackageClaimIntervalSeconds(): SettingDef
+    {
+        return new SettingDef('rateKeyPackageClaimIntervalSeconds', SettingType::Int, 3600);
+    }
+
     /** @return SettingDef<?string> */
     public static function smtpHost(): SettingDef
     {
@@ -612,6 +624,7 @@ final class Settings
             self::rateSearchLimit(), self::rateSearchIntervalSeconds(),
             self::rateTwoFactorLimit(), self::rateTwoFactorIntervalSeconds(),
             self::rateReportLimit(), self::rateReportIntervalSeconds(),
+            self::rateKeyPackageClaimLimit(), self::rateKeyPackageClaimIntervalSeconds(),
             self::smtpHost(), self::smtpPort(), self::smtpUsername(), self::smtpPassword(),
             self::smtpEncryption(), self::smtpFromEmail(), self::smtpFromName(),
             self::webhookLogRetentionDays(), self::webhookMaxQueued(),

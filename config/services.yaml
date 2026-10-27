@@ -80,6 +80,7 @@ services:
             $passwordResetLimiter: '@limiter.password_reset'
             $searchLimiter: '@limiter.search'
             $reportLimiter: '@limiter.report'
+            $keyPackageClaimLimiter: '@limiter.key_package_claim'
 
     App\State\MediaObject\Processor\UploadAttachmentProcessor:
         bind:
@@ -195,6 +196,13 @@ services:
         class: App\RateLimiter\ConfigurableRateLimiterFactory
         arguments:
             $scope: !php/const App\RateLimiter\ConfigurableRateLimiterFactory::SCOPE_REPORT
+            $settings: '@App\Service\Settings\SettingsServiceInterface'
+            $storage: '@Symfony\Component\RateLimiter\Storage\StorageInterface'
+
+    limiter.key_package_claim:
+        class: App\RateLimiter\ConfigurableRateLimiterFactory
+        arguments:
+            $scope: !php/const App\RateLimiter\ConfigurableRateLimiterFactory::SCOPE_KEY_PACKAGE_CLAIM
             $settings: '@App\Service\Settings\SettingsServiceInterface'
             $storage: '@Symfony\Component\RateLimiter\Storage\StorageInterface'
 

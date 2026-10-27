@@ -151,6 +151,22 @@ class AdminServerConfigTest extends ApiTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
+    public function testPatchStoresKeyPackageClaimLimit(): void
+    {
+        $admin = UserFactory::new()->admin()->create();
+        $client = $this->plainJsonClient($admin);
+
+        self::assertSame(30, $client->request('GET', '/api/v1/admin/server-config')->toArray()['rateKeyPackageClaimLimit']);
+
+        $body = $client->request('PATCH', '/api/v1/admin/server-config', [
+            'headers' => ['Content-Type' => 'application/merge-patch+json'],
+            'json' => ['rateKeyPackageClaimLimit' => 12, 'rateKeyPackageClaimIntervalSeconds' => 600],
+        ])->toArray();
+
+        self::assertSame(12, $body['rateKeyPackageClaimLimit']);
+        self::assertSame(600, $body['rateKeyPackageClaimIntervalSeconds']);
+    }
+
     public function testPatchValidatesLocaleEnum(): void
     {
         $admin = UserFactory::new()->admin()->create();

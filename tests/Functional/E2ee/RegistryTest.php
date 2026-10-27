@@ -4,14 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\E2ee;
 
-use ApiPlatform\Symfony\Bundle\Test\Client;
 use App\E2ee\ByteString;
 use App\E2ee\CanonicalCbor;
-use App\Entity\User;
 use App\Exception\E2ee\InvalidE2eeRevocationException;
 use App\Service\E2ee\E2eeServiceInterface;
-use App\Tests\Factory\CommunityFactory;
-use App\Tests\Factory\CommunityMemberFactory;
 use App\Tests\Factory\UserFactory;
 use App\Tests\Functional\ApiTestCase;
 use Doctrine\DBAL\Connection;
@@ -23,6 +19,7 @@ use Zenstruck\Foundry\Test\ResetDatabase;
 
 class RegistryTest extends ApiTestCase
 {
+    use E2eeRegistryTrait;
     use Factories;
     use ResetDatabase;
 
@@ -50,6 +47,25 @@ class RegistryTest extends ApiTestCase
 
         $client->request('POST', '/api/v1/e2ee/account', ['json' => ['publicKey' => 'not base64 !!']]);
         self::assertResponseStatusCodeSame(422);
+    }
+
+    public function testActiveDevicesAreCappedPerAccount(): void
+    {
+        [$user, $keys, $client] = $this->userWithAccount();
+        $devices = [];
+        foreach (range(1, E2eeServiceInterface::MAX_ACTIVE_DEVICES) as $ignored) {
+            $devices[] = $this->registerDevice($client, $keys, $user);
+        }
+
+        $response = $client->request('POST', '/api/v1/e2ee/devices', ['json' => $keys->device((int) $user->getId())['body']]);
+        self::assertSame(422, $response->getStatusCode());
+        self::assertSame('This account already has the maximum number of devices. Remove one first.', $response->toArray(false)['error']);
+
+        $client->request('DELETE', '/api/v1/e2ee/devices/'.$devices[1]['body']['deviceId'], ['json' => [
+            'revocation' => E2eeKeys::revocation($devices[1]['body']['deviceId'], $devices[0]['body']['deviceId'], $devices[0]['keyPair']),
+        ]]);
+        self::assertResponseStatusCodeSame(204);
+        $this->registerDevice($client, $keys, $user);
     }
 
     public function testDeviceRequiresAccount(): void
@@ -385,37 +401,5 @@ class RegistryTest extends ApiTestCase
         ]]);
 
         self::assertFalse(static::getContainer()->get(E2eeServiceInterface::class)->isReachable($user));
-    }
-
-    /** @return array{User, E2eeKeys, Client} */
-    private function userWithAccount(): array
-    {
-        $user = UserFactory::createOne();
-        $keys = new E2eeKeys();
-        $client = $this->plainJsonClient($user);
-        $client->request('POST', '/api/v1/e2ee/account', ['json' => ['publicKey' => $keys->accountPublicKey()]]);
-        self::assertResponseStatusCodeSame(201);
-
-        return [$user, $keys, $client];
-    }
-
-    /** @return array{body: array{deviceId: string, name: string, publicKey: string, server: string, credential: string}, keyPair: non-empty-string} */
-    private function registerDevice(Client $client, E2eeKeys $keys, User $user, string $name = 'Laptop'): array
-    {
-        $device = $keys->device((int) $user->getId(), name: $name);
-        $client->request('POST', '/api/v1/e2ee/devices', ['json' => $device['body']]);
-        self::assertResponseStatusCodeSame(201);
-
-        return $device;
-    }
-
-    private function sharingPeer(User $user): User
-    {
-        $peer = UserFactory::createOne();
-        $community = CommunityFactory::createOne();
-        CommunityMemberFactory::createForUserAndCommunity($user, $community);
-        CommunityMemberFactory::createForUserAndCommunity($peer, $community);
-
-        return $peer;
     }
 }

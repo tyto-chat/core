@@ -172,6 +172,14 @@ class ServerConfigPatchDto
     #[Groups(['admin_server_config:write'])]
     public int $rateSearchIntervalSeconds;
 
+    #[Assert\Range(min: 1, max: 10000)]
+    #[Groups(['admin_server_config:write'])]
+    public int $rateKeyPackageClaimLimit;
+
+    #[Assert\Range(min: 10, max: 86400)]
+    #[Groups(['admin_server_config:write'])]
+    public int $rateKeyPackageClaimIntervalSeconds;
+
     #[Assert\Length(max: 255)]
     #[Groups(['admin_server_config:write'])]
     public ?string $smtpHost;

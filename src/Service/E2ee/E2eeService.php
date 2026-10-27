@@ -6,18 +6,29 @@ namespace App\Service\E2ee;
 
 use App\E2ee\ByteString;
 use App\E2ee\CanonicalCbor;
+use App\E2ee\KeyPackageUploadPayload;
 use App\Entity\E2eeAccount;
 use App\Entity\E2eeDevice;
+use App\Entity\E2eeKeyPackage;
 use App\Entity\User;
 use App\Exception\E2ee\E2eeAccountAlreadyExistsException;
 use App\Exception\E2ee\E2eeAccountRequiredException;
 use App\Exception\E2ee\E2eeDeviceAlreadyExistsException;
+use App\Exception\E2ee\E2eeDeviceLimitException;
 use App\Exception\E2ee\E2eeDeviceNotFoundException;
+use App\Exception\E2ee\E2eeDeviceRevokedException;
+use App\Exception\E2ee\E2eeKeyPackageLimitException;
+use App\Exception\E2ee\E2eeLastResortRequiredException;
+use App\Exception\E2ee\E2eeStaleLastResortException;
+use App\Exception\E2ee\E2eeUserNotReachableException;
 use App\Exception\E2ee\InvalidE2eeCredentialException;
+use App\Exception\E2ee\InvalidE2eeKeyPackageException;
 use App\Exception\E2ee\InvalidE2eeRevocationException;
+use App\Exception\E2ee\InvalidE2eeUploadSignatureException;
 use App\Exception\User\UserNotFoundException;
 use App\Repository\E2eeAccountRepository;
 use App\Repository\E2eeDeviceRepository;
+use App\Repository\E2eeKeyPackageRepository;
 use App\Repository\UserRepository;
 use App\Security\SecurityContext;
 use App\Service\AbstractDoctrineService;
@@ -33,6 +44,7 @@ class E2eeService extends AbstractDoctrineService implements E2eeServiceInterfac
         private readonly SecurityContext $security,
         private readonly E2eeAccountRepository $accounts,
         private readonly E2eeDeviceRepository $devices,
+        private readonly E2eeKeyPackageRepository $keyPackages,
         private readonly UserRepository $users,
         private readonly CommunityMembershipServiceInterface $memberships,
         private readonly RequestStack $requestStack,
@@ -80,19 +92,30 @@ class E2eeService extends AbstractDoctrineService implements E2eeServiceInterfac
             throw new InvalidE2eeCredentialException();
         }
 
-        if (null !== $this->devices->find($id)) {
-            throw new E2eeDeviceAlreadyExistsException();
-        }
-
-        $device = new E2eeDevice($id, $account, $name, $publicKey, $server, $account->getGeneration(), $credential);
-        $this->persist($device);
         try {
-            $this->flush();
+            $result = $this->transactional(function () use ($account, $id, $name, $publicKey, $server, $credential): E2eeDevice|\DomainException {
+                $this->lockForUpdate($account);
+                if (null !== $this->devices->find($id)) {
+                    return new E2eeDeviceAlreadyExistsException();
+                }
+                if (\count($this->devices->findActiveByAccount($account)) >= self::MAX_ACTIVE_DEVICES) {
+                    return new E2eeDeviceLimitException();
+                }
+
+                $device = new E2eeDevice($id, $account, $name, $publicKey, $server, $account->getGeneration(), $credential);
+                $this->persist($device);
+                $this->flush();
+
+                return $device;
+            });
         } catch (UniqueConstraintViolationException) {
             throw new E2eeDeviceAlreadyExistsException();
         }
+        if ($result instanceof \DomainException) {
+            throw $result;
+        }
 
-        return $device;
+        return $result;
     }
 
     #[\Override]
@@ -100,7 +123,10 @@ class E2eeService extends AbstractDoctrineService implements E2eeServiceInterfac
     {
         $account = $this->accounts->findOneByUser($this->currentHuman());
 
-        return null === $account ? [] : $this->devices->findActiveByAccount($account);
+        return array_map(fn (E2eeDevice $device): array => [
+            'device' => $device,
+            'lastResortFingerprint' => $this->keyPackages->findLatestLastResortFingerprint($device),
+        ], null === $account ? [] : $this->devices->findActiveByAccount($account));
     }
 
     #[\Override]
@@ -147,12 +173,12 @@ class E2eeService extends AbstractDoctrineService implements E2eeServiceInterfac
         if (null === $device || $device->getId() !== $deviceId || $device->getAccount()->getUser()->getId() !== $me->getId()) {
             throw new E2eeDeviceNotFoundException();
         }
-        $this->transactional(function () use ($device, $signerDeviceId, $revokedAt, $signature): void {
+        $refusal = $this->transactional(function () use ($device, $signerDeviceId, $revokedAt, $signature): ?InvalidE2eeRevocationException {
             $account = $device->getAccount();
             $this->lockForUpdate($account);
             $this->refresh($device);
             if ($device->isRevoked()) {
-                return;
+                return null;
             }
 
             $signer = $signerDeviceId === $device->getId() ? $device : $this->devices->find($signerDeviceId);
@@ -162,24 +188,31 @@ class E2eeService extends AbstractDoctrineService implements E2eeServiceInterfac
             if (null !== $signer && $signer !== $device) {
                 $this->refresh($signer);
             }
-            $this->assertValidRevocation($device, $signer, $revokedAt, $signature);
-            \assert(null !== $signer);
+            if (null === $signer || !$this->isValidRevocation($device, $signer, $revokedAt, $signature)) {
+                return new InvalidE2eeRevocationException();
+            }
 
             $device->revoke(['signerDeviceId' => $signer->getId(), 'revokedAt' => $revokedAt, 'signature' => $signature]);
+            $this->keyPackages->deleteAllForDevice($device);
             $this->flush();
+
+            return null;
         });
+
+        if (null !== $refusal) {
+            throw $refusal;
+        }
     }
 
-    private function assertValidRevocation(E2eeDevice $device, ?E2eeDevice $signer, int $revokedAt, string $signature): void
+    private function isValidRevocation(E2eeDevice $device, E2eeDevice $signer, int $revokedAt, string $signature): bool
     {
         $account = $device->getAccount();
-        if (null === $signer
-            || $signer->getAccount()->getId() !== $account->getId()
+        if ($signer->getAccount()->getId() !== $account->getId()
             || $signer->isRevoked()
             || $signer->getGeneration() !== $account->getGeneration()
             || $revokedAt > time() + self::REVOCATION_CLOCK_SKEW_SECONDS
         ) {
-            throw new InvalidE2eeRevocationException();
+            return false;
         }
 
         $payload = CanonicalCbor::encodeMap([
@@ -188,17 +221,137 @@ class E2eeService extends AbstractDoctrineService implements E2eeServiceInterfac
             'revokedAt' => $revokedAt,
             'signerDeviceId' => $signer->getId(),
         ]);
-        if (!$this->verify($signature, $payload, $signer->getPublicKey())) {
-            throw new InvalidE2eeRevocationException();
+
+        return $this->verify($signature, $payload, $signer->getPublicKey());
+    }
+
+    #[\Override]
+    public function storeKeyPackages(string $deviceId, array $packages, ?array $lastResort, ?string $lastResortReplaces, string $signature): void
+    {
+        $me = $this->currentHuman();
+        $device = $this->devices->find($deviceId);
+        if (null === $device || $device->getId() !== $deviceId || $device->getAccount()->getUser()->getId() !== $me->getId()) {
+            throw new E2eeDeviceNotFoundException();
         }
+
+        $replaces = null === $lastResortReplaces ? null : (string) base64_decode($lastResortReplaces, true);
+        if (!$this->verify($signature, KeyPackageUploadPayload::encode($device->getId(), $device->getGeneration(), $packages, $lastResort, $replaces), $device->getPublicKey())) {
+            throw new InvalidE2eeUploadSignatureException();
+        }
+
+        $now = new \DateTimeImmutable();
+        $expiries = [];
+        foreach ([...$packages, ...(null === $lastResort ? [] : [$lastResort])] as $package) {
+            $expiries[] = $this->assertValidExpiry($package['expiresAt'], $now);
+        }
+
+        $refusal = $this->transactional(function () use ($device, $packages, $lastResort, $replaces, $expiries, $now): ?\DomainException {
+            $account = $device->getAccount();
+            $this->lockForUpdate($account);
+            $this->refresh($device);
+            if ($device->isRevoked() || $device->getGeneration() !== $account->getGeneration()) {
+                return new E2eeDeviceRevokedException();
+            }
+
+            $this->keyPackages->deleteExpired($device, $now);
+            $seen = array_fill_keys($this->keyPackages->findExistingFingerprints($device, array_map(
+                static fn (array $package): string => E2eeKeyPackage::fingerprintOf($package['data']),
+                [...$packages, ...(null === $lastResort ? [] : [$lastResort])],
+            )), true);
+
+            $new = [];
+            foreach ($packages as $index => $package) {
+                $fingerprint = E2eeKeyPackage::fingerprintOf($package['data']);
+                if (!isset($seen[$fingerprint])) {
+                    $seen[$fingerprint] = true;
+                    $new[] = new E2eeKeyPackage($device, $package['data'], $expiries[$index]);
+                }
+            }
+            $currentLastResort = $this->keyPackages->findUsableLastResort($device, $now);
+            $storesNewLastResort = null !== $lastResort && !isset($seen[E2eeKeyPackage::fingerprintOf($lastResort['data'])]);
+            $latestLastResort = $this->keyPackages->findLatestLastResortFingerprint($device);
+            if ($storesNewLastResort && null !== $latestLastResort && $latestLastResort !== bin2hex($replaces ?? '')) {
+                return new E2eeStaleLastResortException();
+            }
+            if (!$storesNewLastResort && null === $currentLastResort) {
+                return new E2eeLastResortRequiredException();
+            }
+            if ([] !== $new && $this->keyPackages->countUsableOneTime($device, $now) + \count($new) > self::MAX_ONE_TIME_KEY_PACKAGES) {
+                return new E2eeKeyPackageLimitException();
+            }
+            foreach ($new as $package) {
+                $this->persist($package);
+            }
+            if ($storesNewLastResort) {
+                $this->keyPackages->retireLastResort($device, $now);
+                $this->persist(new E2eeKeyPackage($device, $lastResort['data'], $expiries[\count($packages)], true));
+            }
+            $this->flush();
+
+            return null;
+        });
+
+        if (null !== $refusal) {
+            throw $refusal;
+        }
+    }
+
+    #[\Override]
+    public function claimKeyPackages(int $userId): array
+    {
+        $user = $this->visibleUser($userId);
+        if (null === $this->accounts->findOneByUser($this->currentHuman())) {
+            throw new E2eeAccountRequiredException();
+        }
+        $account = $this->accounts->findOneByUser($user);
+        $now = new \DateTimeImmutable();
+
+        /** @var list<array{deviceId: string, keyPackage: string}> $claimed */
+        $claimed = null === $account ? [] : $this->transactional(function () use ($account, $now): array {
+            $this->lockForUpdate($account);
+            $claimed = [];
+            foreach ($this->devices->findActiveByAccount($account) as $device) {
+                $package = $this->keyPackages->claimOneTime($device, $now) ?? $this->keyPackages->findUsableLastResort($device, $now);
+                if (null !== $package) {
+                    $claimed[] = ['deviceId' => $device->getId(), 'keyPackage' => $package];
+                }
+            }
+
+            return $claimed;
+        });
+
+        if ([] === $claimed) {
+            throw new E2eeUserNotReachableException($user->getProfile()?->getName() ?? '#'.$user->getId());
+        }
+
+        return $claimed;
     }
 
     #[\Override]
     public function isReachable(User $user): bool
     {
         $account = $this->accounts->findOneByUser($user);
+        if (null === $account) {
+            return false;
+        }
 
-        return null !== $account && [] !== $this->devices->findActiveByAccount($account);
+        $now = new \DateTimeImmutable();
+        foreach ($this->devices->findActiveByAccount($account) as $device) {
+            if ($this->keyPackages->hasUsable($device, $now)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function assertValidExpiry(int $expiresAt, \DateTimeImmutable $now): \DateTimeImmutable
+    {
+        if ($expiresAt <= $now->getTimestamp() || $expiresAt > $now->getTimestamp() + self::MAX_KEY_PACKAGE_LIFETIME_SECONDS) {
+            throw new InvalidE2eeKeyPackageException();
+        }
+
+        return (new \DateTimeImmutable())->setTimestamp($expiresAt);
     }
 
     #[\Override]

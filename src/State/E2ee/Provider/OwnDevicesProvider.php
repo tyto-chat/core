@@ -21,6 +21,6 @@ final readonly class OwnDevicesProvider implements ProviderInterface
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): ItemsDto
     {
-        return new ItemsDto(array_map(OwnDeviceDto::fromDevice(...), $this->e2ee->listOwnDevices()));
+        return new ItemsDto(array_map(OwnDeviceDto::fromRow(...), $this->e2ee->listOwnDevices()));
     }
 }

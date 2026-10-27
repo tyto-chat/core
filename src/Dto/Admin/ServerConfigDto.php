@@ -122,6 +122,12 @@ class ServerConfigDto
     public int $rateSearchIntervalSeconds = 0;
 
     #[Groups(['admin_server_config:read'])]
+    public int $rateKeyPackageClaimLimit = 0;
+
+    #[Groups(['admin_server_config:read'])]
+    public int $rateKeyPackageClaimIntervalSeconds = 0;
+
+    #[Groups(['admin_server_config:read'])]
     public ?string $smtpHost = null;
 
     #[Groups(['admin_server_config:read'])]
@@ -296,6 +302,8 @@ class ServerConfigDto
         $dto->rateAttachmentUploadIntervalSeconds = $s->get(Settings::rateAttachmentUploadIntervalSeconds());
         $dto->rateSearchLimit = $s->get(Settings::rateSearchLimit());
         $dto->rateSearchIntervalSeconds = $s->get(Settings::rateSearchIntervalSeconds());
+        $dto->rateKeyPackageClaimLimit = $s->get(Settings::rateKeyPackageClaimLimit());
+        $dto->rateKeyPackageClaimIntervalSeconds = $s->get(Settings::rateKeyPackageClaimIntervalSeconds());
         $dto->smtpHost = $s->get(Settings::smtpHost());
         $dto->smtpPort = $s->get(Settings::smtpPort());
         $dto->smtpUsername = $s->get(Settings::smtpUsername());

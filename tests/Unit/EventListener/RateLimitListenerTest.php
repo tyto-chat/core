@@ -50,6 +50,9 @@ class RateLimitListenerTest extends TestCase
     /** @var RateLimiterFactoryInterface&MockObject */
     private RateLimiterFactoryInterface $reportLimiter;
 
+    /** @var RateLimiterFactoryInterface&MockObject */
+    private RateLimiterFactoryInterface $keyPackageClaimLimiter;
+
     /** @var Security&MockObject */
     private Security $security;
 
@@ -65,6 +68,7 @@ class RateLimitListenerTest extends TestCase
         $this->passwordResetLimiter = $this->createMock(RateLimiterFactoryInterface::class);
         $this->searchLimiter = $this->createMock(RateLimiterFactoryInterface::class);
         $this->reportLimiter = $this->createMock(RateLimiterFactoryInterface::class);
+        $this->keyPackageClaimLimiter = $this->createMock(RateLimiterFactoryInterface::class);
         $this->security = $this->createMock(Security::class);
     }
 
@@ -416,6 +420,51 @@ class RateLimitListenerTest extends TestCase
         self::assertFalse($event->hasResponse());
     }
 
+    public function testKeyPackageClaimUsesItsOwnLimiterKeyedOnTheCaller(): void
+    {
+        $user = new User();
+        (new \ReflectionProperty($user, 'id'))->setValue($user, 7);
+        $this->security->method('getUser')->willReturn($user);
+        $this->apiWriteLimiter->expects(self::never())->method('create');
+        $this->stubLimiter($this->keyPackageClaimLimiter, accepted: true, expectedKey: 'key-package-claim-uid-7');
+
+        $listener = $this->makeListener();
+        $event = $this->makeEvent(Request::create('/api/v1/e2ee/users/9/key-package', 'POST'));
+        $event->getRequest()->attributes->set('_route', '_api_/e2ee/users/{userId}/key-package_post');
+
+        $listener->onWriteRequest($event);
+
+        self::assertFalse($event->hasResponse());
+    }
+
+    public function testKeyPackageClaimIsRateLimitedWhenExceeded(): void
+    {
+        $this->stubLimiter($this->keyPackageClaimLimiter, accepted: false);
+
+        $listener = $this->makeListener();
+        $event = $this->makeEvent(Request::create('/api/v1/e2ee/users/9/key-package', 'POST'));
+        $event->getRequest()->attributes->set('_route', '_api_/e2ee/users/{userId}/key-package_post');
+
+        $listener->onWriteRequest($event);
+
+        self::assertTrue($event->hasResponse());
+        self::assertSame(Response::HTTP_TOO_MANY_REQUESTS, $event->getResponse()->getStatusCode());
+    }
+
+    public function testKeyPackageUploadKeepsTheGeneralWriteLimiter(): void
+    {
+        $this->keyPackageClaimLimiter->expects(self::never())->method('create');
+        $this->stubLimiter($this->apiWriteLimiter, accepted: true);
+
+        $listener = $this->makeListener();
+        $event = $this->makeEvent(Request::create('/api/v1/e2ee/devices/abc/key-packages', 'POST'));
+        $event->getRequest()->attributes->set('_route', '_api_/e2ee/devices/{deviceId}/key-packages_post');
+
+        $listener->onWriteRequest($event);
+
+        self::assertFalse($event->hasResponse());
+    }
+
     public function testRateLimitedResponseIncludesRequiredHeaders(): void
     {
         $this->stubLimiter($this->authLoginLimiter, accepted: false);
@@ -504,6 +553,7 @@ class RateLimitListenerTest extends TestCase
             passwordResetLimiter: $this->passwordResetLimiter,
             searchLimiter: $this->searchLimiter,
             reportLimiter: $this->reportLimiter,
+            keyPackageClaimLimiter: $this->keyPackageClaimLimiter,
             security: $this->security,
             rateLimitResponses: new RateLimitResponseFactory($translator),
             enabled: $enabled,

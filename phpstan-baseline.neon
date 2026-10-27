@@ -74,6 +74,12 @@ parameters:
 			path: src/Entity/E2eeAccount.php
 
 		-
+			message: '#^Property App\\Entity\\E2eeKeyPackage\:\:\$claimedAt \(DateTimeImmutable\|null\) is never assigned DateTimeImmutable so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/E2eeKeyPackage.php
+
+		-
 			message: '#^Property App\\Entity\\E2eeKeyPackage\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
 			identifier: property.unusedType
 			count: 1

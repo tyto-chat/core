@@ -26,11 +26,21 @@ final readonly class OwnDeviceDto
         public string $createdAt,
         #[Groups(['e2ee:read'])]
         public string $lastSeenAt,
+        #[Groups(['e2ee:read'])]
+        public ?string $lastResortFingerprint,
     ) {
     }
 
     public static function fromDevice(E2eeDevice $device): self
     {
+        return self::fromRow(['device' => $device, 'lastResortFingerprint' => null]);
+    }
+
+    /** @param array{device: E2eeDevice, lastResortFingerprint: ?string} $row */
+    public static function fromRow(array $row): self
+    {
+        $device = $row['device'];
+
         return new self(
             $device->getId(),
             $device->getName(),
@@ -40,6 +50,7 @@ final readonly class OwnDeviceDto
             $device->getGeneration(),
             $device->getCreatedAt()->format(\DATE_ATOM),
             $device->getLastSeenAt()->format(\DATE_ATOM),
+            null === $row['lastResortFingerprint'] ? null : base64_encode((string) hex2bin($row['lastResortFingerprint'])),
         );
     }
 }

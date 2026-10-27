@@ -1,0 +1,18 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Dto\E2ee;
+
+use Symfony\Component\Serializer\Attribute\Groups;
+
+final readonly class ClaimedKeyPackageDto
+{
+    public function __construct(
+        #[Groups(['e2ee:read'])]
+        public string $deviceId,
+        #[Groups(['e2ee:read'])]
+        public string $keyPackage,
+    ) {
+    }
+}

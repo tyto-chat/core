@@ -172,6 +172,8 @@ POST /api/v1/conversations/{conversation}/mute
 POST /api/v1/conversations/{conversation}/typing
 POST /api/v1/e2ee/account
 POST /api/v1/e2ee/devices
+POST /api/v1/e2ee/devices/{deviceId}/key-packages
+POST /api/v1/e2ee/users/{userId}/key-package
 POST /api/v1/invites/{token}/accept
 POST /api/v1/me/account-deletion
 POST /api/v1/me/api-keys
