@@ -15,6 +15,7 @@ final class SendWebPushMessage
         public readonly array $bodyParams,
         public readonly string $url,
         public readonly string $tag,
+        public readonly ?int $actorUserId = null,
     ) {
     }
 }

@@ -64,6 +64,15 @@ class BlockedNotificationTest extends ApiTestCase
         return $response->toArray();
     }
 
+    /** @return list<array<string, mixed>> */
+    private function visibleNotifs(User $recipient, string $community): array
+    {
+        $data = $this->jsonClient($recipient)->request('GET', "/api/v1/communities/{$community}/notifications")->toArray();
+        self::assertResponseIsSuccessful();
+
+        return $data['hydra:member'];
+    }
+
     /** @return list<array{type: string, messageCount: int, actorIds: list<int>|null}> */
     private function channelNotifs(User $recipient, Community $community): array
     {
@@ -171,6 +180,36 @@ class BlockedNotificationTest extends ApiTestCase
 
         $this->send($b, 'bn3', 'second from blocked');
         self::assertSame($afterC, $this->channelNotifs($a, $community));
+    }
+
+    public function testSoleActorChannelActivityHiddenAfterBlock(): void
+    {
+        $a = UserFactory::createOne();
+        $b = UserFactory::createOne();
+        [, $channel] = $this->communityWith('bn9', $a, $b);
+        $this->setLevelAll($a, $channel);
+        $this->send($b, 'bn9', 'one');
+        $this->send($b, 'bn9', 'two');
+        self::assertCount(1, $this->visibleNotifs($a, 'bn9'));
+
+        $this->block($a, $b);
+
+        self::assertSame([], $this->visibleNotifs($a, 'bn9'));
+    }
+
+    public function testMixedChannelActivityStaysAfterBlockingOneActor(): void
+    {
+        $a = UserFactory::createOne();
+        $b = UserFactory::createOne();
+        $c = UserFactory::createOne();
+        [, $channel] = $this->communityWith('bn10', $a, $b, $c);
+        $this->setLevelAll($a, $channel);
+        $this->send($b, 'bn10', 'from b');
+        $this->send($c, 'bn10', 'from c');
+
+        $this->block($a, $b);
+
+        self::assertCount(1, $this->visibleNotifs($a, 'bn10'));
     }
 
     public function testNoDmNotificationFromBlockedUserInGroup(): void

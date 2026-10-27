@@ -141,6 +141,7 @@ class NotificationService extends AbstractDoctrineService implements Notificatio
             $notification->setAuthorName($actorName);
             $notification->setMessageIri($messageIri);
             $notification->setActorIds([$actorId]);
+            $notification->setActor($this->entityManager->getReference(User::class, $actorId));
             $notification->setMessageCount(1);
             $notification->setCoalesceKey(sprintf(
                 '%d:%s:%s',
@@ -189,6 +190,9 @@ class NotificationService extends AbstractDoctrineService implements Notificatio
             $actorIds[] = $actorId;
             $existing->setActorIds(array_values($actorIds));
             $existing->setAuthorName($actorName);
+            if (count($actorIds) > 1) {
+                $existing->setActor(null);
+            }
         }
         $existing->setMessageCount($existing->getMessageCount() + 1);
         $existing->setMessageIri($messageIri);
@@ -223,6 +227,7 @@ class NotificationService extends AbstractDoctrineService implements Notificatio
             $bodyParams,
             $this->buildPushUrl($notification),
             $tag,
+            $notification->getActor()?->getId(),
         ));
     }
 

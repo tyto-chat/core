@@ -8,6 +8,7 @@ use App\Async\SendWebPushMessage;
 use App\Repository\PushSubscriptionRepository;
 use App\Service\Notification\WebPushSenderInterface;
 use App\Service\Settings\SettingsServiceInterface;
+use App\Service\User\UserBlockServiceInterface;
 use App\Settings\Settings;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -22,12 +23,13 @@ final class SendWebPushHandler
         private readonly TranslatorInterface $translator,
         private readonly SettingsServiceInterface $settings,
         private readonly LoggerInterface $logger,
+        private readonly UserBlockServiceInterface $userBlocks,
     ) {
     }
 
     public function __invoke(SendWebPushMessage $message): void
     {
-        if (!$this->sender->isConfigured()) {
+        if (!$this->sender->isConfigured() || $this->actorIsBlocked($message)) {
             return;
         }
 
@@ -69,5 +71,16 @@ final class SendWebPushHandler
         }
 
         $this->repository->deleteByEndpoints($deadEndpoints);
+    }
+
+    private function actorIsBlocked(SendWebPushMessage $message): bool
+    {
+        $actorId = $message->actorUserId ?? null;
+        if (null === $actorId) {
+            return false;
+        }
+        $blocked = $this->userBlocks->enforcedBlockedIdsByBlocker([$message->recipientUserId])[$message->recipientUserId] ?? [];
+
+        return in_array($actorId, $blocked, true);
     }
 }
