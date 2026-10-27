@@ -1,4 +1,11 @@
 exception:
+    e2ee:
+        account_exists: 'Voor dit account is versleuteling al ingesteld.'
+        account_required: 'Stel eerst versleuteling in voor je account.'
+        invalid_credential: 'De apparaatreferentie is niet geldig voor dit account.'
+        device_exists: 'Dit apparaat is al geregistreerd.'
+        device_not_found: 'Apparaat niet gevonden.'
+        invalid_revocation: 'De verwijdering van het apparaat is niet geldig ondertekend.'
     access_denied: 'Je hebt geen toestemming om dit te doen.'
     user_not_found: 'Gebruiker niet gevonden.'
     channel_not_found: 'Kanaal niet gevonden.'

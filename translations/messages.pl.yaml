@@ -1,4 +1,11 @@
 exception:
+    e2ee:
+        account_exists: 'To konto ma już skonfigurowane szyfrowanie.'
+        account_required: 'Najpierw skonfiguruj szyfrowanie dla swojego konta.'
+        invalid_credential: 'Poświadczenie urządzenia jest nieprawidłowe dla tego konta.'
+        device_exists: 'To urządzenie jest już zarejestrowane.'
+        device_not_found: 'Nie znaleziono urządzenia.'
+        invalid_revocation: 'Usunięcie urządzenia nie ma prawidłowego podpisu.'
     access_denied: 'Nie masz uprawnień do wykonania tej operacji.'
     user_not_found: 'Nie znaleziono użytkownika.'
     channel_not_found: 'Nie znaleziono kanału.'

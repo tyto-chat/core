@@ -1,4 +1,11 @@
 exception:
+    e2ee:
+        account_exists: 'Le chiffrement est déjà configuré pour ce compte.'
+        account_required: 'Configure d''abord le chiffrement de ton compte.'
+        invalid_credential: 'L''identifiant de l''appareil n''est pas valide pour ce compte.'
+        device_exists: 'Cet appareil est déjà enregistré.'
+        device_not_found: 'Appareil introuvable.'
+        invalid_revocation: 'La suppression de l''appareil n''est pas signée correctement.'
     access_denied: 'Tu n''as pas la permission de faire cela.'
     user_not_found: 'Utilisateur introuvable.'
     channel_not_found: 'Salon introuvable.'

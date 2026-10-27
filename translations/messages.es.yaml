@@ -1,4 +1,11 @@
 exception:
+    e2ee:
+        account_exists: 'Esta cuenta ya tiene el cifrado configurado.'
+        account_required: 'Primero configura el cifrado de tu cuenta.'
+        invalid_credential: 'La credencial del dispositivo no es válida para esta cuenta.'
+        device_exists: 'Este dispositivo ya está registrado.'
+        device_not_found: 'Dispositivo no encontrado.'
+        invalid_revocation: 'La eliminación del dispositivo no tiene una firma válida.'
     access_denied: 'No tienes permiso para hacer esto.'
     user_not_found: 'Usuario no encontrado.'
     channel_not_found: 'Canal no encontrado.'

@@ -1,4 +1,11 @@
 exception:
+    e2ee:
+        account_exists: 'Für dieses Konto ist die Verschlüsselung bereits eingerichtet.'
+        account_required: 'Richte zuerst die Verschlüsselung für dein Konto ein.'
+        invalid_credential: 'Der Geräteausweis ist für dieses Konto nicht gültig.'
+        device_exists: 'Dieses Gerät ist bereits registriert.'
+        device_not_found: 'Gerät nicht gefunden.'
+        invalid_revocation: 'Die Geräteentfernung ist nicht gültig signiert.'
     access_denied: 'Dazu fehlt dir die Berechtigung.'
     user_not_found: 'Benutzer nicht gefunden.'
     channel_not_found: 'Kanal nicht gefunden.'

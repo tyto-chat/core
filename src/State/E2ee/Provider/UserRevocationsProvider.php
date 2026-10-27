@@ -1,0 +1,26 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\State\E2ee\Provider;
+
+use ApiPlatform\Metadata\Operation;
+use ApiPlatform\State\ProviderInterface;
+use App\Dto\E2ee\ItemsDto;
+use App\Dto\E2ee\RevocationDto;
+use App\Service\E2ee\E2eeServiceInterface;
+
+/**
+ * @implements ProviderInterface<ItemsDto>
+ */
+final readonly class UserRevocationsProvider implements ProviderInterface
+{
+    public function __construct(private E2eeServiceInterface $e2ee)
+    {
+    }
+
+    public function provide(Operation $operation, array $uriVariables = [], array $context = []): ItemsDto
+    {
+        return new ItemsDto(array_map(RevocationDto::fromRow(...), $this->e2ee->listRevocations((int) $uriVariables['userId'])));
+    }
+}

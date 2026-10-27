@@ -2,3 +2,4 @@ email_available.already_registered: 'Esta dirección de correo ya está registra
 email_exists.not_registered: 'El correo no está registrado.'
 valid_challenge.invalid: 'Código de verificación de correo no válido o caducado.'
 valid_reset_password_request.invalid: 'Token de restablecimiento no válido o caducado.'
+base64_bytes.invalid: 'Debe ser una codificación base64 de exactamente {{ length }} bytes.'

@@ -1,4 +1,11 @@
 exception:
+    e2ee:
+        account_exists: 'Bu hesap için şifreleme zaten ayarlanmış.'
+        account_required: 'Önce hesabın için şifrelemeyi ayarla.'
+        invalid_credential: 'Cihaz kimlik bilgisi bu hesap için geçerli değil.'
+        device_exists: 'Bu cihaz zaten kayıtlı.'
+        device_not_found: 'Cihaz bulunamadı.'
+        invalid_revocation: 'Cihaz kaldırma işlemi geçerli şekilde imzalanmamış.'
     access_denied: 'Bunu yapma iznin yok.'
     user_not_found: 'Kullanıcı bulunamadı.'
     channel_not_found: 'Kanal bulunamadı.'

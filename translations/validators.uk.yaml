@@ -2,3 +2,4 @@ email_available.already_registered: 'Ця електронна адреса вж
 email_exists.not_registered: 'Електронна адреса не зареєстрована.'
 valid_challenge.invalid: 'Недійсний або прострочений код підтвердження пошти.'
 valid_reset_password_request.invalid: 'Недійсний або прострочений токен скидання.'
+base64_bytes.invalid: 'Має бути base64-кодуванням рівно {{ length }} байтів.'
