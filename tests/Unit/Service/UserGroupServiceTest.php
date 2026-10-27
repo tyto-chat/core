@@ -23,6 +23,7 @@ use App\Service\Channel\ChannelMembershipServiceInterface;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Notification\NotificationServiceInterface;
 use App\Service\Realtime\RealtimePublisherInterface;
+use App\Service\User\UserBlockServiceInterface;
 use App\Service\UserGroup\UserGroupService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -60,6 +61,7 @@ class UserGroupServiceTest extends TestCase
             $this->createMock(NotificationServiceInterface::class),
             $this->createMock(RealtimePublisherInterface::class),
             $this->createMock(ChannelMembershipServiceInterface::class),
+            $this->createMock(UserBlockServiceInterface::class),
         );
         $this->service->setEntityManager($this->entityManager);
         $this->service->setLogger(new NullLogger());
@@ -109,6 +111,7 @@ class UserGroupServiceTest extends TestCase
             $this->createMock(NotificationServiceInterface::class),
             $publisher,
             $this->createMock(ChannelMembershipServiceInterface::class),
+            $this->createMock(UserBlockServiceInterface::class),
         );
         $service->setEntityManager($this->entityManager);
         $service->setLogger(new NullLogger());

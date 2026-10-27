@@ -25,6 +25,9 @@ exception:
     invalid_report_target: 'Dieser Inhalt kann nicht gemeldet werden.'
     invalid_report_transition: 'Diese Meldung kann nicht in diesen Status geändert werden.'
     user:
+        cannot_block_self: 'Du kannst dich nicht selbst blockieren.'
+        cannot_block_staff: 'Du kannst Administratoren oder Moderatoren nicht blockieren.'
+        block_limit_reached: 'Du hast die maximale Anzahl blockierter Nutzer erreicht.'
         invalid_current_password: 'Das aktuelle Passwort ist falsch.'
         two_factor_already_enabled: 'Die Zwei-Faktor-Authentifizierung ist bereits aktiviert.'
         two_factor_setup_not_started: 'Die Einrichtung der Zwei-Faktor-Authentifizierung wurde nicht gestartet.'
@@ -104,6 +107,8 @@ exception:
         not_found: 'Unterhaltung nicht gefunden.'
         not_member: 'Du bist kein Mitglied dieser Unterhaltung.'
         empty_member_list: 'Mindestens ein weiterer Benutzer ist erforderlich.'
+        blocked: 'Du kannst keine Unterhaltung mit diesen Personen beginnen.'
+        read_only: 'Du kannst in dieser Unterhaltung keine Nachrichten senden.'
 
 rate_limit:
     too_many_requests: 'Zu viele Anfragen. Versuch es später erneut.'

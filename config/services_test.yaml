@@ -113,3 +113,12 @@ services:
         autowire: true
         arguments:
             $webhookHttpClient: '@app.webhook_mock_http_client'
+
+    App\Service\User\UserBlockServiceInterface:
+        alias: App\Service\User\UserBlockService
+        public: true
+
+    App\Repository\UserBlockRepository:
+        public: true
+        autowire: true
+        autoconfigure: true

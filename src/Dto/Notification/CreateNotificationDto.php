@@ -26,6 +26,7 @@ readonly class CreateNotificationDto implements EntityDtoInterface
         public readonly ?\DateTimeInterface $expiresAt = null,
         public readonly ?string $conversationIdentifier = null,
         public readonly ?int $moderationActionId = null,
+        public readonly ?User $actor = null,
     ) {
     }
 
@@ -51,5 +52,6 @@ readonly class CreateNotificationDto implements EntityDtoInterface
         $entity->setReason($this->reason);
         $entity->setExpiresAt($this->expiresAt);
         $entity->setModerationActionId($this->moderationActionId);
+        $entity->setActor($this->actor);
     }
 }

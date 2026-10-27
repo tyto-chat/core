@@ -47,6 +47,14 @@ interface CommunityMembershipServiceInterface
     /** @return User[] community admins + moderators */
     public function findModeratorUsers(Community $community): array;
 
+    /**
+     * @param list<int> $staffCandidateIds
+     * @param list<int> $memberIds
+     *
+     * @return array<int, list<int>> staffId → memberIds sharing a community where staffId is admin or moderator
+     */
+    public function findStaffSharedPairs(array $staffCandidateIds, array $memberIds): array;
+
     public function existsSharedCommunity(User $a, User $b): bool;
 
     /**

@@ -23,6 +23,7 @@ readme:
     file_reactions: 'reactions.json       — Reações que você deu em mensagens de outras pessoas.'
     file_moderation: 'moderation.json      — Ações de moderação aplicadas à sua conta.'
     file_notifications: 'notifications.json   — Notificações que você recebeu.'
+    file_blocks: 'blocks.json          — utilizadores que você bloqueou e quando.'
 
     excluded_heading: 'O que NÃO está incluído'
     excluded_rule: '--------------------'

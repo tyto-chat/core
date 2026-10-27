@@ -33,6 +33,10 @@ class PatScopeDenyListTest extends ApiTestCase
         yield 'api-keys list' => ['GET', '/api/v1/me/api-keys'];
         yield 'api-keys issue' => ['POST', '/api/v1/me/api-keys'];
         yield 'api-keys revoke' => ['DELETE', '/api/v1/me/api-keys/1'];
+        yield 'blocks list' => ['GET', '/api/v1/me/blocks'];
+        yield 'blocks create' => ['POST', '/api/v1/me/blocks'];
+        yield 'blocks status' => ['GET', '/api/v1/me/blocks/1'];
+        yield 'blocks delete' => ['DELETE', '/api/v1/me/blocks/1'];
         yield 'account deletion status' => ['GET', '/api/v1/me/account-deletion'];
         yield 'account deletion request' => ['POST', '/api/v1/me/account-deletion'];
         yield 'account deletion cancel' => ['DELETE', '/api/v1/me/account-deletion'];

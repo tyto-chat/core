@@ -23,6 +23,7 @@ readme:
     file_reactions: 'reactions.json       — Başkalarının mesajlarına verdiğin tepkiler.'
     file_moderation: 'moderation.json      — Hesabına uygulanan moderasyon eylemleri.'
     file_notifications: 'notifications.json   — Aldığın bildirimler.'
+    file_blocks: 'blocks.json          — engellediğin kullanıcılar ve ne zaman.'
 
     excluded_heading: 'Dahil OLMAYANLAR'
     excluded_rule: '--------------------'

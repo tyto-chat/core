@@ -8,6 +8,8 @@ use App\Entity\Conversation;
 use App\Entity\ConversationMember;
 use App\Entity\MessagePage;
 use App\Entity\User;
+use App\Enum\Conversation\ConversationWrite;
+use App\Enum\Conversation\ReadOnlyReason;
 
 interface ConversationServiceInterface
 {
@@ -17,6 +19,20 @@ interface ConversationServiceInterface
     public function createOrFind(array $otherParticipants): Conversation;
 
     public function getByIdentifier(string $identifier): Conversation;
+
+    public function readOnlyReason(Conversation $conversation, User $viewer): ?ReadOnlyReason;
+
+    /** @return array<int, ?ReadOnlyReason>|null per-member read-only reason keyed by user id, null when the pair has no conversation */
+    public function policySnapshotForPair(User $a, User $b): ?array;
+
+    /** @param array<int, ?ReadOnlyReason>|null $before */
+    public function publishPolicyChangesForPair(User $a, User $b, ?array $before): void;
+
+    public function assertWritable(Conversation $conversation, ConversationWrite $write): void;
+
+    public function assertCanUpload(Conversation $conversation): void;
+
+    public function publishTyping(Conversation $conversation): void;
 
     /** @return Conversation[] */
     public function listForCurrentUser(): array;

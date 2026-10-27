@@ -4,17 +4,22 @@ declare(strict_types=1);
 
 namespace App\Dto\User;
 
+use App\Entity\MediaObject;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\Ignore;
 
-final readonly class InvitableUserDto
+final class InvitableUserDto
 {
+    #[Groups(['invitable_users:read'])]
+    public ?string $avatarUrl = null;
+
     public function __construct(
         #[Groups(['invitable_users:read'])]
-        public int $id = 0,
+        public readonly int $id = 0,
         #[Groups(['invitable_users:read'])]
-        public ?string $name = null,
-        #[Groups(['invitable_users:read'])]
-        public ?string $avatarUrl = null,
+        public readonly ?string $name = null,
+        #[Ignore]
+        public readonly ?MediaObject $avatar = null,
     ) {
     }
 }

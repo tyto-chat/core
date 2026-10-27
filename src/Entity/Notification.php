@@ -85,6 +85,10 @@ class Notification
     #[ORM\JoinColumn(nullable: true)]
     private ?Community $community = null;
 
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $actor = null;
+
     #[ORM\Column(length: 50, enumType: NotificationType::class)]
     #[Groups(['notification:read'])]
     private NotificationType $type = NotificationType::Mention;
@@ -170,6 +174,18 @@ class Notification
     public function setRecipient(User $recipient): static
     {
         $this->recipient = $recipient;
+
+        return $this;
+    }
+
+    public function getActor(): ?User
+    {
+        return $this->actor;
+    }
+
+    public function setActor(?User $actor): static
+    {
+        $this->actor = $actor;
 
         return $this;
     }

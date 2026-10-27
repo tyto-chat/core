@@ -7,6 +7,7 @@ namespace App\Service\Realtime;
 use App\Entity\Channel;
 use App\Entity\Conversation;
 use App\Entity\Message;
+use App\Enum\Conversation\ReadOnlyReason;
 
 interface MessageRealtimePublisherInterface
 {
@@ -21,6 +22,8 @@ interface MessageRealtimePublisherInterface
     public function publishMessageAttachmentsUpdated(Message $message): void;
 
     public function publishConversationActivity(Conversation $conversation): void;
+
+    public function publishConversationPolicy(int $userId, string $conversationIdentifier, bool $readOnly, ?ReadOnlyReason $reason): void;
 
     public function publishMessagePinned(Message $message): void;
 

@@ -25,6 +25,9 @@ exception:
     invalid_report_target: 'Bu içerik şikâyet edilemez.'
     invalid_report_transition: 'Bu şikâyet o duruma geçirilemez.'
     user:
+        cannot_block_self: 'Kendini engelleyemezsin.'
+        cannot_block_staff: 'Yöneticileri veya moderatörleri engelleyemezsin.'
+        block_limit_reached: 'Engellenen kullanıcı sayısı üst sınıra ulaştı.'
         invalid_current_password: 'Mevcut parola yanlış.'
         two_factor_already_enabled: 'İki adımlı doğrulama zaten etkin.'
         two_factor_setup_not_started: 'İki adımlı doğrulama kurulumu başlatılmadı.'
@@ -109,6 +112,8 @@ exception:
         not_found: 'Sohbet bulunamadı.'
         not_member: 'Bu sohbetin üyesi değilsin.'
         empty_member_list: 'En az bir başka kullanıcı gerekli.'
+        blocked: 'Bu kişilerle sohbet başlatamazsınız.'
+        read_only: 'Bu sohbette mesaj gönderemezsin.'
 
 rate_limit:
     too_many_requests: 'Çok fazla istek. Lütfen daha sonra tekrar dene.'

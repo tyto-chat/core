@@ -25,6 +25,9 @@ exception:
     invalid_report_target: 'Este conteúdo não pode ser denunciado.'
     invalid_report_transition: 'Esta denúncia não pode ser alterada para esse status.'
     user:
+        cannot_block_self: 'Você não pode bloquear a si mesmo.'
+        cannot_block_staff: 'Você não pode bloquear administradores ou moderadores.'
+        block_limit_reached: 'Você atingiu o número máximo de usuários bloqueados.'
         invalid_current_password: 'A senha atual está incorreta.'
         two_factor_already_enabled: 'A autenticação em duas etapas já está ativada.'
         two_factor_setup_not_started: 'A configuração da autenticação em duas etapas não foi iniciada.'
@@ -109,6 +112,8 @@ exception:
         not_found: 'Conversa não encontrada.'
         not_member: 'Você não é membro desta conversa.'
         empty_member_list: 'Pelo menos um outro usuário é necessário.'
+        blocked: 'Você não pode iniciar uma conversa com essas pessoas.'
+        read_only: 'Você não pode enviar mensagens nesta conversa.'
 
 rate_limit:
     too_many_requests: 'Muitas solicitações. Tente novamente mais tarde.'

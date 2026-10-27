@@ -12,6 +12,7 @@ use App\Entity\Conversation;
 use App\Entity\MediaObject;
 use App\Entity\Message;
 use App\Entity\Notification;
+use App\Enum\Conversation\ReadOnlyReason;
 use App\Enum\Presence\PresenceState;
 use App\Service\MediaObject\AttachmentUrlGeneratorInterface;
 use App\Service\MediaObject\SignedUrlServiceInterface;
@@ -327,6 +328,17 @@ class MercurePublisher implements RealtimePublisherInterface
             }
             $this->publish(Topics::userConversationActivity($userId), $data);
         }
+    }
+
+    #[\Override]
+    public function publishConversationPolicy(int $userId, string $conversationIdentifier, bool $readOnly, ?ReadOnlyReason $reason): void
+    {
+        $this->publish(Topics::userConversationActivity($userId), [
+            'type' => 'conversation.policy',
+            'conversationIdentifier' => $conversationIdentifier,
+            'readOnly' => $readOnly,
+            'readOnlyReason' => $reason?->value,
+        ]);
     }
 
     public function publishPresenceChanged(int $userId, PresenceState $state, array $communityIds = []): void

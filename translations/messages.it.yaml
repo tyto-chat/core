@@ -25,6 +25,9 @@ exception:
     invalid_report_target: 'Questo contenuto non può essere segnalato.'
     invalid_report_transition: 'Questa segnalazione non può passare a quello stato.'
     user:
+        cannot_block_self: 'Non puoi bloccare te stesso.'
+        cannot_block_staff: 'Non puoi bloccare amministratori o moderatori.'
+        block_limit_reached: 'Hai raggiunto il numero massimo di utenti bloccati.'
         invalid_current_password: 'La password attuale non è corretta.'
         two_factor_already_enabled: 'L''autenticazione a due fattori è già abilitata.'
         two_factor_setup_not_started: 'La configurazione dell''autenticazione a due fattori non è stata avviata.'
@@ -104,6 +107,8 @@ exception:
         not_found: 'Conversazione non trovata.'
         not_member: 'Non sei membro di questa conversazione.'
         empty_member_list: 'È richiesto almeno un altro utente.'
+        blocked: 'Non puoi avviare una conversazione con queste persone.'
+        read_only: 'Non puoi inviare messaggi in questa conversazione.'
 
 rate_limit:
     too_many_requests: 'Troppe richieste. Riprova più tardi.'

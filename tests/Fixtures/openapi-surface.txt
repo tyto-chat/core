@@ -19,6 +19,7 @@ DELETE /api/v1/communities/{identifier}/members
 DELETE /api/v1/community_emojis/{id}
 DELETE /api/v1/me/account-deletion
 DELETE /api/v1/me/api-keys/{id}
+DELETE /api/v1/me/blocks/{userId}
 DELETE /api/v1/me/pinned-communities/{communityId}
 DELETE /api/v1/me/push-subscriptions
 DELETE /api/v1/messages/{id}
@@ -82,6 +83,8 @@ GET /api/v1/legal/{type}
 GET /api/v1/me
 GET /api/v1/me/account-deletion
 GET /api/v1/me/api-keys
+GET /api/v1/me/blocks
+GET /api/v1/me/blocks/{userId}
 GET /api/v1/me/community-memberships
 GET /api/v1/me/data-export
 GET /api/v1/me/data-export/download
@@ -167,6 +170,7 @@ POST /api/v1/invites/{token}/accept
 POST /api/v1/me/account-deletion
 POST /api/v1/me/api-keys
 POST /api/v1/me/avatar
+POST /api/v1/me/blocks
 POST /api/v1/me/conversations/mark-all-read
 POST /api/v1/me/data-export
 POST /api/v1/me/email-notifications

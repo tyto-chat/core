@@ -87,6 +87,11 @@ class CommunityMembershipService implements CommunityMembershipServiceInterface
         return $this->communityMemberRepository->findModeratorUsers($community);
     }
 
+    public function findStaffSharedPairs(array $staffCandidateIds, array $memberIds): array
+    {
+        return $this->communityMemberRepository->findStaffSharedPairs($staffCandidateIds, $memberIds);
+    }
+
     public function existsSharedCommunity(User $a, User $b): bool
     {
         return $this->communityMemberRepository->existsSharedCommunity($a, $b);

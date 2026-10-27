@@ -16,6 +16,7 @@ use App\Security\SecurityContext;
 use App\Security\Voter\ChannelVoter;
 use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityMembershipServiceInterface;
+use App\Service\User\UserBlockServiceInterface;
 use App\Service\User\UserServiceInterface;
 use App\Service\UserContextService;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
@@ -32,6 +33,7 @@ class ChannelUserPreferenceService extends AbstractDoctrineService implements Ch
         private readonly CommunityMembershipServiceInterface $membershipService,
         private readonly UserServiceInterface $userService,
         private readonly AccessDecisionManagerInterface $accessDecisionManager,
+        private readonly UserBlockServiceInterface $userBlockService,
     ) {
     }
 
@@ -126,8 +128,11 @@ class ChannelUserPreferenceService extends AbstractDoctrineService implements Ch
     }
 
     #[\Override]
-    public function filterRecipients(Channel $channel, array $candidateUserIds, string $category): array
+    public function filterRecipients(Channel $channel, array $candidateUserIds, string $category, ?int $actorId): array
     {
+        if (null !== $actorId) {
+            $candidateUserIds = $this->userBlockService->filterRecipientsNotBlocking($actorId, array_values($candidateUserIds));
+        }
         if ([] === $candidateUserIds) {
             return [];
         }

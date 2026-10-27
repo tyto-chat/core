@@ -7,6 +7,9 @@ namespace App\Tests\Unit\Service;
 use App\Entity\Conversation;
 use App\Entity\ConversationMember;
 use App\Entity\User;
+use App\Enum\Conversation\ConversationWrite;
+use App\Enum\Conversation\ReadOnlyReason;
+use App\Exception\Conversation\ConversationReadOnlyException;
 use App\Exception\Conversation\EmptyMemberListException;
 use App\Exception\Conversation\NoSharedCommunityException;
 use App\Exception\Conversation\NotMemberException;
@@ -18,6 +21,8 @@ use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Conversation\ConversationService;
 use App\Service\Message\MessageServiceInterface;
 use App\Service\Notification\NotificationServiceInterface;
+use App\Service\User\UserBlockServiceInterface;
+use App\ValueObject\User\BlockRelations;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -37,6 +42,7 @@ class ConversationServiceTest extends TestCase
     private EntityManagerInterface&MockObject $entityManager;
     private Security&MockObject $security;
     private NotificationServiceInterface&MockObject $notifications;
+    private UserBlockServiceInterface&MockObject $blocks;
     private ConversationService $service;
 
     #[\Override]
@@ -51,6 +57,8 @@ class ConversationServiceTest extends TestCase
         $this->security = $this->createMock(Security::class);
         $this->notifications = $this->createMock(NotificationServiceInterface::class);
 
+        $this->blocks = $this->createMock(UserBlockServiceInterface::class);
+
         $this->service = new ConversationService(
             new SecurityContext($this->security, $this->communityMembershipService),
             $this->communityMembershipService,
@@ -60,6 +68,8 @@ class ConversationServiceTest extends TestCase
             $this->messageService,
             $this->createMock(ManagerRegistry::class),
             $this->notifications,
+            $this->blocks,
+            $this->createMock(\App\Service\Realtime\RealtimePublisherInterface::class),
         );
         $this->service->setEntityManager($this->entityManager);
         $this->service->setLogger(new NullLogger());
@@ -127,6 +137,7 @@ class ConversationServiceTest extends TestCase
         $this->authenticate($caller);
         $this->communityMembershipService->method('existsSharedCommunity')->willReturn(true);
         $this->conversationRepository->method('findOneByParticipantsHash')->willReturn(null);
+        $this->blocks->method('enforcedRelations')->willReturn(new BlockRelations());
 
         $this->entityManager->expects(self::once())->method('persist');
         $this->entityManager->expects(self::once())->method('flush');
@@ -188,5 +199,60 @@ class ConversationServiceTest extends TestCase
 
         $this->expectException(NotMemberException::class);
         $this->service->markRead($conversation);
+    }
+
+    private function conversationWith(User ...$users): Conversation
+    {
+        $conversation = new Conversation();
+        foreach ($users as $user) {
+            $conversation->addMember((new ConversationMember())->setUser($user));
+        }
+
+        return $conversation;
+    }
+
+    public function testReadOnlyReasonDistinguishesBlockerFromBlocked(): void
+    {
+        $viewer = $this->user(1);
+        $conversation = $this->conversationWith($viewer, $this->user(2));
+
+        $this->blocks->method('enforcedRelations')->willReturnOnConsecutiveCalls(
+            new BlockRelations(blockedIds: [2], blockerIds: [2]),
+            new BlockRelations(blockerIds: [2]),
+            new BlockRelations(),
+        );
+
+        self::assertSame(ReadOnlyReason::Blocked, $this->service->readOnlyReason($conversation, $viewer));
+        self::assertSame(ReadOnlyReason::Unavailable, $this->service->readOnlyReason($conversation, $viewer));
+        self::assertNull($this->service->readOnlyReason($conversation, $viewer));
+    }
+
+    public function testReadOnlyReasonIgnoresGroupConversations(): void
+    {
+        $viewer = $this->user(1);
+        $this->blocks->expects(self::never())->method('enforcedRelations');
+
+        self::assertNull($this->service->readOnlyReason($this->conversationWith($viewer, $this->user(2), $this->user(3)), $viewer));
+    }
+
+    public function testAssertWritableAllowsUnreactAndDeleteWithoutLookup(): void
+    {
+        $caller = $this->user(1);
+        $this->authenticate($caller);
+        $this->blocks->expects(self::never())->method('enforcedRelations');
+        $conversation = $this->conversationWith($caller, $this->user(2));
+
+        $this->service->assertWritable($conversation, ConversationWrite::Unreact);
+        $this->service->assertWritable($conversation, ConversationWrite::DeleteMessage);
+    }
+
+    public function testAssertWritableRejectsSendWhenReadOnly(): void
+    {
+        $caller = $this->user(1);
+        $this->authenticate($caller);
+        $this->blocks->method('enforcedRelations')->willReturn(new BlockRelations(blockerIds: [2]));
+
+        $this->expectException(ConversationReadOnlyException::class);
+        $this->service->assertWritable($this->conversationWith($caller, $this->user(2)), ConversationWrite::Send);
     }
 }

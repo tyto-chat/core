@@ -25,6 +25,9 @@ exception:
     invalid_report_target: 'Tej treści nie można zgłosić.'
     invalid_report_transition: 'Tego zgłoszenia nie można zmienić na ten status.'
     user:
+        cannot_block_self: 'Nie możesz zablokować samego siebie.'
+        cannot_block_staff: 'Nie możesz blokować administratorów ani moderatorów.'
+        block_limit_reached: 'Osiągnięto maksymalną liczbę zablokowanych użytkowników.'
         invalid_current_password: 'Aktualne hasło jest nieprawidłowe.'
         two_factor_already_enabled: 'Uwierzytelnianie dwuskładnikowe jest już włączone.'
         two_factor_setup_not_started: 'Konfiguracja uwierzytelniania dwuskładnikowego nie została rozpoczęta.'
@@ -109,6 +112,8 @@ exception:
         not_found: 'Nie znaleziono rozmowy.'
         not_member: 'Nie jesteś członkiem tej rozmowy.'
         empty_member_list: 'Wymagany jest co najmniej jeden inny użytkownik.'
+        blocked: 'Nie możesz rozpocząć rozmowy z tymi osobami.'
+        read_only: 'Nie możesz wysyłać wiadomości w tej rozmowie.'
 
 rate_limit:
     too_many_requests: 'Zbyt wiele żądań. Spróbuj ponownie później.'

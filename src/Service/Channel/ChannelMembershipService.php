@@ -22,6 +22,7 @@ use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\HttpCache\PurgesHttpCacheTrait;
 use App\Service\Notification\NotificationServiceInterface;
 use App\Service\Realtime\StructureRealtimePublisherInterface;
+use App\Service\User\UserBlockServiceInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 class ChannelMembershipService extends AbstractDoctrineService implements ChannelMembershipServiceInterface
@@ -35,6 +36,7 @@ class ChannelMembershipService extends AbstractDoctrineService implements Channe
         private readonly NotificationServiceInterface $notificationService,
         private readonly StructureRealtimePublisherInterface $realtimePublisher,
         private readonly MessageBusInterface $messageBus,
+        private readonly UserBlockServiceInterface $userBlocks,
     ) {
     }
 
@@ -79,13 +81,17 @@ class ChannelMembershipService extends AbstractDoctrineService implements Channe
         $channelMember->setRole($role);
         $channelMember = $this->save($channelMember);
 
-        $this->notificationService->new(new CreateNotificationDto(
-            recipient: $user,
-            community: $community,
-            channelIdentifier: (string) $channel->getIdentifier(),
-            communityIdentifier: (string) $community->getIdentifier(),
-            type: ChannelRole::Moderator === $role ? NotificationType::ChannelModerator : NotificationType::ChannelAccess,
-        ));
+        $actorId = (int) $this->security->currentUser()->getId();
+        if ([] !== $this->userBlocks->filterRecipientsNotBlocking($actorId, [(int) $user->getId()])) {
+            $this->notificationService->new(new CreateNotificationDto(
+                recipient: $user,
+                community: $community,
+                channelIdentifier: (string) $channel->getIdentifier(),
+                communityIdentifier: (string) $community->getIdentifier(),
+                type: ChannelRole::Moderator === $role ? NotificationType::ChannelModerator : NotificationType::ChannelAccess,
+                actor: $this->security->currentUser(),
+            ));
+        }
 
         $this->publishAccessGranted($community, $channel, $user);
 

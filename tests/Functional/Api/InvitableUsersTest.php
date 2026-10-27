@@ -183,4 +183,53 @@ class InvitableUsersTest extends ApiTestCase
 
         self::assertResponseStatusCodeSame(401);
     }
+
+    public function testOmitsBlockedInBothDirectionsByDefault(): void
+    {
+        $caller = UserFactory::createOne();
+        $community = CommunityFactory::createOne();
+        CommunityMemberFactory::createForUserAndCommunity($caller, $community);
+        $named = static fn (string $name) => UserFactory::new()
+            ->afterInstantiate(static function (\App\Entity\User $u) use ($name): void {
+                $u->getProfile()->setName($name);
+            })
+            ->create();
+        $blockedByMe = $named('Quokka Blocked');
+        $blocksMe = $named('Quokka Blocker');
+        $plain = $named('Quokka Plain');
+        foreach ([$blockedByMe, $blocksMe, $plain] as $user) {
+            CommunityMemberFactory::createForUserAndCommunity($user, $community);
+        }
+        $this->plainJsonClient($caller)->request('POST', '/api/v1/me/blocks', ['json' => ['userId' => $blockedByMe->getId()]]);
+        $this->plainJsonClient($blocksMe)->request('POST', '/api/v1/me/blocks', ['json' => ['userId' => $caller->getId()]]);
+
+        $ids = array_column(
+            $this->plainJsonClient($caller)->request('GET', '/api/v1/me/invitable-users?search=Quokka')->toArray()['items'],
+            'id',
+        );
+
+        self::assertContains($plain->getId(), $ids);
+        self::assertNotContains($blockedByMe->getId(), $ids);
+        self::assertNotContains($blocksMe->getId(), $ids);
+    }
+
+    public function testIncludeBlockedListsBlockedUsers(): void
+    {
+        $caller = UserFactory::createOne();
+        $community = CommunityFactory::createOne();
+        CommunityMemberFactory::createForUserAndCommunity($caller, $community);
+        $blocked = UserFactory::new()
+            ->afterInstantiate(static function (\App\Entity\User $u): void {
+                $u->getProfile()->setName('Numbat Blocked');
+            })
+            ->create();
+        CommunityMemberFactory::createForUserAndCommunity($blocked, $community);
+        $this->plainJsonClient($caller)->request('POST', '/api/v1/me/blocks', ['json' => ['userId' => $blocked->getId()]]);
+
+        $items = $this->plainJsonClient($caller)->request('GET', '/api/v1/me/invitable-users?search=Numbat&includeBlocked=true')->toArray()['items'];
+
+        self::assertContains($blocked->getId(), array_column($items, 'id'));
+        self::assertArrayHasKey('avatarUrl', $items[0]);
+        self::assertArrayNotHasKey('avatar', $items[0]);
+    }
 }

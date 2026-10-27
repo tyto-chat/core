@@ -18,6 +18,7 @@ use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\HttpCache\CachePurgerInterface;
 use App\Service\Notification\NotificationServiceInterface;
 use App\Service\Realtime\RealtimePublisherInterface;
+use App\Service\User\UserBlockServiceInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -36,6 +37,7 @@ class ChannelMembershipServiceTest extends TestCase
     private NotificationServiceInterface&MockObject $notificationService;
     private RealtimePublisherInterface&MockObject $realtimePublisher;
     private MessageBusInterface&MockObject $messageBus;
+    private UserBlockServiceInterface&MockObject $userBlocks;
     private EntityManagerInterface&MockObject $entityManager;
     private Security&MockObject $security;
     private ChannelMembershipService $service;
@@ -51,6 +53,8 @@ class ChannelMembershipServiceTest extends TestCase
         $this->messageBus->method('dispatch')->willReturnCallback(
             static fn (object $m): Envelope => new Envelope($m),
         );
+        $this->userBlocks = $this->createMock(UserBlockServiceInterface::class);
+        $this->userBlocks->method('filterRecipientsNotBlocking')->willReturnCallback(static fn (int $actorId, array $ids): array => $ids);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->security = $this->createMock(Security::class);
 
@@ -61,6 +65,7 @@ class ChannelMembershipServiceTest extends TestCase
             $this->notificationService,
             $this->realtimePublisher,
             $this->messageBus,
+            $this->userBlocks,
         );
         $this->service->setEntityManager($this->entityManager);
         $this->service->setLogger(new NullLogger());
@@ -150,6 +155,7 @@ class ChannelMembershipServiceTest extends TestCase
         $user = $this->createMock(User::class);
 
         $this->security->method('isGranted')->willReturn(true);
+        $this->security->method('getUser')->willReturn($this->createMock(User::class));
         $this->communityMembershipService->method('isMember')->willReturn(true);
         $this->channelMemberRepository->method('findOneByUserAndChannel')->willReturn(null);
 
@@ -170,6 +176,7 @@ class ChannelMembershipServiceTest extends TestCase
         $channel->method('getIdentifier')->willReturn('general');
 
         $this->security->method('isGranted')->willReturn(true);
+        $this->security->method('getUser')->willReturn($this->createMock(User::class));
         $this->communityMembershipService->method('isMember')->willReturn(true);
         $this->channelMemberRepository->method('findOneByUserAndChannel')->willReturn(null);
         $this->realtimePublisher->expects(self::once())->method('publishCommunityStructureChanged')->with($community);

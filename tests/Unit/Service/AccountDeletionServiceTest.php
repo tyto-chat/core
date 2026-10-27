@@ -19,6 +19,7 @@ use App\Service\HttpCache\CachePurgerInterface;
 use App\Service\MediaObject\MediaObjectServiceInterface;
 use App\Service\Notification\PushSubscriptionServiceInterface;
 use App\Service\Security\SessionRevokerInterface;
+use App\Service\User\UserBlockServiceInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -59,6 +60,7 @@ class AccountDeletionServiceTest extends TestCase
             $this->mediaObjectService,
             $this->recoveryCodeRepository,
             $this->sessionRevoker,
+            $this->createMock(UserBlockServiceInterface::class),
         );
         $this->service->setEntityManager($this->entityManager);
         $this->service->setLogger(new NullLogger());

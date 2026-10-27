@@ -19,6 +19,7 @@ use App\Service\Notification\ChannelUserPreferenceService;
 use App\Service\Notification\ChannelUserPreferenceServiceInterface;
 use App\Service\Notification\NotificationServiceInterface;
 use App\Service\Presence\PresenceServiceInterface;
+use App\Service\User\UserBlockServiceInterface;
 use App\Service\User\UserServiceInterface;
 use App\Utils\MentionExtractor;
 use Symfony\Component\DependencyInjection\Attribute\Lazy;
@@ -37,6 +38,7 @@ class MessageNotificationDispatcher implements MessageNotificationDispatcherInte
         #[Lazy]
         private readonly PresenceServiceInterface $presenceService,
         private readonly IriConverterInterface $iriConverter,
+        private readonly UserBlockServiceInterface $userBlockService,
         private readonly int $activeChannelWindowSeconds = 60,
     ) {
     }
@@ -53,11 +55,18 @@ class MessageNotificationDispatcher implements MessageNotificationDispatcherInte
     {
         $authorName = $message->getCreatedBy()?->getProfile()?->getName() ?? 'Unknown';
         $messageIri = $this->iriConverter->getIriFromResource($message);
-        $authorId = $author->getId();
+        $authorId = (int) $author->getId();
+
+        $memberIds = [];
+        foreach ($conversation->getMembers() as $member) {
+            $memberIds[] = (int) $member->getUser()->getId();
+        }
+        $allowedIds = array_flip($this->userBlockService->filterRecipientsNotBlocking($authorId, $memberIds));
 
         foreach ($conversation->getMembers() as $member) {
             $recipient = $member->getUser();
-            if ($recipient->getId() === $authorId) {
+            $recipientId = (int) $recipient->getId();
+            if ($recipientId === $authorId || !isset($allowedIds[$recipientId])) {
                 continue;
             }
             if ($member->isMuted()) {
@@ -70,6 +79,7 @@ class MessageNotificationDispatcher implements MessageNotificationDispatcherInte
                 authorName: $authorName,
                 messageIri: $messageIri,
                 conversationIdentifier: $conversation->getIdentifier(),
+                actor: $author,
             ));
         }
     }
@@ -94,6 +104,7 @@ class MessageNotificationDispatcher implements MessageNotificationDispatcherInte
             $channel,
             $directIds,
             ChannelUserPreferenceService::CATEGORY_MENTION,
+            $authorId,
         );
         foreach ($this->userService->findByIds($directIds) as $recipient) {
             $this->notificationService->new(new CreateNotificationDto(
@@ -103,6 +114,7 @@ class MessageNotificationDispatcher implements MessageNotificationDispatcherInte
                 communityIdentifier: $communityIdentifier,
                 authorName: $authorName,
                 messageIri: $messageIri,
+                actor: $message->getCreatedBy(),
             ));
         }
 
@@ -118,6 +130,7 @@ class MessageNotificationDispatcher implements MessageNotificationDispatcherInte
                 $channel,
                 $broadcastIds,
                 ChannelUserPreferenceService::CATEGORY_MENTION,
+                $authorId,
             );
             foreach ($this->userService->findByIds($broadcastIds) as $recipient) {
                 $this->notificationService->new(new CreateNotificationDto(
@@ -128,6 +141,7 @@ class MessageNotificationDispatcher implements MessageNotificationDispatcherInte
                     type: NotificationType::BroadcastMention,
                     authorName: $authorName,
                     messageIri: $messageIri,
+                    actor: $message->getCreatedBy(),
                 ));
             }
         }
@@ -165,6 +179,7 @@ class MessageNotificationDispatcher implements MessageNotificationDispatcherInte
             $channel,
             $candidates,
             ChannelUserPreferenceService::CATEGORY_PLAIN,
+            $authorId,
         );
         if ([] === $recipientIds) {
             return;

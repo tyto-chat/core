@@ -19,6 +19,7 @@ use App\Security\SecurityContext;
 use App\Security\Voter\NotificationVoter;
 use App\Service\AbstractDoctrineService;
 use App\Service\Realtime\RealtimePublisherInterface;
+use App\Service\User\UserBlockServiceInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -32,6 +33,7 @@ class NotificationService extends AbstractDoctrineService implements Notificatio
         private readonly MessageBusInterface $bus,
         private readonly WebPushSenderInterface $webPushSender,
         private readonly ManagerRegistry $managerRegistry,
+        private readonly UserBlockServiceInterface $userBlockService,
     ) {
     }
 
@@ -61,7 +63,7 @@ class NotificationService extends AbstractDoctrineService implements Notificatio
     {
         $user = $this->security->currentUser('You must be signed in to view notifications.');
 
-        return $this->notificationRepository->countUnreadByRecipient($user);
+        return $this->notificationRepository->countUnreadByRecipient($user, $this->hiddenActorIds($user));
     }
 
     /**
@@ -72,7 +74,7 @@ class NotificationService extends AbstractDoctrineService implements Notificatio
     {
         $user = $this->security->currentUser('You must be signed in to view notifications.');
 
-        return $this->notificationRepository->findByRecipientAndCommunity($user, $community);
+        return $this->notificationRepository->findByRecipientAndCommunity($user, $community, $this->hiddenActorIds($user));
     }
 
     #[\Override]
@@ -97,7 +99,7 @@ class NotificationService extends AbstractDoctrineService implements Notificatio
     {
         $user = $this->security->currentUser('You must be signed in to view notifications.');
 
-        return $this->notificationRepository->findDmByRecipient($user);
+        return $this->notificationRepository->findDmByRecipient($user, $this->hiddenActorIds($user));
     }
 
     #[\Override]
@@ -139,6 +141,7 @@ class NotificationService extends AbstractDoctrineService implements Notificatio
             $notification->setAuthorName($actorName);
             $notification->setMessageIri($messageIri);
             $notification->setActorIds([$actorId]);
+            $notification->setActor($this->entityManager->getReference(User::class, $actorId));
             $notification->setMessageCount(1);
             $notification->setCoalesceKey(sprintf(
                 '%d:%s:%s',
@@ -172,6 +175,14 @@ class NotificationService extends AbstractDoctrineService implements Notificatio
         return $this->coalesceInto($existing, $actorId, $actorName, $messageIri);
     }
 
+    /** @return list<int> */
+    private function hiddenActorIds(User $user): array
+    {
+        $userId = (int) $user->getId();
+
+        return $this->userBlockService->enforcedBlockedIdsByBlocker([$userId])[$userId] ?? [];
+    }
+
     private function coalesceInto(Notification $existing, int $actorId, string $actorName, string $messageIri): Notification
     {
         $actorIds = $existing->getActorIds() ?? [];
@@ -179,6 +190,9 @@ class NotificationService extends AbstractDoctrineService implements Notificatio
             $actorIds[] = $actorId;
             $existing->setActorIds(array_values($actorIds));
             $existing->setAuthorName($actorName);
+            if (count($actorIds) > 1) {
+                $existing->setActor(null);
+            }
         }
         $existing->setMessageCount($existing->getMessageCount() + 1);
         $existing->setMessageIri($messageIri);
@@ -213,6 +227,7 @@ class NotificationService extends AbstractDoctrineService implements Notificatio
             $bodyParams,
             $this->buildPushUrl($notification),
             $tag,
+            $notification->getActor()?->getId(),
         ));
     }
 

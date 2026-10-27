@@ -25,6 +25,9 @@ exception:
     invalid_report_target: 'This content cannot be reported.'
     invalid_report_transition: 'This report cannot be changed to that status.'
     user:
+        cannot_block_self: 'You can''t block yourself.'
+        cannot_block_staff: 'You can''t block administrators or moderators.'
+        block_limit_reached: 'You''ve reached the maximum number of blocked users.'
         invalid_current_password: 'Current password is incorrect.'
         two_factor_already_enabled: 'Two-factor authentication is already enabled.'
         two_factor_setup_not_started: 'Two-factor setup has not been started.'
@@ -109,6 +112,8 @@ exception:
         not_found: 'Conversation not found.'
         not_member: 'You are not a member of this conversation.'
         empty_member_list: 'At least one other user is required.'
+        blocked: 'You can''t start a conversation with these people.'
+        read_only: 'You can''t send messages in this conversation.'
 
 rate_limit:
     too_many_requests: 'Too many requests. Please try again later.'
