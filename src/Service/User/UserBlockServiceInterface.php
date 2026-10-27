@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\User;
 
-use App\Dto\User\BlockRelations;
 use App\Entity\User;
 use App\Entity\UserBlock;
+use App\ValueObject\User\BlockRelations;
 
 interface UserBlockServiceInterface
 {

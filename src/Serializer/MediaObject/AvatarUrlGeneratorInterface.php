@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Service\MediaObject;
+namespace App\Serializer\MediaObject;
 
 use App\Entity\MediaObject;
 
-interface AvatarUrlResolverInterface
+interface AvatarUrlGeneratorInterface
 {
     public function avatarUrl(?MediaObject $avatar): ?string;
 }

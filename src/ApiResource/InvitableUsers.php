@@ -26,11 +26,11 @@ use Symfony\Component\Serializer\Attribute\Groups;
                 description: 'Autocomplete source for starting a DM: returns non-bot users who share at least one community '
                     .'with the authenticated caller (global admins may look up any user). Optional `search` filters by '
                     .'display name or email; `limit` is clamped to 1-50. '
-                    .'`purpose=dm` additionally omits users in an enforced block with the caller, in either direction.',
+                    .'Users in an enforced block with the caller, in either direction, are omitted unless `includeBlocked=true`.',
                 parameters: [
                     new Model\Parameter('search', 'query', 'Partial display-name / email filter.', false, false, false, ['type' => 'string']),
                     new Model\Parameter('limit', 'query', 'Max results (1-50, default 20).', false, false, false, ['type' => 'integer']),
-                    new Model\Parameter('purpose', 'query', 'Set to `dm` to omit users blocked by or blocking the caller.', false, false, false, ['type' => 'string', 'enum' => ['dm']]),
+                    new Model\Parameter('includeBlocked', 'query', 'Set to `true` to keep users blocked by or blocking the caller (e.g. role management).', false, false, false, ['type' => 'boolean']),
                 ],
             ),
         ),

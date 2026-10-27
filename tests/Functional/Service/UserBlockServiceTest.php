@@ -174,7 +174,7 @@ class UserBlockServiceTest extends ApiTestCase
         $block = $this->as($me, fn () => $this->service()->block($this->id($channelMod)));
 
         self::assertNotNull($block->getId());
-        self::assertSame([$this->id($channelMod)], $this->service()->enforcedRelations($me, [$this->id($channelMod)])->blockedByUser);
+        self::assertSame([$this->id($channelMod)], $this->service()->enforcedRelations($me, [$this->id($channelMod)])->blockedIds);
         self::assertSame(
             ['blocked' => true, 'blockable' => true, 'inEffect' => true],
             $this->as($me, fn () => $this->service()->statusForCurrentUser($this->id($channelMod))),
@@ -230,12 +230,12 @@ class UserBlockServiceTest extends ApiTestCase
         $membership = CommunityMemberFactory::createForUserAndCommunity($target, $community);
 
         $this->as($me, fn () => $this->service()->block($this->id($target)));
-        self::assertSame([$this->id($target)], $this->service()->enforcedRelations($me, [$this->id($target)])->blockedByUser);
+        self::assertSame([$this->id($target)], $this->service()->enforcedRelations($me, [$this->id($target)])->blockedIds);
 
         $membership->setRole(\App\Enum\Community\CommunityRole::Moderator);
         $this->em()->flush();
 
-        self::assertSame([], $this->service()->enforcedRelations($me, [$this->id($target)])->blockedByUser);
+        self::assertSame([], $this->service()->enforcedRelations($me, [$this->id($target)])->blockedIds);
         $list = $this->as($me, fn () => $this->service()->listForCurrentUser());
         self::assertFalse($list[0]['inEffect']);
         $status = $this->as($me, fn () => $this->service()->statusForCurrentUser($this->id($target)));
@@ -244,7 +244,7 @@ class UserBlockServiceTest extends ApiTestCase
         $membership->setRole(\App\Enum\Community\CommunityRole::Member);
         $this->em()->flush();
 
-        self::assertSame([$this->id($target)], $this->service()->enforcedRelations($me, [$this->id($target)])->blockedByUser);
+        self::assertSame([$this->id($target)], $this->service()->enforcedRelations($me, [$this->id($target)])->blockedIds);
         $list = $this->as($me, fn () => $this->service()->listForCurrentUser());
         self::assertTrue($list[0]['inEffect']);
     }
@@ -273,8 +273,8 @@ class UserBlockServiceTest extends ApiTestCase
 
         $relations = $this->service()->enforcedRelations($a, [$this->id($b), $this->id($c)]);
 
-        self::assertSame([$this->id($b)], $relations->blockedByUser);
-        self::assertSame([$this->id($c)], $relations->blockingUser);
+        self::assertSame([$this->id($b)], $relations->blockedIds);
+        self::assertSame([$this->id($c)], $relations->blockerIds);
         self::assertTrue($relations->hasAnyWith($this->id($b)));
         self::assertTrue($relations->hasAnyWith($this->id($c)));
         self::assertFalse($relations->hasAnyWith(999999));

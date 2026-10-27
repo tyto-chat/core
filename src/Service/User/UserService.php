@@ -304,7 +304,7 @@ class UserService extends AbstractDoctrineService implements UserServiceInterfac
     }
 
     #[\Override]
-    public function findInvitableForCurrentUser(?string $search, int $limit, bool $excludeBlocked = false): array
+    public function findInvitableForCurrentUser(?string $search, int $limit, bool $excludeBlocked = true): array
     {
         $caller = $this->security->currentUser('You must be signed in to list invitable users.');
         $limit = max(1, min(50, $limit));

@@ -8,7 +8,6 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\UserBlocks;
 use App\Dto\User\BlockedUserDto;
-use App\Service\MediaObject\AvatarUrlResolverInterface;
 use App\Service\User\UserBlockServiceInterface;
 
 /**
@@ -18,7 +17,6 @@ final readonly class BlockedUsersProvider implements ProviderInterface
 {
     public function __construct(
         private UserBlockServiceInterface $blocks,
-        private AvatarUrlResolverInterface $avatarUrls,
     ) {
     }
 
@@ -26,8 +24,7 @@ final readonly class BlockedUsersProvider implements ProviderInterface
     {
         $resource = new UserBlocks();
         foreach ($this->blocks->listForCurrentUser() as $row) {
-            $avatar = $row['block']->getBlocked()->getProfile()?->getAvatar();
-            $resource->items[] = BlockedUserDto::fromBlock($row['block'], $row['inEffect'], $this->avatarUrls->avatarUrl($avatar));
+            $resource->items[] = BlockedUserDto::fromBlock($row['block'], $row['inEffect']);
         }
 
         return $resource;

@@ -184,7 +184,7 @@ class InvitableUsersTest extends ApiTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testDmPurposeOmitsBlockedInBothDirections(): void
+    public function testOmitsBlockedInBothDirectionsByDefault(): void
     {
         $caller = UserFactory::createOne();
         $community = CommunityFactory::createOne();
@@ -204,7 +204,7 @@ class InvitableUsersTest extends ApiTestCase
         $this->plainJsonClient($blocksMe)->request('POST', '/api/v1/me/blocks', ['json' => ['userId' => $caller->getId()]]);
 
         $ids = array_column(
-            $this->plainJsonClient($caller)->request('GET', '/api/v1/me/invitable-users?search=Quokka&purpose=dm')->toArray()['items'],
+            $this->plainJsonClient($caller)->request('GET', '/api/v1/me/invitable-users?search=Quokka')->toArray()['items'],
             'id',
         );
 
@@ -213,7 +213,7 @@ class InvitableUsersTest extends ApiTestCase
         self::assertNotContains($blocksMe->getId(), $ids);
     }
 
-    public function testWithoutPurposeStillListsBlockedUsers(): void
+    public function testIncludeBlockedListsBlockedUsers(): void
     {
         $caller = UserFactory::createOne();
         $community = CommunityFactory::createOne();
@@ -226,11 +226,10 @@ class InvitableUsersTest extends ApiTestCase
         CommunityMemberFactory::createForUserAndCommunity($blocked, $community);
         $this->plainJsonClient($caller)->request('POST', '/api/v1/me/blocks', ['json' => ['userId' => $blocked->getId()]]);
 
-        $ids = array_column(
-            $this->plainJsonClient($caller)->request('GET', '/api/v1/me/invitable-users?search=Numbat')->toArray()['items'],
-            'id',
-        );
+        $items = $this->plainJsonClient($caller)->request('GET', '/api/v1/me/invitable-users?search=Numbat&includeBlocked=true')->toArray()['items'];
 
-        self::assertContains($blocked->getId(), $ids);
+        self::assertContains($blocked->getId(), array_column($items, 'id'));
+        self::assertArrayHasKey('avatarUrl', $items[0]);
+        self::assertArrayNotHasKey('avatar', $items[0]);
     }
 }

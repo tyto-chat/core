@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Conversation;
 
-use App\Dto\User\BlockRelations;
 use App\Entity\Conversation;
 use App\Entity\ConversationMember;
 use App\Entity\MessagePage;
@@ -29,6 +28,7 @@ use App\Service\Message\MessageServiceInterface;
 use App\Service\Notification\NotificationServiceInterface;
 use App\Service\Realtime\RealtimePublisherInterface;
 use App\Service\User\UserBlockServiceInterface;
+use App\ValueObject\User\BlockRelations;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\DependencyInjection\Attribute\Lazy;
@@ -269,10 +269,10 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
 
     private function reasonFrom(BlockRelations $relations, int $otherId): ?ReadOnlyReason
     {
-        if (in_array($otherId, $relations->blockedByUser, true)) {
+        if ($relations->blocks($otherId)) {
             return ReadOnlyReason::Blocked;
         }
-        if (in_array($otherId, $relations->blockingUser, true)) {
+        if ($relations->isBlockedBy($otherId)) {
             return ReadOnlyReason::Unavailable;
         }
 

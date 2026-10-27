@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Service\MediaObject;
+namespace App\Serializer\MediaObject;
 
 use App\Entity\MediaObject;
+use App\Service\MediaObject\MediaObjectServiceInterface;
+use App\Service\MediaObject\SignedUrlServiceInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
-final readonly class AvatarUrlResolver implements AvatarUrlResolverInterface
+final readonly class AvatarUrlGenerator implements AvatarUrlGeneratorInterface
 {
     public function __construct(
         private UrlGeneratorInterface $urlGenerator,

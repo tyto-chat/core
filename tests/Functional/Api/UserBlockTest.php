@@ -23,8 +23,10 @@ class UserBlockTest extends ApiTestCase
         $b = UserFactory::createOne();
         $client = $this->plainJsonClient($a);
 
-        $client->request('POST', '/api/v1/me/blocks', ['json' => ['userId' => $b->getId()]]);
+        $created = $client->request('POST', '/api/v1/me/blocks', ['json' => ['userId' => $b->getId()]])->toArray();
         self::assertResponseStatusCodeSame(201);
+        self::assertArrayHasKey('avatarUrl', $created);
+        self::assertArrayNotHasKey('avatar', $created);
 
         $list = $client->request('GET', '/api/v1/me/blocks')->toArray();
         self::assertCount(1, $list['items']);

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\User;
 
-use App\Dto\User\BlockRelations;
 use App\Entity\User;
 use App\Entity\UserBlock;
 use App\Enum\Conversation\ReadOnlyReason;
@@ -19,6 +18,7 @@ use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Conversation\ConversationServiceInterface;
 use App\Service\Realtime\StructureRealtimePublisherInterface;
+use App\ValueObject\User\BlockRelations;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\DependencyInjection\Attribute\Lazy;
@@ -166,16 +166,16 @@ class UserBlockService extends AbstractDoctrineService implements UserBlockServi
             }
         }
 
-        $blockedByUser = [] === $heldTargets ? [] : ($this->enforcedBlockedIdsByBlocker([$userId])[$userId] ?? []);
-        $blockedByUser = array_values(array_intersect($heldTargets, $blockedByUser));
+        $blockedIds = [] === $heldTargets ? [] : ($this->enforcedBlockedIdsByBlocker([$userId])[$userId] ?? []);
+        $blockedIds = array_values(array_intersect($heldTargets, $blockedIds));
 
-        $blockingUser = $user->isAdmin() ? [] : array_values(array_unique($blockers));
-        if ([] !== $blockingUser) {
-            $staffFor = $this->memberships->findStaffSharedPairs([$userId], $blockingUser)[$userId] ?? [];
-            $blockingUser = array_values(array_diff($blockingUser, $staffFor));
+        $blockerIds = $user->isAdmin() ? [] : array_values(array_unique($blockers));
+        if ([] !== $blockerIds) {
+            $staffFor = $this->memberships->findStaffSharedPairs([$userId], $blockerIds)[$userId] ?? [];
+            $blockerIds = array_values(array_diff($blockerIds, $staffFor));
         }
 
-        return new BlockRelations($blockedByUser, $blockingUser);
+        return new BlockRelations($blockedIds, $blockerIds);
     }
 
     #[\Override]

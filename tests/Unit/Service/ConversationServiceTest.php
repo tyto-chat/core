@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service;
 
-use App\Dto\User\BlockRelations;
 use App\Entity\Conversation;
 use App\Entity\ConversationMember;
 use App\Entity\User;
@@ -23,6 +22,7 @@ use App\Service\Conversation\ConversationService;
 use App\Service\Message\MessageServiceInterface;
 use App\Service\Notification\NotificationServiceInterface;
 use App\Service\User\UserBlockServiceInterface;
+use App\ValueObject\User\BlockRelations;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -217,8 +217,8 @@ class ConversationServiceTest extends TestCase
         $conversation = $this->conversationWith($viewer, $this->user(2));
 
         $this->blocks->method('enforcedRelations')->willReturnOnConsecutiveCalls(
-            new BlockRelations(blockedByUser: [2], blockingUser: [2]),
-            new BlockRelations(blockingUser: [2]),
+            new BlockRelations(blockedIds: [2], blockerIds: [2]),
+            new BlockRelations(blockerIds: [2]),
             new BlockRelations(),
         );
 
@@ -250,7 +250,7 @@ class ConversationServiceTest extends TestCase
     {
         $caller = $this->user(1);
         $this->authenticate($caller);
-        $this->blocks->method('enforcedRelations')->willReturn(new BlockRelations(blockingUser: [2]));
+        $this->blocks->method('enforcedRelations')->willReturn(new BlockRelations(blockerIds: [2]));
 
         $this->expectException(ConversationReadOnlyException::class);
         $this->service->assertWritable($this->conversationWith($caller, $this->user(2)), ConversationWrite::Send);

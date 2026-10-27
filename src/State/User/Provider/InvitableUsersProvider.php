@@ -8,7 +8,6 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\InvitableUsers;
 use App\Dto\User\InvitableUserDto;
-use App\Service\MediaObject\AvatarUrlResolverInterface;
 use App\Service\User\UserServiceInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -20,7 +19,6 @@ final readonly class InvitableUsersProvider implements ProviderInterface
     public function __construct(
         private UserServiceInterface $userService,
         private RequestStack $requestStack,
-        private AvatarUrlResolverInterface $avatarUrls,
     ) {
     }
 
@@ -28,12 +26,12 @@ final readonly class InvitableUsersProvider implements ProviderInterface
     {
         $request = $this->requestStack->getCurrentRequest();
         $search = $request?->query->get('search');
-        $excludeBlocked = 'dm' === $request?->query->get('purpose');
+        $excludeBlocked = !$request?->query->getBoolean('includeBlocked');
         $limit = (int) ($request?->query->get('limit', '20') ?? 20);
 
         $resource = new InvitableUsers();
         foreach ($this->userService->findInvitableForCurrentUser(\is_string($search) ? $search : null, $limit, $excludeBlocked) as $item) {
-            $resource->items[] = new InvitableUserDto($item['id'], $item['name'], $this->avatarUrls->avatarUrl($item['avatar'] ?? null));
+            $resource->items[] = new InvitableUserDto($item['id'], $item['name'], $item['avatar'] ?? null);
         }
 
         return $resource;
