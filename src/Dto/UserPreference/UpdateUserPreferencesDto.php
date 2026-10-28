@@ -67,6 +67,14 @@ class UpdateUserPreferencesDto implements EntityDtoInterface
     #[Groups(['user_preference:write'])]
     public ?bool $autoplayGifs;
 
+    #[Groups(['user_preference:write'])]
+    public ?bool $refusePlainDms;
+
+    public function turnsOnPlainDmRefusal(): bool
+    {
+        return (new \ReflectionProperty($this, 'refusePlainDms'))->isInitialized($this) && true === $this->refusePlainDms;
+    }
+
     #[\Override]
     public static function getEntityClass(): string
     {
@@ -113,6 +121,9 @@ class UpdateUserPreferencesDto implements EntityDtoInterface
         }
         if ((new \ReflectionProperty($this, 'autoplayGifs'))->isInitialized($this)) {
             $entity->setAutoplayGifs($this->autoplayGifs);
+        }
+        if ((new \ReflectionProperty($this, 'refusePlainDms'))->isInitialized($this)) {
+            $entity->setRefusePlainDms($this->refusePlainDms);
         }
     }
 }

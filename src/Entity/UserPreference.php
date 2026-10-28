@@ -119,6 +119,10 @@ class UserPreference
     #[Groups(['user_preference:read'])]
     private ?bool $autoplayGifs = null;
 
+    #[ORM\Column(nullable: true)]
+    #[Groups(['user_preference:read'])]
+    private ?bool $refusePlainDms = null;
+
     #[ORM\Column]
     #[Groups(['user_preference:read'])]
     private \DateTimeImmutable $updatedAt;
@@ -289,6 +293,23 @@ class UserPreference
         $this->autoplayGifs = $value;
 
         return $this;
+    }
+
+    public function getRefusePlainDms(): ?bool
+    {
+        return $this->refusePlainDms;
+    }
+
+    public function setRefusePlainDms(?bool $value): self
+    {
+        $this->refusePlainDms = $value;
+
+        return $this;
+    }
+
+    public function refusesPlainDms(): bool
+    {
+        return true === $this->refusePlainDms;
     }
 
     public function getUpdatedAt(): \DateTimeImmutable
