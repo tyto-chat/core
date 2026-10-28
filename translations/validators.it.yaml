@@ -5,3 +5,4 @@ valid_reset_password_request.invalid: 'Token di reimpostazione non valido o scad
 base64_bytes.invalid: 'Deve essere una codifica base64 di esattamente {{ length }} byte.'
 base64_bytes.not_base64: 'Deve essere base64 valido.'
 base64_bytes.too_long: 'Decodificato non può superare {{ max }} byte.'
+message_text.envelope_too_long: 'Un messaggio crittografato può essere al massimo di {{ limit }} byte.'

@@ -6,8 +6,6 @@ namespace App\Tests\Functional\Conversation;
 
 use App\Entity\Conversation;
 use App\Entity\User;
-use App\Tests\Factory\ConversationFactory;
-use App\Tests\Factory\ConversationMemberFactory;
 use App\Tests\Functional\ApiTestCase;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Zenstruck\Foundry\Test\Factories;
@@ -275,20 +273,6 @@ class ReadOnlyConversationTest extends ApiTestCase
         $users = $this->usersSharingCommunity($count);
 
         return [$users, $this->conversationBetween($users)];
-    }
-
-    /** @param list<User> $users */
-    private function conversationBetween(array $users, bool $encrypted = false): Conversation
-    {
-        $ids = array_map(static fn (User $u): int => (int) $u->getId(), $users);
-        $conversation = ConversationFactory::new(['encrypted' => $encrypted])
-            ->with(['participantsHash' => Conversation::hashParticipants($ids, $encrypted), 'lastMessageAt' => new \DateTimeImmutable()])
-            ->create();
-        foreach ($users as $user) {
-            ConversationMemberFactory::createForUserAndConversation($user, $conversation);
-        }
-
-        return $conversation;
     }
 
     /** @return array<string, mixed> */

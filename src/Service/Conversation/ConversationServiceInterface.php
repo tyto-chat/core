@@ -62,6 +62,9 @@ interface ConversationServiceInterface
 
     public function isMember(Conversation $conversation, User $user): bool;
 
+    /** @return int[] */
+    public function findEncryptedIds(): array;
+
     public function findLatestPage(Conversation $conversation): ?MessagePage;
 
     public function nextPageNumber(Conversation $conversation): int;

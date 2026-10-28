@@ -30,6 +30,6 @@ final readonly class ReplyToMessageProcessor implements ProcessorInterface
             $this->scopeGuard->requireScope('conversations:write');
         }
 
-        return $this->messageService->reply($root, $data->text, array_values($data->attachmentIris));
+        return $this->messageService->reply($root, $data->text, array_values($data->attachmentIris), $data->id);
     }
 }

@@ -6,13 +6,14 @@ namespace App\Dto\Message;
 
 use App\Dto\EntityDtoInterface;
 use App\Entity\Message;
+use App\Validator\Constraint\MessageText;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 class UpdateMessageDto implements EntityDtoInterface
 {
     #[Assert\NotBlank(normalizer: 'trim')]
-    #[Assert\Length(max: 10000)]
+    #[MessageText]
     #[Groups(['message:update'])]
     public string $text = '';
 

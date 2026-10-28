@@ -23,6 +23,16 @@ class ConversationRepository extends ServiceEntityRepository
         return $this->findOneBy(['identifier' => $identifier]);
     }
 
+    /** @return int[] */
+    public function findEncryptedIds(): array
+    {
+        return array_map('intval', $this->createQueryBuilder('c')
+            ->select('c.id')
+            ->where('c.encrypted = true')
+            ->getQuery()
+            ->getSingleColumnResult());
+    }
+
     public function findOneByParticipantsHash(string $hash): ?Conversation
     {
         return $this->findOneBy(['participantsHash' => $hash]);

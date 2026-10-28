@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Conversation;
 
+use App\Entity\Conversation;
 use App\Entity\E2eeAccount;
 use App\Entity\E2eeDevice;
 use App\Entity\E2eeKeyPackage;
@@ -13,6 +14,8 @@ use App\Entity\UserPreference;
 use App\Settings\Settings;
 use App\Tests\Factory\CommunityFactory;
 use App\Tests\Factory\CommunityMemberFactory;
+use App\Tests\Factory\ConversationFactory;
+use App\Tests\Factory\ConversationMemberFactory;
 use App\Tests\Factory\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -31,6 +34,28 @@ trait ConversationPolicyFixturesTrait
         }
 
         return $users;
+    }
+
+    /** @param list<User> $users */
+    private function conversationBetween(array $users, bool $encrypted = false): Conversation
+    {
+        $ids = array_map(static fn (User $u): int => (int) $u->getId(), $users);
+        $conversation = ConversationFactory::new(['encrypted' => $encrypted])
+            ->with(['participantsHash' => Conversation::hashParticipants($ids, $encrypted), 'lastMessageAt' => new \DateTimeImmutable()])
+            ->create();
+        foreach ($users as $user) {
+            ConversationMemberFactory::createForUserAndConversation($user, $conversation);
+        }
+
+        return $conversation;
+    }
+
+    /** @return array{User, User, Conversation} */
+    private function encryptedPair(): array
+    {
+        [$a, $b] = $this->usersSharingCommunity(2);
+
+        return [$a, $b, $this->conversationBetween([$a, $b], encrypted: true)];
     }
 
     private function reachable(User ...$users): void

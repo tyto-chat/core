@@ -6,6 +6,7 @@ namespace App\Dto\Message;
 
 use App\Dto\EntityDtoInterface;
 use App\Entity\Message;
+use App\Validator\Constraint\MessageText;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
@@ -13,12 +14,15 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 readonly class SendMessageDto implements EntityDtoInterface
 {
     public function __construct(
-        #[Assert\Length(max: 10000)]
+        #[MessageText]
         #[Groups(['message:create'])]
         public string $text = '',
         /** @var list<string> IRIs of pre-uploaded pending MediaObject records */
         #[Groups(['message:create'])]
         public array $attachmentIris = [],
+        #[Assert\Uuid(versions: [Assert\Uuid::V4_RANDOM])]
+        #[Groups(['message:create'])]
+        public ?string $id = null,
     ) {
     }
 

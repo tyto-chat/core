@@ -5,3 +5,4 @@ valid_reset_password_request.invalid: 'Token de restablecimiento no válido o ca
 base64_bytes.invalid: 'Debe ser una codificación base64 de exactamente {{ length }} bytes.'
 base64_bytes.not_base64: 'Debe ser base64 válido.'
 base64_bytes.too_long: 'Decodificado no puede superar {{ max }} bytes.'
+message_text.envelope_too_long: 'Un mensaje cifrado puede tener como máximo {{ limit }} bytes.'

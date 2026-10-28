@@ -12,7 +12,8 @@ final class MessageDocumentBuilder
     public static function isIndexable(Message $message): bool
     {
         return !$message->isDeleted()
-            && MessageKind::System !== $message->getKind();
+            && MessageKind::System !== $message->getKind()
+            && !($message->getConversation()?->isEncrypted() ?? false);
     }
 
     public static function toPlaintext(?string $rawHtml): string

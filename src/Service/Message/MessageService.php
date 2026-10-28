@@ -19,6 +19,8 @@ use App\Enum\Conversation\ConversationWrite;
 use App\Enum\Message\MessageKind;
 use App\Exception\Channel\ChannelArchivedException;
 use App\Exception\Conversation\NotMemberException;
+use App\Exception\E2ee\ClientMessageIdNotAllowedException;
+use App\Exception\E2ee\EnvelopeNotAllowedException;
 use App\Exception\Message\BroadcastNotAllowedException;
 use App\Exception\Message\CannotReplyToReplyException;
 use App\Exception\Message\InvalidAttachmentException;
@@ -48,6 +50,7 @@ use App\Service\Realtime\MessageRealtimePublisherInterface;
 use App\Service\Settings\SettingsServiceInterface;
 use App\Service\Webhook\WebhookEmitterInterface;
 use App\Settings\Settings;
+use App\Utils\E2eeEnvelope;
 use App\Utils\MarkdownSanitizer;
 use App\Utils\MentionExtractor;
 use Symfony\Component\DependencyInjection\Attribute\Lazy;
@@ -77,9 +80,8 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
     }
 
     #[\Override]
-    public function sendToChannel(Channel $channel, string $text, array $attachmentIris = [], MessageKind $kind = MessageKind::Standard): Message
+    public function sendToChannel(Channel $channel, string $text, array $attachmentIris = [], MessageKind $kind = MessageKind::Standard, ?string $clientId = null): Message
     {
-        $text = MarkdownSanitizer::sanitize($text);
         $isSystem = MessageKind::System === $kind;
 
         $this->security->throwAccessDeniedUnlessGranted(ChannelVoter::POST, $channel, 'You do not have permission to post in this channel.');
@@ -93,6 +95,9 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
         if (!$isSystem && null !== $community && $this->moderationService->isTimedOut($community, $channel, $user)) {
             throw new TimedOutException('You are timed out and cannot post messages.');
         }
+
+        $text = $this->prepareText(null, $text);
+        $this->assertClientIdAllowed(null, $clientId);
 
         if (!$isSystem) {
             $this->assertCanBroadcast($channel, MentionExtractor::extractBroadcasts($text));
@@ -148,10 +153,8 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
     }
 
     #[\Override]
-    public function sendToConversation(Conversation $conversation, string $text, array $attachmentIris = []): Message
+    public function sendToConversation(Conversation $conversation, string $text, array $attachmentIris = [], ?string $clientId = null): Message
     {
-        $text = MarkdownSanitizer::sanitize($text);
-
         $caller = $this->security->currentUser('You must be signed in to send messages.');
         $this->security->throwAccessDeniedUnlessGranted(ConversationVoter::WRITE, $conversation, 'You are not a member of this conversation.');
 
@@ -159,6 +162,9 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
             throw new NotMemberException();
         }
         $this->conversationService->assertWritable($conversation, ConversationWrite::Send);
+
+        $text = $this->prepareText($conversation, $text);
+        $this->assertClientIdAllowed($conversation, $clientId);
 
         $attachments = $this->resolveAttachments($attachmentIris);
 
@@ -169,7 +175,7 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
             $this->persist($page);
         }
 
-        $message = $this->buildAndSave($page, $text);
+        $message = $this->buildAndSave($page, $text, clientId: $clientId);
         $this->linkAttachments($message, $attachments, publishUpdate: false);
 
         $conversation->setLastMessageAt(new \DateTimeImmutable());
@@ -184,16 +190,16 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
         return $message;
     }
 
-    private function buildAndSave(MessagePage $page, string $text, MessageKind $kind = MessageKind::Standard): Message
+    private function buildAndSave(MessagePage $page, string $text, MessageKind $kind = MessageKind::Standard, ?string $clientId = null): Message
     {
         $revision = new MessageRevision();
         $revision->setText($text);
         $this->persist($revision);
 
-        $message = new Message();
+        $message = new Message(null === $clientId ? null : strtolower($clientId));
         $message->addRevision($revision);
         $message->setPage($page);
-        $message->setMentionedUserIds(MentionExtractor::extractUserIds($text));
+        $message->setMentionedUserIds($this->mentionedUserIds($page->getConversation(), $text));
         $message->setText($text);
         $message->setKind($kind);
 
@@ -205,17 +211,10 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
     {
         $this->security->throwAccessDeniedUnlessGranted(MessageVoter::UPDATE, $message, 'You do not have permission to edit this message.');
 
-        $text = MarkdownSanitizer::sanitize($updateMessageDto->text);
-
         $channel = $message->getChannel();
         $community = $channel?->getCommunity();
-        if (null !== $channel && null !== $community) {
-            if ($this->moderationService->isTimedOut($community, $channel, $this->security->currentUser())) {
-                throw new TimedOutException('You are timed out and cannot edit messages.');
-            }
-            $this->hydrateText($message);
-            $added = array_diff(MentionExtractor::extractBroadcasts($text), MentionExtractor::extractBroadcasts($message->getText() ?? ''));
-            $this->assertCanBroadcast($channel, array_values($added));
+        if (null !== $channel && null !== $community && $this->moderationService->isTimedOut($community, $channel, $this->security->currentUser())) {
+            throw new TimedOutException('You are timed out and cannot edit messages.');
         }
 
         $conversation = $message->getConversation();
@@ -223,13 +222,21 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
             $this->conversationService->assertWritable($conversation, ConversationWrite::Edit);
         }
 
-        $message = $this->transactional(function () use ($message, $text): Message {
+        $text = $this->prepareText($conversation, $updateMessageDto->text);
+
+        if (null !== $channel && null !== $community) {
+            $this->hydrateText($message);
+            $added = array_diff(MentionExtractor::extractBroadcasts($text), MentionExtractor::extractBroadcasts($message->getText() ?? ''));
+            $this->assertCanBroadcast($channel, array_values($added));
+        }
+
+        $message = $this->transactional(function () use ($message, $text, $conversation): Message {
             $this->lockForUpdate($message);
             $revision = new MessageRevision();
             $revision->setText($text);
             $this->persist($revision);
             $message->addRevision($revision);
-            $message->setMentionedUserIds(MentionExtractor::extractUserIds($text));
+            $message->setMentionedUserIds($this->mentionedUserIds($conversation, $text));
             $message->setText($text);
 
             return $this->save($message);
@@ -308,10 +315,8 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
     }
 
     #[\Override]
-    public function reply(Message $root, string $text, array $attachmentIris = []): Message
+    public function reply(Message $root, string $text, array $attachmentIris = [], ?string $clientId = null): Message
     {
-        $text = MarkdownSanitizer::sanitize($text);
-
         $channel = $root->getChannel();
         $conversation = $root->getConversation();
         if (null === $channel && null === $conversation) {
@@ -334,7 +339,6 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
                 throw new TimedOutException('You are timed out and cannot post messages.');
             }
 
-            $this->assertCanBroadcast($channel, MentionExtractor::extractBroadcasts($text));
             $this->assertChannelAcceptsAttachments($channel, $attachmentIris);
         } else {
             $this->security->throwAccessDeniedUnlessGranted(ConversationVoter::WRITE, $conversation, 'You are not a member of this conversation.');
@@ -342,6 +346,12 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
                 throw new NotMemberException();
             }
             $this->conversationService->assertWritable($conversation, ConversationWrite::Reply);
+        }
+
+        $text = $this->prepareText($conversation, $text);
+        $this->assertClientIdAllowed($conversation, $clientId);
+        if (null !== $channel) {
+            $this->assertCanBroadcast($channel, MentionExtractor::extractBroadcasts($text));
         }
 
         $page = $root->getPage();
@@ -352,16 +362,16 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
         $attachments = $this->resolveAttachments($attachmentIris);
 
         // save() flushes individually — without the wrapping transaction a mid-sequence failure leaves a half-created thread.
-        $reply = $this->transactional(function () use ($text, $page, $root, $attachments): Message {
+        $reply = $this->transactional(function () use ($text, $page, $root, $attachments, $conversation, $clientId): Message {
             $revision = new MessageRevision();
             $revision->setText($text);
             $this->persist($revision);
 
-            $reply = new Message();
+            $reply = new Message(null === $clientId ? null : strtolower($clientId));
             $reply->addRevision($revision);
             $reply->setPage($page);
             $reply->setParent($root);
-            $reply->setMentionedUserIds(MentionExtractor::extractUserIds($text));
+            $reply->setMentionedUserIds($this->mentionedUserIds($conversation, $text));
             $reply->setText($text);
             $reply = $this->save($reply);
 
@@ -400,6 +410,33 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
         }
 
         return $reply;
+    }
+
+    private function prepareText(?Conversation $conversation, string $text): string
+    {
+        if (null !== $conversation && $conversation->isEncrypted()) {
+            E2eeEnvelope::assertValid($text);
+
+            return $text;
+        }
+        if (E2eeEnvelope::isEnvelope($text)) {
+            throw new EnvelopeNotAllowedException();
+        }
+
+        return MarkdownSanitizer::sanitize($text);
+    }
+
+    private function assertClientIdAllowed(?Conversation $conversation, ?string $clientId): void
+    {
+        if (null !== $clientId && !($conversation?->isEncrypted() ?? false)) {
+            throw new ClientMessageIdNotAllowedException();
+        }
+    }
+
+    /** @return int[] */
+    private function mentionedUserIds(?Conversation $conversation, string $text): array
+    {
+        return ($conversation?->isEncrypted() ?? false) ? [] : MentionExtractor::extractUserIds($text);
     }
 
     /**

@@ -27,6 +27,6 @@ final readonly class SendConversationMessageProcessor implements ProcessorInterf
         /** @var SendMessageDto $data */
         $conversation = $this->conversationService->getByIdentifier((string) $uriVariables['conversation']);
 
-        return $this->messageService->sendToConversation($conversation, $data->text, array_values($data->attachmentIris));
+        return $this->messageService->sendToConversation($conversation, $data->text, array_values($data->attachmentIris), $data->id);
     }
 }

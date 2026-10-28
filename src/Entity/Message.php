@@ -139,7 +139,8 @@ use Symfony\Component\Uid\Uuid;
             .'timeout; async notifications and a `message.replied` webhook are dispatched. Conversation roots '
             .'are participant-only with no admin bypass; DM notifications are sent synchronously and no webhook '
             .'is emitted. Replying to a reply (`CannotReplyToReply`) or to a `system` root (`ThreadNotAllowed`) '
-            .'fails with `422`.',
+            .'fails with `422`. In an encrypted conversation `text` must be an `e2ee:1:` envelope and an optional '
+            .'client `id` (UUID v4) is accepted; elsewhere both are rejected with `422`.',
     ),
     security: "is_granted('ROLE_USER')",
     input: SendMessageDto::class,
@@ -182,7 +183,7 @@ use Symfony\Component\Uid\Uuid;
         description: 'Appends a new revision to the message body (previous revisions are kept as history), '
             .'re-extracts mentions and publishes a Mercure update. Allowed for the author or, in channels, '
             .'a channel moderator; direct messages are author-only. `system` messages are immutable and can '
-            .'never be edited.',
+            .'never be edited. Edits in an encrypted conversation must be `e2ee:1:` envelopes.',
     ),
     security: "is_granted('MESSAGE_UPDATE', object)",
     input: UpdateMessageDto::class,
@@ -212,7 +213,9 @@ use Symfony\Component\Uid\Uuid;
         summary: 'Send a direct message',
         description: 'Creates a message on the current page of the conversation and bumps `lastMessageAt`. '
             .'Participants only — no admin bypass. Publishes conversation activity via Mercure and dispatches '
-            .'DM notifications synchronously; direct-message content never reaches webhooks.',
+            .'DM notifications synchronously; direct-message content never reaches webhooks. In an encrypted '
+            .'conversation `text` must be an `e2ee:1:` envelope of at most 65536 bytes and an optional client `id` '
+            .'(UUID v4) becomes the message id; plain conversations reject both with `422`.',
     ),
     security: "is_granted('ROLE_USER')",
     input: SendMessageDto::class,
@@ -338,9 +341,9 @@ class Message
     #[Groups(['message:read'])]
     private Collection $attachments;
 
-    public function __construct()
+    public function __construct(?string $id = null)
     {
-        $this->id = Uuid::v4()->toString();
+        $this->id = $id ?? Uuid::v4()->toString();
         $this->revisions = new ArrayCollection();
         $this->attachments = new ArrayCollection();
     }

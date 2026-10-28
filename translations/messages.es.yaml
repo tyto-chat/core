@@ -1,5 +1,8 @@
 exception:
     e2ee:
+        invalid_envelope: 'Esta conversación está cifrada de extremo a extremo; el mensaje debe cifrarlo la aplicación de escritorio de tyto.chat.'
+        envelope_not_allowed: 'El contenido cifrado solo se puede enviar a una conversación cifrada.'
+        client_id_not_allowed: 'Solo se puede elegir un identificador de mensaje en una conversación cifrada.'
         account_exists: 'Esta cuenta ya tiene el cifrado configurado.'
         account_required: 'Primero configura el cifrado de tu cuenta.'
         invalid_credential: 'La credencial del dispositivo no es válida para esta cuenta.'

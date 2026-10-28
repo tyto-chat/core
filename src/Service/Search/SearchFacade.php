@@ -44,6 +44,9 @@ final class SearchFacade implements SearchFacadeInterface
     public function searchConversation(Conversation $conversation, string $query, ?SearchOptions $options = null): SearchResultDto
     {
         $this->security->throwAccessDeniedUnlessGranted(ConversationVoter::VIEW, $conversation, 'You do not have access to this conversation.');
+        if ($conversation->isEncrypted()) {
+            return new SearchResultDto();
+        }
 
         $result = $this->searchService->searchConversation($conversation, $query, $options);
 

@@ -132,7 +132,14 @@ class MessageRepository extends ServiceEntityRepository
 
     public function countNotDeleted(): int
     {
-        return $this->count(['deleted' => false]);
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->leftJoin('m.page', 'p')
+            ->leftJoin('p.conversation', 'c')
+            ->where('m.deleted = false')
+            ->andWhere('c.id IS NULL OR c.encrypted = false')
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
     /** @return Message[] */
@@ -140,7 +147,10 @@ class MessageRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('m')
             ->leftJoin('m.currentRevision', 'cr')->addSelect('cr')
+            ->leftJoin('m.page', 'p')
+            ->leftJoin('p.conversation', 'c')
             ->where('m.deleted = false')
+            ->andWhere('c.id IS NULL OR c.encrypted = false')
             ->orderBy('m.createdAt', 'ASC')
             ->addOrderBy('m.id', 'ASC')
             ->setFirstResult($offset)

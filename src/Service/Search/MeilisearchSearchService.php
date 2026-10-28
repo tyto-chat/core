@@ -123,6 +123,20 @@ final class MeilisearchSearchService implements SearchServiceInterface
         }
     }
 
+    public function removeByConversationIds(array $conversationIds): void
+    {
+        foreach (array_chunk(array_values(array_unique(array_map('intval', $conversationIds))), 500) as $chunk) {
+            try {
+                $this->client->index(self::INDEX_MESSAGES)->deleteDocuments(['filter' => 'conversationId IN ['.implode(', ', $chunk).']']);
+            } catch (\Throwable $e) {
+                $this->logger->error('meilisearch removeByConversationIds failed', [
+                    'conversationIds' => $chunk,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
     public function searchChannel(Channel $channel, string $query, ?SearchOptions $options = null): array
     {
         return $this->runSearch($query, ['channelId = '.(int) $channel->getId()], $options ?? new SearchOptions());

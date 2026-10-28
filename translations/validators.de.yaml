@@ -5,3 +5,4 @@ valid_reset_password_request.invalid: 'Ungültiger oder abgelaufener Zurücksetz
 base64_bytes.invalid: 'Muss eine Base64-Kodierung von genau {{ length }} Bytes sein.'
 base64_bytes.not_base64: 'Muss gültiges Base64 sein.'
 base64_bytes.too_long: 'Darf dekodiert höchstens {{ max }} Bytes lang sein.'
+message_text.envelope_too_long: 'Eine verschlüsselte Nachricht darf höchstens {{ limit }} Byte groß sein.'

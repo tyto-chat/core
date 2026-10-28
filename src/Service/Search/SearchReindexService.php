@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Search;
 
 use App\Service\AbstractDoctrineService;
+use App\Service\Conversation\ConversationServiceInterface;
 use App\Service\Message\MessageServiceInterface;
 
 class SearchReindexService extends AbstractDoctrineService implements SearchReindexServiceInterface
@@ -14,6 +15,7 @@ class SearchReindexService extends AbstractDoctrineService implements SearchRein
     public function __construct(
         private readonly MessageServiceInterface $messageService,
         private readonly SearchServiceInterface $searchService,
+        private readonly ConversationServiceInterface $conversationService,
     ) {
     }
 
@@ -44,6 +46,11 @@ class SearchReindexService extends AbstractDoctrineService implements SearchRein
 
             $this->clear();
             $offset += self::BATCH_SIZE;
+        }
+
+        $encryptedIds = $this->conversationService->findEncryptedIds();
+        if ([] !== $encryptedIds) {
+            $this->searchService->removeByConversationIds($encryptedIds);
         }
 
         return $indexed;

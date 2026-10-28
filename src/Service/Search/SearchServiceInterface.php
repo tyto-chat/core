@@ -20,6 +20,9 @@ interface SearchServiceInterface
 
     public function removeChannelDocuments(int $channelId): void;
 
+    /** @param int[] $conversationIds */
+    public function removeByConversationIds(array $conversationIds): void;
+
     /**
      * @return array{hits: array<int, array<string, mixed>>, total: int, limit: int, offset: int}
      */

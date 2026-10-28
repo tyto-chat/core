@@ -1,5 +1,8 @@
 exception:
     e2ee:
+        invalid_envelope: 'Questa conversazione è crittografata end-to-end; il messaggio deve essere crittografato dall''app desktop di tyto.chat.'
+        envelope_not_allowed: 'I contenuti crittografati possono essere inviati solo a una conversazione crittografata.'
+        client_id_not_allowed: 'Un identificativo del messaggio può essere scelto solo in una conversazione crittografata.'
         account_exists: 'Questo account ha già la crittografia configurata.'
         account_required: 'Configura prima la crittografia del tuo account.'
         invalid_credential: 'La credenziale del dispositivo non è valida per questo account.'

@@ -30,6 +30,6 @@ final readonly class SendChannelMessageProcessor implements ProcessorInterface
         $community = $this->communityService->getByIdentifier($uriVariables['community']);
         $channel = $this->channelService->getByIdentifier($uriVariables['channel'], $community);
 
-        return $this->messageService->sendToChannel($channel, $data->text, array_values($data->attachmentIris));
+        return $this->messageService->sendToChannel($channel, $data->text, array_values($data->attachmentIris), clientId: $data->id);
     }
 }

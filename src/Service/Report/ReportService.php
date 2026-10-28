@@ -154,6 +154,10 @@ class ReportService extends AbstractDoctrineService implements ReportServiceInte
             throw new InvalidReportTargetException('System messages cannot be reported.');
         }
 
+        if ($message->getConversation()?->isEncrypted() ?? false) {
+            throw new InvalidReportTargetException('Encrypted messages cannot be reported.');
+        }
+
         if ($author->getId() === $reporter->getId()) {
             throw new InvalidReportTargetException('You cannot report your own content.');
         }

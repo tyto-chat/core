@@ -1,5 +1,8 @@
 exception:
     e2ee:
+        invalid_envelope: 'Cette conversation est chiffrée de bout en bout ; le message doit être chiffré par l''application de bureau tyto.chat.'
+        envelope_not_allowed: 'Un contenu chiffré ne peut être envoyé que dans une conversation chiffrée.'
+        client_id_not_allowed: 'Un identifiant de message ne peut être choisi que dans une conversation chiffrée.'
         account_exists: 'Le chiffrement est déjà configuré pour ce compte.'
         account_required: 'Configure d''abord le chiffrement de ton compte.'
         invalid_credential: 'L''identifiant de l''appareil n''est pas valide pour ce compte.'

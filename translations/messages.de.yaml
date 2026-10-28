@@ -1,5 +1,8 @@
 exception:
     e2ee:
+        invalid_envelope: 'Diese Unterhaltung ist Ende-zu-Ende-verschlüsselt; die Nachricht muss von der tyto.chat-Desktop-App verschlüsselt werden.'
+        envelope_not_allowed: 'Verschlüsselte Inhalte können nur in eine verschlüsselte Unterhaltung gesendet werden.'
+        client_id_not_allowed: 'Eine Nachrichten-ID kann nur in einer verschlüsselten Unterhaltung gewählt werden.'
         account_exists: 'Für dieses Konto ist die Verschlüsselung bereits eingerichtet.'
         account_required: 'Richte zuerst die Verschlüsselung für dein Konto ein.'
         invalid_credential: 'Der Geräteausweis ist für dieses Konto nicht gültig.'

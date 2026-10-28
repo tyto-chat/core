@@ -592,6 +592,12 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
     }
 
     #[\Override]
+    public function findEncryptedIds(): array
+    {
+        return $this->conversationRepository->findEncryptedIds();
+    }
+
+    #[\Override]
     public function findLatestPage(Conversation $conversation): ?MessagePage
     {
         return $this->messagePageRepository->findLatestForConversation($conversation);

@@ -57,6 +57,19 @@ final class InMemorySearchService implements SearchServiceInterface
         );
     }
 
+    public function removeByConversationIds(array $conversationIds): void
+    {
+        $this->docs = array_filter(
+            $this->docs,
+            static fn (array $d): bool => !\in_array($d['conversationId'] ?? null, $conversationIds, true),
+        );
+    }
+
+    public function hasDocument(string $id): bool
+    {
+        return isset($this->docs[$id]);
+    }
+
     public function searchChannel(Channel $channel, string $query, ?SearchOptions $options = null): array
     {
         return $this->filterAndPaginate(

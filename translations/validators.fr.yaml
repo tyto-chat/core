@@ -5,3 +5,4 @@ valid_reset_password_request.invalid: 'Jeton de réinitialisation invalide ou ex
 base64_bytes.invalid: 'Doit être un encodage base64 d''exactement {{ length }} octets.'
 base64_bytes.not_base64: 'Doit être du base64 valide.'
 base64_bytes.too_long: 'Une fois décodé, ne doit pas dépasser {{ max }} octets.'
+message_text.envelope_too_long: 'Un message chiffré peut faire au plus {{ limit }} octets.'

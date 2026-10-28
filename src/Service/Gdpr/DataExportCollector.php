@@ -106,6 +106,7 @@ class DataExportCollector
                 'channelIdentifier' => $channel?->getIdentifier(),
                 'communityIdentifier' => $channel?->getCommunity()?->getIdentifier(),
                 'conversationIdentifier' => $conversation?->getIdentifier(),
+                'encrypted' => $conversation?->isEncrypted() ?? false,
                 'parentId' => $msg->getParent()?->getId(),
                 'createdAt' => self::formatDateTimeOrNull($msg->getCreatedAt()),
                 'updatedAt' => self::formatDateTimeOrNull($msg->getUpdatedAt()),

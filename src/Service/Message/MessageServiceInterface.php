@@ -19,12 +19,12 @@ interface MessageServiceInterface
     /**
      * @param list<string> $attachmentIris
      */
-    public function sendToChannel(Channel $channel, string $text, array $attachmentIris = [], MessageKind $kind = MessageKind::Standard): Message;
+    public function sendToChannel(Channel $channel, string $text, array $attachmentIris = [], MessageKind $kind = MessageKind::Standard, ?string $clientId = null): Message;
 
     /**
      * @param list<string> $attachmentIris
      */
-    public function sendToConversation(Conversation $conversation, string $text, array $attachmentIris = []): Message;
+    public function sendToConversation(Conversation $conversation, string $text, array $attachmentIris = [], ?string $clientId = null): Message;
 
     public function update(Message $message, UpdateMessageDto $updateMessageDto): Message;
 
@@ -61,7 +61,7 @@ interface MessageServiceInterface
     /**
      * @param list<string> $attachmentIris
      */
-    public function reply(Message $root, string $text, array $attachmentIris = []): Message;
+    public function reply(Message $root, string $text, array $attachmentIris = [], ?string $clientId = null): Message;
 
     /**
      * @return Message[]

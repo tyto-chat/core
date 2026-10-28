@@ -1,5 +1,8 @@
 exception:
     e2ee:
+        invalid_envelope: 'Ta rozmowa jest szyfrowana end-to-end; wiadomość musi zostać zaszyfrowana przez aplikację desktopową tyto.chat.'
+        envelope_not_allowed: 'Zaszyfrowaną treść można wysłać tylko do szyfrowanej rozmowy.'
+        client_id_not_allowed: 'Identyfikator wiadomości można wybrać tylko w szyfrowanej rozmowie.'
         account_exists: 'To konto ma już skonfigurowane szyfrowanie.'
         account_required: 'Najpierw skonfiguruj szyfrowanie dla swojego konta.'
         invalid_credential: 'Poświadczenie urządzenia jest nieprawidłowe dla tego konta.'

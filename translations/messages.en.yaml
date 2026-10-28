@@ -1,5 +1,8 @@
 exception:
     e2ee:
+        invalid_envelope: 'This conversation is end-to-end encrypted; the message must be encrypted by the tyto.chat desktop app.'
+        envelope_not_allowed: 'Encrypted content can only be sent to an encrypted conversation.'
+        client_id_not_allowed: 'A message id can only be chosen in an encrypted conversation.'
         account_exists: 'This account already has encryption set up.'
         account_required: 'Set up encryption for your account first.'
         invalid_credential: 'The device credential is not valid for this account.'
