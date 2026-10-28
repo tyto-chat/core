@@ -23,4 +23,26 @@ class UserPreferenceRepository extends ServiceEntityRepository
     {
         return $this->findOneBy(['user' => $user]);
     }
+
+    /**
+     * @param list<int> $userIds
+     *
+     * @return list<int>
+     */
+    public function findUserIdsRefusingPlainDms(array $userIds): array
+    {
+        if ([] === $userIds) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('p')
+            ->select('IDENTITY(p.user) AS userId')
+            ->where('p.user IN (:ids)')
+            ->andWhere('p.refusePlainDms = true')
+            ->setParameter('ids', $userIds)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_values(array_map(intval(...), $rows));
+    }
 }

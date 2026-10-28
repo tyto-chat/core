@@ -75,6 +75,11 @@ class UpdateUserPreferencesDto implements EntityDtoInterface
         return (new \ReflectionProperty($this, 'refusePlainDms'))->isInitialized($this) && true === $this->refusePlainDms;
     }
 
+    public function changesPlainDmRefusal(bool $current): bool
+    {
+        return (new \ReflectionProperty($this, 'refusePlainDms'))->isInitialized($this) && (true === $this->refusePlainDms) !== $current;
+    }
+
     #[\Override]
     public static function getEntityClass(): string
     {

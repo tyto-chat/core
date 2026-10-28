@@ -7,7 +7,6 @@ exception:
         device_not_found: 'Dispositivo non trovato.'
         device_limit: 'Questo account ha già il numero massimo di dispositivi. Rimuovine prima uno.'
         disabled: 'I messaggi diretti cifrati sono disattivati su questo server.'
-        mode_not_available: 'Rendere obbligatori i messaggi diretti cifrati non è ancora disponibile.'
         invalid_revocation: 'La rimozione del dispositivo non ha una firma valida.'
         device_revoked: 'Questo dispositivo è stato rimosso e non può più pubblicare chiavi.'
         key_package_limit: 'Questo dispositivo ha già il numero massimo di pacchetti di chiavi salvati.'

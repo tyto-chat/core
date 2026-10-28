@@ -8,6 +8,7 @@ use App\Entity\Channel;
 use App\Entity\Community;
 use App\Entity\MediaObject;
 use App\Entity\Message;
+use App\Enum\Conversation\ConversationWrite;
 use App\Exception\MediaObject\AttachmentAlreadyLinkedException;
 use App\Exception\MediaObject\MediaObjectNotFoundException;
 use App\Exception\MediaObject\NotAnAttachmentException;
@@ -16,6 +17,7 @@ use App\Security\SecurityContext;
 use App\Security\Voter\MediaObjectVoter;
 use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityEmojiServiceInterface;
+use App\Service\Conversation\ConversationServiceInterface;
 use App\Service\Realtime\MessageRealtimePublisherInterface;
 use App\Utils\GifFrames;
 use App\Utils\ImagickLimits;
@@ -36,6 +38,8 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
         private readonly MediaObjectRepository $mediaObjectRepository,
         #[Lazy]
         private readonly CommunityEmojiServiceInterface $communityEmojiService,
+        #[Lazy]
+        private readonly ConversationServiceInterface $conversations,
         #[Autowire('%kernel.project_dir%/var/media')] private readonly string $mediaDir,
     ) {
     }
@@ -108,6 +112,10 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
         $this->security->throwAccessDeniedUnlessGranted(MediaObjectVoter::DELETE, $attachment, 'You do not have permission to delete this attachment.');
 
         $parentMessage = $attachment->message;
+        $conversation = $parentMessage?->getConversation();
+        if (null !== $conversation) {
+            $this->conversations->assertWritable($conversation, ConversationWrite::DeleteAttachment);
+        }
         $this->deleteVariants($attachment);
         // VichUploader's preRemove listener deletes the file — bulk DQL deletes would skip it.
         $this->removeAndFlush($attachment);

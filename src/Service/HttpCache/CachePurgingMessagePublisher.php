@@ -86,6 +86,12 @@ final class CachePurgingMessagePublisher implements MessageRealtimePublisherInte
         $this->inner->publishConversationPolicy($userId, $conversationIdentifier, $readOnly, $reason);
     }
 
+    #[\Override]
+    public function publishServerConversationPolicy(array $userIds): void
+    {
+        $this->inner->publishServerConversationPolicy($userIds);
+    }
+
     private function purgeThreadFor(Message $message): void
     {
         $parent = $message->getParent();

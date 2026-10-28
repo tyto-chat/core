@@ -42,3 +42,4 @@ framework:
             App\Async\PurgeRetentionMessage: async
             App\Async\PurgeArchivedChannelsMessage: async
             App\Async\RepurgeHttpCacheTagMessage: async
+            App\Async\PublishConversationPolicyMessage: async

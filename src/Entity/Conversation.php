@@ -45,8 +45,10 @@ use Symfony\Component\Uid\Ulid;
         summary: 'List the conversations of the current user',
         description: 'Returns every conversation the caller participates in, each with a caller-scoped '
             .'`unreadCount` derived from the last-read timestamp of the caller, plus caller-scoped `readOnly` and '
-            .'`readOnlyReason`: a one-to-one conversation is read-only while either participant holds an enforced '
-            .'block on the other (`blocked` when the caller holds one, otherwise `unavailable`).',
+            .'`readOnlyReason`: a plain conversation is read-only while the server requires encrypted direct '
+            .'messages (`operator_required`) or any member refuses plain ones (`participant_refuses_plain`); '
+            .'otherwise a one-to-one conversation is read-only while either participant holds an enforced block '
+            .'on the other (`blocked` when the caller holds one, otherwise `unavailable`).',
     ),
     security: "is_granted('ROLE_USER')",
     provider: ConversationsProvider::class,
@@ -77,9 +79,11 @@ use Symfony\Component\Uid\Ulid;
     openapi: new Model\Operation(
         summary: 'Get a conversation',
         description: 'Returns the conversation with its members, a caller-scoped `unreadCount` and caller-scoped '
-            .'`readOnly` / `readOnlyReason` (`blocked` when the caller holds an enforced block on the other '
-            .'participant, `unavailable` when the other participant holds one on the caller; one-to-one '
-            .'conversations only). Participants only — global admins have no bypass into direct messages.',
+            .'`readOnly` / `readOnlyReason` (plain conversations: `operator_required` when the server requires '
+            .'encrypted direct messages, `participant_refuses_plain` when a member refuses plain ones; then, '
+            .'one-to-one only, `blocked` when the caller holds an enforced block on the other participant and '
+            .'`unavailable` when the other participant holds one on the caller). Participants only — global '
+            .'admins have no bypass into direct messages.',
     ),
     security: "is_granted('CONVERSATION_VIEW', object)",
     provider: ConversationProvider::class,

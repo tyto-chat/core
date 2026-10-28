@@ -12,7 +12,9 @@ use App\Exception\E2ee\EncryptedDmsDisabledException;
 use App\Repository\UserPreferenceRepository;
 use App\Security\SecurityContext;
 use App\Service\AbstractDoctrineService;
+use App\Service\Conversation\ConversationServiceInterface;
 use App\Service\E2ee\E2eeServiceInterface;
+use Symfony\Component\DependencyInjection\Attribute\Lazy;
 
 class UserPreferenceService extends AbstractDoctrineService implements UserPreferenceServiceInterface
 {
@@ -20,6 +22,8 @@ class UserPreferenceService extends AbstractDoctrineService implements UserPrefe
         private readonly SecurityContext $security,
         private readonly UserPreferenceRepository $repository,
         private readonly E2eeServiceInterface $e2ee,
+        #[Lazy]
+        private readonly ConversationServiceInterface $conversations,
     ) {
     }
 
@@ -44,11 +48,23 @@ class UserPreferenceService extends AbstractDoctrineService implements UserPrefe
         $caller = $this->security->currentUser('You must be signed in to update preferences.');
         $this->security->throwAccessDeniedIf($pref->getUser()->getId() !== $caller->getId(), 'You can only update your own preferences.');
         $this->assertRefusalAllowed($pref, $dto);
+        $before = $dto->changesPlainDmRefusal($pref->refusesPlainDms()) ? $this->conversations->policySnapshotForUser($caller) : null;
 
         $dto->applyTo($pref);
         $pref->touch();
+        $pref = $this->save($pref);
 
-        return $this->save($pref);
+        if (null !== $before) {
+            $this->conversations->publishPolicyChangesForUser($caller, $before);
+        }
+
+        return $pref;
+    }
+
+    #[\Override]
+    public function refusingPlainDms(array $userIds): array
+    {
+        return $this->repository->findUserIdsRefusingPlainDms($userIds);
     }
 
     private function assertRefusalAllowed(UserPreference $pref, UpdateUserPreferencesDto $dto): void

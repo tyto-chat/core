@@ -40,6 +40,7 @@ class MediaObjectServiceTest extends TestCase
     private CommunityEmojiServiceInterface&MockObject $communityEmojiService;
     private EntityManagerInterface&MockObject $entityManager;
     private Security&MockObject $security;
+    private \App\Service\Conversation\ConversationServiceInterface&MockObject $conversations;
     private MediaObjectService $service;
 
     private function setMediaObjectCreatedBy(MediaObject $mediaObject, User $user): void
@@ -57,9 +58,10 @@ class MediaObjectServiceTest extends TestCase
         $this->communityEmojiService = $this->createMock(CommunityEmojiServiceInterface::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->security = $this->createMock(Security::class);
+        $this->conversations = $this->createMock(\App\Service\Conversation\ConversationServiceInterface::class);
 
         $publisher = $this->createMock(RealtimePublisherInterface::class);
-        $this->service = new MediaObjectService(new SecurityContext($this->security, $this->createMock(CommunityMembershipServiceInterface::class)), $this->filterManager, $this->filesystem, $publisher, $this->mediaObjectRepository, $this->communityEmojiService, '/tmp/media');
+        $this->service = new MediaObjectService(new SecurityContext($this->security, $this->createMock(CommunityMembershipServiceInterface::class)), $this->filterManager, $this->filesystem, $publisher, $this->mediaObjectRepository, $this->communityEmojiService, $this->conversations, '/tmp/media');
         $this->service->setEntityManager($this->entityManager);
     }
 
@@ -281,7 +283,7 @@ class MediaObjectServiceTest extends TestCase
 
     private function serviceWithMediaDir(string $dir): MediaObjectService
     {
-        $service = new MediaObjectService(new SecurityContext($this->security, $this->createMock(CommunityMembershipServiceInterface::class)), $this->filterManager, $this->filesystem, $this->createMock(RealtimePublisherInterface::class), $this->mediaObjectRepository, $this->communityEmojiService, $dir);
+        $service = new MediaObjectService(new SecurityContext($this->security, $this->createMock(CommunityMembershipServiceInterface::class)), $this->filterManager, $this->filesystem, $this->createMock(RealtimePublisherInterface::class), $this->mediaObjectRepository, $this->communityEmojiService, $this->conversations, $dir);
         $service->setEntityManager($this->entityManager);
         $service->setLogger($this->createMock(LoggerInterface::class));
 
@@ -381,6 +383,21 @@ class MediaObjectServiceTest extends TestCase
 
         $this->entityManager->expects(self::once())->method('remove')->with($attachment);
         $this->entityManager->expects(self::once())->method('flush');
+
+        $this->service->deleteAttachment($attachment);
+    }
+
+    public function testDeleteAttachmentChecksConversationWritable(): void
+    {
+        $conversation = new \App\Entity\Conversation();
+        $message = new Message();
+        $message->setPage((new \App\Entity\MessagePage())->setConversation($conversation));
+        $attachment = new MediaObject();
+        $attachment->type = 'attachment';
+        $attachment->message = $message;
+        $this->security->method('isGranted')->willReturn(true);
+
+        $this->conversations->expects(self::once())->method('assertWritable')->with($conversation, \App\Enum\Conversation\ConversationWrite::DeleteAttachment);
 
         $this->service->deleteAttachment($attachment);
     }

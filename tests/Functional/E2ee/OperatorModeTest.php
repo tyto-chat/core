@@ -97,14 +97,13 @@ class OperatorModeTest extends ApiTestCase
         self::assertSame(422, $response->getStatusCode());
     }
 
-    public function testRequiredRejectedUntilEnforcementShips(): void
+    public function testRequiredModeAcceptedOnceEnforcementPresent(): void
     {
         $response = $this->patchMode('required');
 
-        self::assertSame(422, $response->getStatusCode());
-        self::assertSame('Requiring encrypted direct messages is not available yet.', $response->toArray(false)['error']);
+        self::assertSame(200, $response->getStatusCode());
         $admin = UserFactory::new()->admin()->create();
-        self::assertSame('enabled', $this->plainJsonClient($admin)->request('GET', '/api/v1/admin/server-config')->toArray()['encryptedDmsMode']);
+        self::assertSame('required', $this->plainJsonClient($admin)->request('GET', '/api/v1/admin/server-config')->toArray()['encryptedDmsMode']);
     }
 
     private function patchMode(string $mode): \Symfony\Contracts\HttpClient\ResponseInterface

@@ -14,4 +14,7 @@ enum ConversationWrite
     case Attach;
     case Typing;
     case DeleteMessage;
+    case DeleteAttachment;
+    case Mute;
+    case MarkRead;
 }

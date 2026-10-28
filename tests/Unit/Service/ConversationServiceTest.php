@@ -48,6 +48,10 @@ class ConversationServiceTest extends TestCase
     private NotificationServiceInterface&MockObject $notifications;
     private UserBlockServiceInterface&MockObject $blocks;
     private ConversationPolicyInterface&Stub $policy;
+    private \App\Service\E2ee\E2eeServiceInterface&Stub $e2ee;
+    private \App\Service\User\UserPreferenceServiceInterface&Stub $preferences;
+    /** @var array<int, mixed> */
+    private array $constructorArgs;
     private ConversationService $service;
 
     #[\Override]
@@ -66,7 +70,12 @@ class ConversationServiceTest extends TestCase
         $this->policy = self::createStub(ConversationPolicyInterface::class);
         $this->policy->method('decide')->willReturn(new PolicyDecision(PolicyOutcome::PlainFallback, false, null, [], []));
 
-        $this->service = new ConversationService(
+        $this->e2ee = self::createStub(\App\Service\E2ee\E2eeServiceInterface::class);
+        $this->e2ee->method('mode')->willReturn(\App\Enum\Settings\EncryptedDmsMode::Enabled);
+        $this->preferences = self::createStub(\App\Service\User\UserPreferenceServiceInterface::class);
+        $this->preferences->method('refusingPlainDms')->willReturn([]);
+
+        $this->constructorArgs = [
             new SecurityContext($this->security, $this->communityMembershipService),
             $this->communityMembershipService,
             $this->conversationRepository,
@@ -78,9 +87,11 @@ class ConversationServiceTest extends TestCase
             $this->blocks,
             $this->createMock(\App\Service\Realtime\RealtimePublisherInterface::class),
             $this->policy,
-            self::createStub(\App\Service\E2ee\E2eeServiceInterface::class),
+            $this->e2ee,
             new \App\Security\ApiKeyScopeGuard(new \Symfony\Component\HttpFoundation\RequestStack()),
-        );
+            $this->preferences,
+        ];
+        $this->service = new ConversationService(...$this->constructorArgs);
         $this->service->setEntityManager($this->entityManager);
         $this->service->setLogger(new NullLogger());
     }
@@ -252,8 +263,68 @@ class ConversationServiceTest extends TestCase
         $this->blocks->expects(self::never())->method('enforcedRelations');
         $conversation = $this->conversationWith($caller, $this->user(2));
 
-        $this->service->assertWritable($conversation, ConversationWrite::Unreact);
-        $this->service->assertWritable($conversation, ConversationWrite::DeleteMessage);
+        foreach ([ConversationWrite::Unreact, ConversationWrite::DeleteMessage, ConversationWrite::DeleteAttachment, ConversationWrite::Mute, ConversationWrite::MarkRead] as $write) {
+            $this->service->assertWritable($conversation, $write);
+        }
+    }
+
+    public function testDeleteAttachmentMuteAndMarkReadCallAssertWritable(): void
+    {
+        $caller = $this->user(1);
+        $this->authenticate($caller);
+        $conversation = $this->conversationWith($caller, $this->user(2));
+        $this->memberRepository->method('findForUser')->willReturn(new ConversationMember());
+        $service = $this->getMockBuilder(ConversationService::class)
+            ->setConstructorArgs($this->constructorArgs)
+            ->onlyMethods(['assertWritable'])
+            ->getMock();
+        $service->setEntityManager($this->entityManager);
+        $service->setLogger(new NullLogger());
+        $calls = [];
+        $service->method('assertWritable')->willReturnCallback(static function (Conversation $c, ConversationWrite $write) use (&$calls): void {
+            $calls[] = $write;
+        });
+
+        $service->setMuted($conversation, null);
+        $service->markRead($conversation);
+
+        self::assertSame([ConversationWrite::Mute, ConversationWrite::MarkRead], $calls);
+    }
+
+    public function testReadOnlyReasonOperatorRequiredForPlainGroups(): void
+    {
+        $viewer = $this->user(1);
+        $e2ee = self::createStub(\App\Service\E2ee\E2eeServiceInterface::class);
+        $e2ee->method('mode')->willReturn(\App\Enum\Settings\EncryptedDmsMode::Required);
+        $this->constructorArgs[11] = $e2ee;
+        $service = new ConversationService(...$this->constructorArgs);
+        $this->blocks->method('enforcedRelations')->willReturn(new BlockRelations());
+
+        self::assertSame(ReadOnlyReason::OperatorRequired, $service->readOnlyReason($this->conversationWith($viewer, $this->user(2), $this->user(3)), $viewer));
+        self::assertNull($service->readOnlyReason($this->encryptedConversationWith($viewer, $this->user(2)), $viewer));
+    }
+
+    public function testReadOnlyReasonParticipantRefusalWinsOverBlock(): void
+    {
+        $viewer = $this->user(1);
+        $preferences = self::createStub(\App\Service\User\UserPreferenceServiceInterface::class);
+        $preferences->method('refusingPlainDms')->willReturn([2]);
+        $this->constructorArgs[13] = $preferences;
+        $service = new ConversationService(...$this->constructorArgs);
+        $this->blocks->method('enforcedRelations')->willReturn(new BlockRelations(blockedIds: [2]));
+
+        self::assertSame(ReadOnlyReason::ParticipantRefusesPlain, $service->readOnlyReason($this->conversationWith($viewer, $this->user(2)), $viewer));
+        self::assertSame(ReadOnlyReason::Blocked, $service->readOnlyReason($this->encryptedConversationWith($viewer, $this->user(2)), $viewer));
+    }
+
+    private function encryptedConversationWith(User ...$users): Conversation
+    {
+        $conversation = new Conversation(true);
+        foreach ($users as $user) {
+            $conversation->addMember((new ConversationMember())->setUser($user));
+        }
+
+        return $conversation;
     }
 
     public function testAssertWritableRejectsSendWhenReadOnly(): void

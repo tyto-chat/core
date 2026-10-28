@@ -8,4 +8,6 @@ enum ReadOnlyReason: string
 {
     case Blocked = 'blocked';
     case Unavailable = 'unavailable';
+    case OperatorRequired = 'operator_required';
+    case ParticipantRefusesPlain = 'participant_refuses_plain';
 }

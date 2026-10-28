@@ -15,4 +15,11 @@ interface UserPreferenceServiceInterface
     public function getForUser(User $user): UserPreference;
 
     public function update(UserPreference $pref, UpdateUserPreferencesDto $dto): UserPreference;
+
+    /**
+     * @param list<int> $userIds
+     *
+     * @return list<int>
+     */
+    public function refusingPlainDms(array $userIds): array;
 }

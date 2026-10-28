@@ -341,6 +341,14 @@ class MercurePublisher implements RealtimePublisherInterface
         ]);
     }
 
+    #[\Override]
+    public function publishServerConversationPolicy(array $userIds): void
+    {
+        foreach (array_chunk($userIds, 100) as $chunk) {
+            $this->publish(array_map(Topics::userConversationActivity(...), $chunk), ['type' => 'conversation.policy', 'scope' => 'server']);
+        }
+    }
+
     public function publishPresenceChanged(int $userId, PresenceState $state, array $communityIds = []): void
     {
         $data = [

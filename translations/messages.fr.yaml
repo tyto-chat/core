@@ -7,7 +7,6 @@ exception:
         device_not_found: 'Appareil introuvable.'
         device_limit: 'Ce compte a déjà le nombre maximal d''appareils. Retire d''abord un appareil.'
         disabled: 'Les messages privés chiffrés sont désactivés sur ce serveur.'
-        mode_not_available: 'Exiger des messages privés chiffrés n''est pas encore disponible.'
         invalid_revocation: 'La suppression de l''appareil n''est pas signée correctement.'
         device_revoked: 'Cet appareil a été supprimé et ne peut plus publier de clés.'
         key_package_limit: 'Cet appareil a déjà le nombre maximal de paquets de clés enregistrés.'

@@ -13,6 +13,7 @@ use App\Enum\Conversation\ConversationWrite;
 use App\Enum\Conversation\PolicyOutcome;
 use App\Enum\Conversation\PolicyReason;
 use App\Enum\Conversation\ReadOnlyReason;
+use App\Enum\Settings\EncryptedDmsMode;
 use App\Exception\Conversation\ConversationBlockedException;
 use App\Exception\Conversation\ConversationNotFoundException;
 use App\Exception\Conversation\ConversationReadOnlyException;
@@ -38,6 +39,7 @@ use App\Service\Message\MessageServiceInterface;
 use App\Service\Notification\NotificationServiceInterface;
 use App\Service\Realtime\RealtimePublisherInterface;
 use App\Service\User\UserBlockServiceInterface;
+use App\Service\User\UserPreferenceServiceInterface;
 use App\ValueObject\User\BlockRelations;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
@@ -60,6 +62,7 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
         private readonly ConversationPolicyInterface $policy,
         private readonly E2eeServiceInterface $e2ee,
         private readonly ApiKeyScopeGuard $apiKeys,
+        private readonly UserPreferenceServiceInterface $preferences,
     ) {
     }
 
@@ -279,56 +282,168 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
     #[\Override]
     public function readOnlyReason(Conversation $conversation, User $viewer): ?ReadOnlyReason
     {
-        $otherId = $this->soleCounterpartId($conversation, $viewer);
-        if (null === $otherId) {
-            return null;
+        return $this->readOnlyReasonsFor([$conversation], $viewer)[spl_object_id($conversation)] ?? null;
+    }
+
+    /**
+     * @param list<Conversation> $conversations
+     *
+     * @return array<int, ?ReadOnlyReason> keyed by spl_object_id
+     */
+    private function readOnlyReasonsFor(array $conversations, User $viewer): array
+    {
+        $plainMemberIds = [];
+        foreach ($conversations as $conversation) {
+            if (!$conversation->isEncrypted()) {
+                $plainMemberIds += array_fill_keys($this->memberIds($conversation), true);
+            }
+        }
+        $required = [] !== $plainMemberIds && EncryptedDmsMode::Required === $this->e2ee->mode();
+        $refusing = [] === $plainMemberIds || $required ? [] : array_fill_keys($this->preferences->refusingPlainDms(array_keys($plainMemberIds)), true);
+
+        $reasons = [];
+        $counterparts = [];
+        foreach ($conversations as $conversation) {
+            $key = spl_object_id($conversation);
+            $reasons[$key] = $conversation->isEncrypted() ? null : match (true) {
+                $required => ReadOnlyReason::OperatorRequired,
+                [] !== array_intersect_key(array_fill_keys($this->memberIds($conversation), true), $refusing) => ReadOnlyReason::ParticipantRefusesPlain,
+                default => null,
+            };
+            $otherId = null === $reasons[$key] ? $this->soleCounterpartId($conversation, $viewer) : null;
+            if (null !== $otherId) {
+                $counterparts[$key] = $otherId;
+            }
         }
 
-        return $this->reasonFrom($this->userBlocks->enforcedRelations($viewer, [$otherId]), $otherId);
+        if ([] !== $counterparts) {
+            $relations = $this->userBlocks->enforcedRelations($viewer, array_values(array_unique($counterparts)));
+            foreach ($counterparts as $key => $otherId) {
+                $reasons[$key] = $this->reasonFrom($relations, $otherId);
+            }
+        }
+
+        return $reasons;
+    }
+
+    /** @return list<int> */
+    private function memberIds(Conversation $conversation): array
+    {
+        $ids = [];
+        foreach ($conversation->getMembers() as $member) {
+            $id = $member->getUserId();
+            if (null !== $id) {
+                $ids[] = $id;
+            }
+        }
+
+        return $ids;
     }
 
     #[\Override]
-    public function policySnapshotForPair(User $a, User $b): ?array
+    public function policySnapshotForPair(User $a, User $b): array
     {
-        $conversation = $this->findPairConversation($a, $b);
-        if (null === $conversation) {
-            return null;
-        }
-
-        return [
-            (int) $a->getId() => $this->readOnlyReason($conversation, $a),
-            (int) $b->getId() => $this->readOnlyReason($conversation, $b),
-        ];
+        return $this->policySnapshot($this->findPairConversations($a, $b));
     }
 
     #[\Override]
-    public function publishPolicyChangesForPair(User $a, User $b, ?array $before): void
+    public function publishPolicyChangesForPair(User $a, User $b, array $before): void
     {
-        $conversation = $this->findPairConversation($a, $b);
-        if (null === $conversation || null === $before) {
-            return;
+        $this->publishPolicyChanges($this->findPairConversations($a, $b), $before);
+    }
+
+    #[\Override]
+    public function policySnapshotForUser(User $user): array
+    {
+        return $this->policySnapshot($this->plainConversationsOf($user));
+    }
+
+    #[\Override]
+    public function publishPolicyChangesForUser(User $user, array $before): void
+    {
+        $this->publishPolicyChanges($this->plainConversationsOf($user), $before);
+    }
+
+    #[\Override]
+    public function publishServerPolicyChange(): void
+    {
+        $userIds = $this->conversationMemberRepository->findUserIdsInPlainConversations();
+        if ([] !== $userIds) {
+            $this->publisher->publishServerConversationPolicy($userIds);
+        }
+    }
+
+    /** @return list<Conversation> */
+    private function findPairConversations(User $a, User $b): array
+    {
+        $ids = [(int) $a->getId(), (int) $b->getId()];
+
+        return array_values(array_filter([
+            $this->conversationRepository->findOneByParticipantsHash(Conversation::hashParticipants($ids)),
+            $this->conversationRepository->findOneByParticipantsHash(Conversation::hashParticipants($ids, true)),
+        ]));
+    }
+
+    /** @return list<Conversation> */
+    private function plainConversationsOf(User $user): array
+    {
+        return array_values(array_filter(
+            $this->conversationMemberRepository->findConversationsForUser($user),
+            static fn (Conversation $c): bool => !$c->isEncrypted(),
+        ));
+    }
+
+    /**
+     * @param list<Conversation> $conversations
+     *
+     * @return array<string, array<int, ?ReadOnlyReason>>
+     */
+    private function policySnapshot(array $conversations): array
+    {
+        $byMember = [];
+        foreach ($conversations as $conversation) {
+            foreach ($conversation->getMembers() as $member) {
+                $user = $member->getUser();
+                if (null !== $user?->getId()) {
+                    $byMember[(int) $user->getId()]['user'] = $user;
+                    $byMember[(int) $user->getId()]['conversations'][] = $conversation;
+                }
+            }
         }
 
-        foreach ([$a, $b] as $member) {
-            $reason = $this->readOnlyReason($conversation, $member);
-            if ($reason === ($before[(int) $member->getId()] ?? null)) {
+        $snapshot = [];
+        foreach ($byMember as $userId => ['user' => $user, 'conversations' => $memberConversations]) {
+            $reasons = $this->readOnlyReasonsFor($memberConversations, $user);
+            foreach ($memberConversations as $conversation) {
+                $snapshot[$conversation->getIdentifier()][$userId] = $reasons[spl_object_id($conversation)] ?? null;
+            }
+        }
+
+        return $snapshot;
+    }
+
+    /**
+     * @param list<Conversation>                         $conversations
+     * @param array<string, array<int, ?ReadOnlyReason>> $before
+     */
+    private function publishPolicyChanges(array $conversations, array $before): void
+    {
+        foreach ($this->policySnapshot($conversations) as $identifier => $members) {
+            if (!array_key_exists($identifier, $before)) {
                 continue;
             }
-            $this->publisher->publishConversationPolicy((int) $member->getId(), $conversation->getIdentifier(), null !== $reason, $reason);
+            foreach ($members as $userId => $reason) {
+                if (array_key_exists($userId, $before[$identifier]) && $reason !== $before[$identifier][$userId]) {
+                    $this->publisher->publishConversationPolicy($userId, $identifier, null !== $reason, $reason);
+                }
+            }
         }
-    }
-
-    private function findPairConversation(User $a, User $b): ?Conversation
-    {
-        return $this->conversationRepository->findOneByParticipantsHash(
-            Conversation::hashParticipants([(int) $a->getId(), (int) $b->getId()]),
-        );
     }
 
     #[\Override]
     public function assertWritable(Conversation $conversation, ConversationWrite $write): void
     {
-        if (ConversationWrite::Unreact === $write || ConversationWrite::DeleteMessage === $write) {
+        if (in_array($write, [ConversationWrite::Unreact, ConversationWrite::DeleteMessage, ConversationWrite::DeleteAttachment, ConversationWrite::Mute, ConversationWrite::MarkRead], true)) {
             return;
         }
 
@@ -416,28 +531,12 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
     {
         $caller = $this->security->currentUser();
 
-        $conversations = $this->conversationMemberRepository->findConversationsForUser($caller, $startedOnly);
+        $conversations = array_values($this->conversationMemberRepository->findConversationsForUser($caller, $startedOnly));
         $unreadByConversation = $this->messageService->countUnreadPerConversationFor($caller);
-        $counterparts = [];
+        $reasons = $this->readOnlyReasonsFor($conversations, $caller);
         foreach ($conversations as $conversation) {
             $conversation->setUnreadCount($unreadByConversation[(int) $conversation->getId()] ?? 0);
-            $otherId = $this->soleCounterpartId($conversation, $caller);
-            if (null !== $otherId) {
-                $counterparts[(int) $conversation->getId()] = $otherId;
-            }
-        }
-
-        if ([] === $counterparts) {
-            return $conversations;
-        }
-
-        $relations = $this->userBlocks->enforcedRelations($caller, array_values(array_unique($counterparts)));
-        foreach ($conversations as $conversation) {
-            $otherId = $counterparts[(int) $conversation->getId()] ?? null;
-            if (null === $otherId) {
-                continue;
-            }
-            $reason = $this->reasonFrom($relations, $otherId);
+            $reason = $reasons[spl_object_id($conversation)] ?? null;
             $conversation->setReadOnly(null !== $reason);
             $conversation->setReadOnlyReason($reason);
         }
@@ -454,6 +553,7 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
             throw new NotMemberException();
         }
 
+        $this->assertWritable($conversation, ConversationWrite::Mute);
         $member->setMutedUntil($mutedUntil);
 
         return $this->save($member);
@@ -468,6 +568,7 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
             throw new NotMemberException();
         }
 
+        $this->assertWritable($conversation, ConversationWrite::MarkRead);
         $member->setLastReadAt(new \DateTimeImmutable());
         $member = $this->save($member);
 

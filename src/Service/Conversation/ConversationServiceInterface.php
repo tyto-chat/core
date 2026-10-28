@@ -28,11 +28,19 @@ interface ConversationServiceInterface
 
     public function readOnlyReason(Conversation $conversation, User $viewer): ?ReadOnlyReason;
 
-    /** @return array<int, ?ReadOnlyReason>|null per-member read-only reason keyed by user id, null when the pair has no conversation */
-    public function policySnapshotForPair(User $a, User $b): ?array;
+    /** @return array<string, array<int, ?ReadOnlyReason>> read-only reason per conversation identifier and member id */
+    public function policySnapshotForPair(User $a, User $b): array;
 
-    /** @param array<int, ?ReadOnlyReason>|null $before */
-    public function publishPolicyChangesForPair(User $a, User $b, ?array $before): void;
+    /** @param array<string, array<int, ?ReadOnlyReason>> $before */
+    public function publishPolicyChangesForPair(User $a, User $b, array $before): void;
+
+    /** @return array<string, array<int, ?ReadOnlyReason>> read-only reason per plain conversation identifier and member id */
+    public function policySnapshotForUser(User $user): array;
+
+    /** @param array<string, array<int, ?ReadOnlyReason>> $before */
+    public function publishPolicyChangesForUser(User $user, array $before): void;
+
+    public function publishServerPolicyChange(): void;
 
     public function assertWritable(Conversation $conversation, ConversationWrite $write): void;
 

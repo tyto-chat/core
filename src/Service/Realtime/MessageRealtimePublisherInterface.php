@@ -25,6 +25,9 @@ interface MessageRealtimePublisherInterface
 
     public function publishConversationPolicy(int $userId, string $conversationIdentifier, bool $readOnly, ?ReadOnlyReason $reason): void;
 
+    /** @param list<int> $userIds */
+    public function publishServerConversationPolicy(array $userIds): void;
+
     public function publishMessagePinned(Message $message): void;
 
     public function publishMessageThreadMeta(Message $root): void;

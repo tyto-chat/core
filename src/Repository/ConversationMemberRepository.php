@@ -87,4 +87,18 @@ class ConversationMemberRepository extends ServiceEntityRepository
 
         return $query->getQuery()->getResult();
     }
+
+    /** @return list<int> */
+    public function findUserIdsInPlainConversations(): array
+    {
+        $rows = $this->createQueryBuilder('cm')
+            ->select('DISTINCT IDENTITY(cm.user) AS userId')
+            ->innerJoin('cm.conversation', 'c')
+            ->where('c.encrypted = false')
+            ->andWhere('cm.user IS NOT NULL')
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_values(array_map(intval(...), $rows));
+    }
 }

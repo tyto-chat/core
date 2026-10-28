@@ -10,3 +10,4 @@ framework:
             App\Async\SendEmailDigestsMessage: sync
             App\Async\PurgeExpiredAccountsMessage: sync
             App\Async\ExpireDataExportsMessage: sync
+            App\Async\PublishConversationPolicyMessage: sync

@@ -102,8 +102,8 @@ class UserBlockService extends AbstractDoctrineService implements UserBlockServi
         $this->publishChanged($me, $target, $before);
     }
 
-    /** @param array<int, ?ReadOnlyReason>|null $policyBefore */
-    private function publishChanged(User $blocker, User $target, ?array $policyBefore): void
+    /** @param array<string, array<int, ?ReadOnlyReason>> $policyBefore */
+    private function publishChanged(User $blocker, User $target, array $policyBefore): void
     {
         $this->realtimePublisher->publishUserEvent((int) $blocker->getId(), 'blocks.changed', ['userId' => (int) $target->getId()]);
         $this->conversations->publishPolicyChangesForPair($blocker, $target, $policyBefore);
