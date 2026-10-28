@@ -126,6 +126,18 @@ exception:
         empty_member_list: 'Mindestens ein weiterer Benutzer ist erforderlich.'
         blocked: 'Du kannst keine Unterhaltung mit diesen Personen beginnen.'
         read_only: 'Du kannst in dieser Unterhaltung keine Nachrichten senden.'
+        plain_not_allowed:
+            operator_required: 'Dieser Server erlaubt nur verschlüsselte Direktnachrichten.'
+            self_refuses: 'Du nimmst nur an verschlüsselten Direktnachrichten teil.'
+            participant_refuses: '%names% nimmt nur an verschlüsselten Direktnachrichten teil, die die tyto.chat-Desktop-App brauchen.'
+            encryption_available: 'Alle hier können verschlüsselte Direktnachrichten nutzen, daher muss diese Unterhaltung verschlüsselt sein.'
+        group_not_allowed:
+            group_not_available: 'Dieser Server erlaubt nur verschlüsselte Direktnachrichten, und Gruppenunterhaltungen können noch nicht verschlüsselt werden.'
+            self_refuses: 'Du nimmst nur an verschlüsselten Direktnachrichten teil, und Gruppenunterhaltungen können noch nicht verschlüsselt werden.'
+            participant_refuses: 'Gruppenunterhaltungen können noch nicht verschlüsselt werden, und diese Personen nehmen nur an verschlüsselten Direktnachrichten teil: %names%.'
+        encrypted_group_not_available: 'Gruppenunterhaltungen können noch nicht verschlüsselt werden.'
+        no_e2ee_device: 'Diese Personen können noch nicht an einer verschlüsselten Unterhaltung teilnehmen; sie brauchen die tyto.chat-Desktop-App mit eingerichteter Verschlüsselung: %names%.'
+        no_e2ee_device_self: 'Für eine verschlüsselte Unterhaltung brauchst du die tyto.chat-Desktop-App mit eingerichteter Verschlüsselung.'
 
 rate_limit:
     too_many_requests: 'Zu viele Anfragen. Versuch es später erneut.'

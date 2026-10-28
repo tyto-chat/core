@@ -74,6 +74,7 @@ GET /api/v1/communities/{identifier}/presence/summary
 GET /api/v1/communities/{identifier}/search
 GET /api/v1/communities/{identifier}/unread-channels
 GET /api/v1/conversations
+GET /api/v1/conversations/preflight
 GET /api/v1/conversations/{conversation}
 GET /api/v1/conversations/{conversation}/messages/current
 GET /api/v1/conversations/{conversation}/pages

@@ -126,6 +126,18 @@ exception:
         empty_member_list: 'Se requiere al menos otro usuario.'
         blocked: 'No puedes iniciar una conversación con estas personas.'
         read_only: 'No puedes enviar mensajes en esta conversación.'
+        plain_not_allowed:
+            operator_required: 'Este servidor solo permite mensajes directos cifrados.'
+            self_refuses: 'Solo participas en mensajes directos cifrados.'
+            participant_refuses: '%names% solo participa en mensajes directos cifrados, que necesitan la aplicación de escritorio de tyto.chat.'
+            encryption_available: 'Todos aquí pueden usar mensajes directos cifrados, así que esta conversación debe estar cifrada.'
+        group_not_allowed:
+            group_not_available: 'Este servidor solo permite mensajes directos cifrados, y las conversaciones de grupo aún no pueden cifrarse.'
+            self_refuses: 'Solo participas en mensajes directos cifrados, y las conversaciones de grupo aún no pueden cifrarse.'
+            participant_refuses: 'Las conversaciones de grupo aún no pueden cifrarse, y estas personas solo participan en mensajes directos cifrados: %names%.'
+        encrypted_group_not_available: 'Las conversaciones de grupo aún no pueden cifrarse.'
+        no_e2ee_device: 'Estas personas aún no pueden participar en una conversación cifrada; necesitan la aplicación de escritorio de tyto.chat con el cifrado configurado: %names%.'
+        no_e2ee_device_self: 'Necesitas la aplicación de escritorio de tyto.chat con el cifrado configurado para iniciar una conversación cifrada.'
 
 rate_limit:
     too_many_requests: 'Demasiadas solicitudes. Inténtalo de nuevo más tarde.'

@@ -18,6 +18,9 @@ readonly class CreateConversationDto
         #[Assert\All([new Assert\Type('integer')])]
         #[Groups(['conversation:create'])]
         public array $memberUserIds = [],
+        #[Assert\Type('bool')]
+        #[Groups(['conversation:create'])]
+        public bool $encrypted = false,
     ) {
     }
 }

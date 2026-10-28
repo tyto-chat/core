@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Conversation;
 
+use App\Dto\Conversation\ConversationPreflightResult;
 use App\Entity\Conversation;
 use App\Entity\ConversationMember;
 use App\Entity\MessagePage;
@@ -16,7 +17,12 @@ interface ConversationServiceInterface
     /**
      * @param User[] $otherParticipants
      */
-    public function createOrFind(array $otherParticipants): Conversation;
+    public function createOrFind(array $otherParticipants, bool $encrypted = false): Conversation;
+
+    /**
+     * @param User[] $otherParticipants
+     */
+    public function preflight(array $otherParticipants): ConversationPreflightResult;
 
     public function getByIdentifier(string $identifier): Conversation;
 

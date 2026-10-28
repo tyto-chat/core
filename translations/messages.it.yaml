@@ -126,6 +126,18 @@ exception:
         empty_member_list: 'È richiesto almeno un altro utente.'
         blocked: 'Non puoi avviare una conversazione con queste persone.'
         read_only: 'Non puoi inviare messaggi in questa conversazione.'
+        plain_not_allowed:
+            operator_required: 'Questo server consente solo messaggi diretti crittografati.'
+            self_refuses: 'Partecipi solo a messaggi diretti crittografati.'
+            participant_refuses: '%names% partecipa solo a messaggi diretti crittografati, che richiedono l''app desktop di tyto.chat.'
+            encryption_available: 'Tutti qui possono usare messaggi diretti crittografati, quindi questa conversazione deve essere crittografata.'
+        group_not_allowed:
+            group_not_available: 'Questo server consente solo messaggi diretti crittografati, e le conversazioni di gruppo non possono ancora essere crittografate.'
+            self_refuses: 'Partecipi solo a messaggi diretti crittografati, e le conversazioni di gruppo non possono ancora essere crittografate.'
+            participant_refuses: 'Le conversazioni di gruppo non possono ancora essere crittografate, e queste persone partecipano solo a messaggi diretti crittografati: %names%.'
+        encrypted_group_not_available: 'Le conversazioni di gruppo non possono ancora essere crittografate.'
+        no_e2ee_device: 'Queste persone non possono ancora partecipare a una conversazione crittografata; serve loro l''app desktop di tyto.chat con la crittografia configurata: %names%.'
+        no_e2ee_device_self: 'Ti serve l''app desktop di tyto.chat con la crittografia configurata per iniziare una conversazione crittografata.'
 
 rate_limit:
     too_many_requests: 'Troppe richieste. Riprova più tardi.'

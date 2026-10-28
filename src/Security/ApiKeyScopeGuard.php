@@ -25,6 +25,11 @@ final class ApiKeyScopeGuard
         );
     }
 
+    public function isApiKeyRequest(): bool
+    {
+        return is_array($this->requestStack->getCurrentRequest()?->attributes->get(ApiKeyAuthenticator::REQUEST_SCOPES_ATTRIBUTE));
+    }
+
     public function requireScope(string $scope): void
     {
         $request = $this->requestStack->getCurrentRequest();

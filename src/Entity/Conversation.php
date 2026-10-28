@@ -26,6 +26,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\SerializedName;
 use Symfony\Component\Uid\Ulid;
 
 #[ORM\Entity(repositoryClass: ConversationRepository::class)]
@@ -55,10 +56,15 @@ use Symfony\Component\Uid\Ulid;
     uriTemplate: '/conversations',
     openapi: new Model\Operation(
         summary: 'Create or fetch a direct conversation',
-        description: 'Idempotent by participant set: when a conversation with exactly the given members plus '
-            .'the caller already exists it is returned, otherwise a new one is created. Unless the caller is a '
-            .'global admin, they must share at least one community with every other participant; a violation or '
-            .'an empty member list fails with `422`.',
+        description: 'Idempotent by participant set and `encrypted` flag: when a conversation with exactly the given '
+            .'members plus the caller and the same flag already exists it is returned, otherwise a new one is created, '
+            .'so one set of people can hold one plain and one encrypted conversation. Unless the caller is a global '
+            .'admin, they must share at least one community with every other participant; a violation or an empty '
+            .'member list fails with `422`. New conversations follow the encryption rules (see '
+            .'`GET /conversations/preflight`): `422` when plain is requested but the conversation must be encrypted '
+            .'or everyone can use encryption, when encrypted is requested and a participant has no usable device or '
+            .'the server disabled encrypted messages, and for any encrypted group. Encrypted creation is refused with '
+            .'`403` for bots and API keys.',
     ),
     security: "is_granted('ROLE_USER')",
     input: CreateConversationDto::class,
@@ -142,6 +148,11 @@ class Conversation
     #[ORM\Column(length: 40)]
     private string $participantsHash = '';
 
+    #[ORM\Column(options: ['default' => false])]
+    #[Groups(['conversation:read'])]
+    #[SerializedName('encrypted')]
+    private bool $encrypted;
+
     #[ORM\Column(nullable: true)]
     #[Groups(['conversation:read'])]
     private ?\DateTimeImmutable $lastMessageAt = null;
@@ -170,8 +181,9 @@ class Conversation
     #[ORM\OrderBy(['pageNumber' => 'ASC'])]
     private Collection $pages;
 
-    public function __construct()
+    public function __construct(bool $encrypted = false)
     {
+        $this->encrypted = $encrypted;
         $this->identifier = strtolower((new Ulid())->toBase32());
         $this->members = new ArrayCollection();
         $this->pages = new ArrayCollection();
@@ -192,6 +204,11 @@ class Conversation
         $this->identifier = $identifier;
 
         return $this;
+    }
+
+    public function isEncrypted(): bool
+    {
+        return $this->encrypted;
     }
 
     public function getParticipantsHash(): string
@@ -298,11 +315,11 @@ class Conversation
     /**
      * @param int[] $userIds
      */
-    public static function hashParticipants(array $userIds): string
+    public static function hashParticipants(array $userIds, bool $encrypted = false): string
     {
         $unique = array_values(array_unique($userIds));
         sort($unique);
 
-        return sha1(implode('-', $unique));
+        return sha1(($encrypted ? 'e2ee:' : '').implode('-', $unique));
     }
 }

@@ -131,6 +131,18 @@ exception:
         empty_member_list: 'At least one other user is required.'
         blocked: 'You can''t start a conversation with these people.'
         read_only: 'You can''t send messages in this conversation.'
+        plain_not_allowed:
+            operator_required: 'This server only allows encrypted direct messages.'
+            self_refuses: 'You only take part in encrypted direct messages.'
+            participant_refuses: '%names% only takes part in encrypted direct messages, which need the tyto.chat desktop app.'
+            encryption_available: 'Everyone here can use encrypted direct messages, so this conversation must be encrypted.'
+        group_not_allowed:
+            group_not_available: 'This server only allows encrypted direct messages, and group conversations cannot be encrypted yet.'
+            self_refuses: 'You only take part in encrypted direct messages, and group conversations cannot be encrypted yet.'
+            participant_refuses: 'Group conversations cannot be encrypted yet, and these people only take part in encrypted direct messages: %names%.'
+        encrypted_group_not_available: 'Group conversations cannot be encrypted yet.'
+        no_e2ee_device: 'These people cannot take part in an encrypted conversation yet; they need the tyto.chat desktop app with encryption set up: %names%.'
+        no_e2ee_device_self: 'You need the tyto.chat desktop app with encryption set up to start an encrypted conversation.'
 
 rate_limit:
     too_many_requests: 'Too many requests. Please try again later.'

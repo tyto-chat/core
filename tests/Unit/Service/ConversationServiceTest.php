@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service;
 
+use App\Dto\Conversation\PolicyDecision;
 use App\Entity\Conversation;
 use App\Entity\ConversationMember;
 use App\Entity\User;
 use App\Enum\Conversation\ConversationWrite;
+use App\Enum\Conversation\PolicyOutcome;
 use App\Enum\Conversation\ReadOnlyReason;
 use App\Exception\Conversation\ConversationReadOnlyException;
 use App\Exception\Conversation\EmptyMemberListException;
@@ -16,6 +18,7 @@ use App\Exception\Conversation\NotMemberException;
 use App\Repository\ConversationMemberRepository;
 use App\Repository\ConversationRepository;
 use App\Repository\MessagePageRepository;
+use App\Security\ConversationPolicyInterface;
 use App\Security\SecurityContext;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Conversation\ConversationService;
@@ -27,6 +30,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -43,6 +47,7 @@ class ConversationServiceTest extends TestCase
     private Security&MockObject $security;
     private NotificationServiceInterface&MockObject $notifications;
     private UserBlockServiceInterface&MockObject $blocks;
+    private ConversationPolicyInterface&Stub $policy;
     private ConversationService $service;
 
     #[\Override]
@@ -58,6 +63,8 @@ class ConversationServiceTest extends TestCase
         $this->notifications = $this->createMock(NotificationServiceInterface::class);
 
         $this->blocks = $this->createMock(UserBlockServiceInterface::class);
+        $this->policy = self::createStub(ConversationPolicyInterface::class);
+        $this->policy->method('decide')->willReturn(new PolicyDecision(PolicyOutcome::PlainFallback, false, null, [], []));
 
         $this->service = new ConversationService(
             new SecurityContext($this->security, $this->communityMembershipService),
@@ -70,6 +77,9 @@ class ConversationServiceTest extends TestCase
             $this->notifications,
             $this->blocks,
             $this->createMock(\App\Service\Realtime\RealtimePublisherInterface::class),
+            $this->policy,
+            self::createStub(\App\Service\E2ee\E2eeServiceInterface::class),
+            new \App\Security\ApiKeyScopeGuard(new \Symfony\Component\HttpFoundation\RequestStack()),
         );
         $this->service->setEntityManager($this->entityManager);
         $this->service->setLogger(new NullLogger());

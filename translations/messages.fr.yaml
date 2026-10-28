@@ -126,6 +126,18 @@ exception:
         empty_member_list: 'Au moins un autre utilisateur est requis.'
         blocked: 'Tu ne peux pas démarrer une conversation avec ces personnes.'
         read_only: 'Tu ne peux pas envoyer de messages dans cette conversation.'
+        plain_not_allowed:
+            operator_required: 'Ce serveur n''autorise que les messages privés chiffrés.'
+            self_refuses: 'Tu ne participes qu''aux messages privés chiffrés.'
+            participant_refuses: '%names% ne participe qu''aux messages privés chiffrés, qui nécessitent l''application de bureau tyto.chat.'
+            encryption_available: 'Tout le monde ici peut utiliser les messages privés chiffrés, donc cette conversation doit être chiffrée.'
+        group_not_allowed:
+            group_not_available: 'Ce serveur n''autorise que les messages privés chiffrés, et les conversations de groupe ne peuvent pas encore être chiffrées.'
+            self_refuses: 'Tu ne participes qu''aux messages privés chiffrés, et les conversations de groupe ne peuvent pas encore être chiffrées.'
+            participant_refuses: 'Les conversations de groupe ne peuvent pas encore être chiffrées, et ces personnes ne participent qu''aux messages privés chiffrés : %names%.'
+        encrypted_group_not_available: 'Les conversations de groupe ne peuvent pas encore être chiffrées.'
+        no_e2ee_device: 'Ces personnes ne peuvent pas encore participer à une conversation chiffrée ; il leur faut l''application de bureau tyto.chat avec le chiffrement configuré : %names%.'
+        no_e2ee_device_self: 'Il te faut l''application de bureau tyto.chat avec le chiffrement configuré pour démarrer une conversation chiffrée.'
 
 rate_limit:
     too_many_requests: 'Trop de requêtes. Réessaie plus tard.'

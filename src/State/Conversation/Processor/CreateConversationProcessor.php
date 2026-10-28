@@ -27,6 +27,6 @@ final readonly class CreateConversationProcessor implements ProcessorInterface
         /** @var CreateConversationDto $data */
         $participants = $this->userService->findByIds($data->memberUserIds);
 
-        return $this->conversationService->createOrFind($participants);
+        return $this->conversationService->createOrFind($participants, $data->encrypted);
     }
 }

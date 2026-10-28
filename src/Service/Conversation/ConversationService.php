@@ -4,26 +4,36 @@ declare(strict_types=1);
 
 namespace App\Service\Conversation;
 
+use App\Dto\Conversation\ConversationPreflightResult;
 use App\Entity\Conversation;
 use App\Entity\ConversationMember;
 use App\Entity\MessagePage;
 use App\Entity\User;
 use App\Enum\Conversation\ConversationWrite;
+use App\Enum\Conversation\PolicyOutcome;
+use App\Enum\Conversation\PolicyReason;
 use App\Enum\Conversation\ReadOnlyReason;
 use App\Exception\Conversation\ConversationBlockedException;
 use App\Exception\Conversation\ConversationNotFoundException;
 use App\Exception\Conversation\ConversationReadOnlyException;
 use App\Exception\Conversation\EmptyMemberListException;
+use App\Exception\Conversation\EncryptedGroupNotAvailableException;
+use App\Exception\Conversation\GroupDmNotAllowedException;
+use App\Exception\Conversation\NoE2eeDeviceException;
 use App\Exception\Conversation\NoSharedCommunityException;
 use App\Exception\Conversation\NotMemberException;
+use App\Exception\Conversation\PlainDmNotAllowedException;
 use App\Exception\Message\MessagePageNotFoundException;
 use App\Repository\ConversationMemberRepository;
 use App\Repository\ConversationRepository;
 use App\Repository\MessagePageRepository;
+use App\Security\ApiKeyScopeGuard;
+use App\Security\ConversationPolicyInterface;
 use App\Security\SecurityContext;
 use App\Security\Voter\ConversationVoter;
 use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityMembershipServiceInterface;
+use App\Service\E2ee\E2eeServiceInterface;
 use App\Service\Message\MessageServiceInterface;
 use App\Service\Notification\NotificationServiceInterface;
 use App\Service\Realtime\RealtimePublisherInterface;
@@ -47,6 +57,9 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
         private readonly NotificationServiceInterface $notifications,
         private readonly UserBlockServiceInterface $userBlocks,
         private readonly RealtimePublisherInterface $publisher,
+        private readonly ConversationPolicyInterface $policy,
+        private readonly E2eeServiceInterface $e2ee,
+        private readonly ApiKeyScopeGuard $apiKeys,
     ) {
     }
 
@@ -80,41 +93,26 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
      * @param User[] $otherParticipants
      */
     #[\Override]
-    public function createOrFind(array $otherParticipants): Conversation
+    public function createOrFind(array $otherParticipants, bool $encrypted = false): Conversation
     {
         $caller = $this->security->currentUser();
-        $others = $this->normalizeOtherParticipants($otherParticipants, $caller);
-        if ([] === $others) {
-            throw new EmptyMemberListException();
+        $others = $this->participantsFor($caller, $otherParticipants);
+        if ($encrypted) {
+            $this->security->throwAccessDeniedIf($caller->isBot() || $this->apiKeys->isApiKeyRequest(), 'Encrypted conversations need the desktop app.');
         }
 
-        if (!$this->security->isAdmin()) {
-            foreach ($others as $participant) {
-                if (!$this->communityMembership->existsSharedCommunity($caller, $participant)) {
-                    throw new NoSharedCommunityException(sprintf('No shared community with user %d.', (int) $participant->getId()));
-                }
-            }
-        }
-
-        $callerId = $caller->getId();
-        \assert(null !== $callerId);
-        $ids = array_map(static fn (User $u): int => (int) $u->getId(), $others);
-        $ids[] = $callerId;
-        $hash = Conversation::hashParticipants($ids);
+        $ids = $this->participantIds($caller, $others);
+        $hash = Conversation::hashParticipants($ids, $encrypted);
 
         $existing = $this->conversationRepository->findOneByParticipantsHash($hash);
         if (null !== $existing) {
             return $this->attachReadOnly($existing, $caller);
         }
 
-        $relations = $this->userBlocks->enforcedRelations($caller, array_values(array_map(static fn (User $u): int => (int) $u->getId(), $others)));
-        foreach ($ids as $id) {
-            if ($id !== $callerId && $relations->hasAnyWith($id)) {
-                throw new ConversationBlockedException();
-            }
-        }
+        $this->assertNotBlocked($caller, $others);
+        $this->assertCreationAllowed($caller, $others, $encrypted);
 
-        $conversation = new Conversation();
+        $conversation = new Conversation($encrypted);
         $conversation->setParticipantsHash($hash);
 
         foreach ([$caller, ...$others] as $participant) {
@@ -137,6 +135,128 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
         }
 
         return $conversation;
+    }
+
+    /**
+     * @param User[] $otherParticipants
+     */
+    #[\Override]
+    public function preflight(array $otherParticipants): ConversationPreflightResult
+    {
+        $caller = $this->security->currentUser();
+        $others = $this->participantsFor($caller, $otherParticipants);
+        $decision = $this->policy->decide($caller, $others);
+        $encrypted = 1 === count($others) && ($decision->isEncrypted() || (PolicyOutcome::Blocked === $decision->outcome && $decision->mustEncrypt));
+
+        $existing = $this->conversationRepository->findOneByParticipantsHash(
+            Conversation::hashParticipants($this->participantIds($caller, $others), $encrypted),
+        );
+        if (null === $existing) {
+            $this->assertNotBlocked($caller, $others);
+        }
+
+        return new ConversationPreflightResult($decision, $existing?->getIdentifier());
+    }
+
+    /**
+     * @param User[] $otherParticipants
+     *
+     * @return list<User>
+     */
+    private function participantsFor(User $caller, array $otherParticipants): array
+    {
+        $others = $this->normalizeOtherParticipants($otherParticipants, $caller);
+        if ([] === $others) {
+            throw new EmptyMemberListException();
+        }
+
+        if (!$this->security->isAdmin()) {
+            foreach ($others as $participant) {
+                if (!$this->communityMembership->existsSharedCommunity($caller, $participant)) {
+                    throw new NoSharedCommunityException(sprintf('No shared community with user %d.', (int) $participant->getId()));
+                }
+            }
+        }
+
+        return array_values($others);
+    }
+
+    /**
+     * @param list<User> $others
+     *
+     * @return list<int>
+     */
+    private function participantIds(User $caller, array $others): array
+    {
+        return [...array_map(static fn (User $u): int => (int) $u->getId(), $others), (int) $caller->getId()];
+    }
+
+    /**
+     * @param list<User> $others
+     */
+    private function assertNotBlocked(User $caller, array $others): void
+    {
+        $otherIds = array_map(static fn (User $u): int => (int) $u->getId(), $others);
+        $relations = $this->userBlocks->enforcedRelations($caller, $otherIds);
+        foreach ($otherIds as $id) {
+            if ($relations->hasAnyWith($id)) {
+                throw new ConversationBlockedException();
+            }
+        }
+    }
+
+    /**
+     * @param list<User> $others
+     */
+    private function assertCreationAllowed(User $caller, array $others, bool $encrypted): void
+    {
+        $decision = $this->policy->decide($caller, $others);
+        $callerId = (int) $caller->getId();
+
+        if (count($others) > 1) {
+            if ($encrypted) {
+                throw new EncryptedGroupNotAvailableException();
+            }
+            if (PolicyOutcome::Blocked === $decision->outcome && null !== $decision->reason) {
+                throw new GroupDmNotAllowedException($decision->reason, $decision->refusingUserIds, $this->namesOf($others, $decision->refusingUserIds));
+            }
+
+            return;
+        }
+
+        if ($encrypted) {
+            $this->e2ee->assertSetupAllowed();
+            if ([] !== $decision->unreachableUserIds) {
+                throw new NoE2eeDeviceException($decision->unreachableUserIds, $this->namesOf($others, $decision->unreachableUserIds), in_array($callerId, $decision->unreachableUserIds, true));
+            }
+
+            return;
+        }
+
+        if ($decision->mustEncrypt && null !== $decision->reason) {
+            throw new PlainDmNotAllowedException($decision->reason, $decision->refusingUserIds, $this->namesOf($others, $decision->refusingUserIds));
+        }
+        if ($decision->isEncrypted()) {
+            throw new PlainDmNotAllowedException(PolicyReason::EncryptionAvailable, [], []);
+        }
+    }
+
+    /**
+     * @param list<User> $others
+     * @param list<int>  $ids
+     *
+     * @return list<string>
+     */
+    private function namesOf(array $others, array $ids): array
+    {
+        $names = [];
+        foreach ($others as $user) {
+            if (in_array((int) $user->getId(), $ids, true)) {
+                $names[] = $user->getProfile()?->getName() ?? '#'.$user->getId();
+            }
+        }
+
+        return $names;
     }
 
     #[\Override]

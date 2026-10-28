@@ -131,6 +131,18 @@ exception:
         empty_member_list: 'Wymagany jest co najmniej jeden inny użytkownik.'
         blocked: 'Nie możesz rozpocząć rozmowy z tymi osobami.'
         read_only: 'Nie możesz wysyłać wiadomości w tej rozmowie.'
+        plain_not_allowed:
+            operator_required: 'Ten serwer pozwala tylko na szyfrowane wiadomości prywatne.'
+            self_refuses: 'Uczestniczysz tylko w szyfrowanych wiadomościach prywatnych.'
+            participant_refuses: '%names% uczestniczy tylko w szyfrowanych wiadomościach prywatnych, które wymagają aplikacji desktopowej tyto.chat.'
+            encryption_available: 'Wszyscy tutaj mogą używać szyfrowanych wiadomości prywatnych, więc ta rozmowa musi być szyfrowana.'
+        group_not_allowed:
+            group_not_available: 'Ten serwer pozwala tylko na szyfrowane wiadomości prywatne, a rozmów grupowych nie da się jeszcze szyfrować.'
+            self_refuses: 'Uczestniczysz tylko w szyfrowanych wiadomościach prywatnych, a rozmów grupowych nie da się jeszcze szyfrować.'
+            participant_refuses: 'Rozmów grupowych nie da się jeszcze szyfrować, a te osoby uczestniczą tylko w szyfrowanych wiadomościach prywatnych: %names%.'
+        encrypted_group_not_available: 'Rozmów grupowych nie da się jeszcze szyfrować.'
+        no_e2ee_device: 'Te osoby nie mogą jeszcze uczestniczyć w szyfrowanej rozmowie; potrzebują aplikacji desktopowej tyto.chat z włączonym szyfrowaniem: %names%.'
+        no_e2ee_device_self: 'Aby rozpocząć szyfrowaną rozmowę, potrzebujesz aplikacji desktopowej tyto.chat z włączonym szyfrowaniem.'
 
 rate_limit:
     too_many_requests: 'Zbyt wiele żądań. Spróbuj ponownie później.'
