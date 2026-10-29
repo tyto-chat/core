@@ -30,6 +30,7 @@ use App\Exception\Message\InvalidAttachmentException;
 use App\Exception\Message\MessageAlreadyPinnedException;
 use App\Exception\Message\MessageNotFoundException;
 use App\Exception\Message\MessageNotPinnedException;
+use App\Exception\Message\MessageRevisionConflictException;
 use App\Exception\Message\PinNotAllowedException;
 use App\Exception\Message\ThreadNotAllowedException;
 use App\Exception\Message\TooManyAttachmentsException;
@@ -256,11 +257,15 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
             $this->assertCanBroadcast($channel, array_values($added));
         }
 
-        $message = $this->transactional(function () use ($message, $text, $conversation): Message {
+        $baseRevisionCount = $updateMessageDto->baseRevisionCount;
+        $message = $this->transactional(function () use ($message, $text, $conversation, $baseRevisionCount): Message {
             if (null !== $conversation) {
                 $this->lockEncryptedWrite($conversation, $text, null, null, $this->security->currentUser());
             }
             $this->lockForUpdate($message);
+            if (null !== $baseRevisionCount && $baseRevisionCount !== $message->getRevisionCount()) {
+                throw new MessageRevisionConflictException($message->getRevisionCount());
+            }
             $revision = new MessageRevision();
             $revision->setText($text);
             $this->persist($revision);

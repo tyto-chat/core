@@ -25,8 +25,8 @@ interface GroupDeliveryServiceInterface
     /** @return list<E2eeGroupEpoch> oldest first */
     public function listCommits(Conversation $conversation, int $after): array;
 
-    /** @return list<E2eeWelcome> oldest undelivered welcomes for the caller's active devices; acknowledge them to get the next ones */
-    public function listWelcomes(?string $deviceId): array;
+    /** @return list<E2eeWelcome> oldest undelivered welcomes for the caller's active devices, after the `$after` welcome when given */
+    public function listWelcomes(?string $deviceId, ?string $after = null): array;
 
     public function acknowledgeWelcome(string $welcomeId): void;
 

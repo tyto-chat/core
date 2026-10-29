@@ -17,6 +17,10 @@ class UpdateMessageDto implements EntityDtoInterface
     #[Groups(['message:update'])]
     public string $text = '';
 
+    #[Assert\PositiveOrZero]
+    #[Groups(['message:update'])]
+    public ?int $baseRevisionCount = null;
+
     public static function getEntityClass(): string
     {
         return Message::class;

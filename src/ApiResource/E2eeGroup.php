@@ -74,7 +74,7 @@ use App\State\E2ee\Provider\WelcomesProvider;
             provider: WelcomesProvider::class,
             openapi: new Model\Operation(
                 summary: 'Undelivered welcomes for the caller\'s active devices',
-                description: 'Oldest first, at most 50 per call; acknowledge them to receive the next. Optional `?deviceId=` narrows the list to one device.',
+                description: 'Oldest first, at most 50 per call; acknowledge them, or pass `?after=<welcomeId>` to page past ones kept for later. Optional `?deviceId=` narrows the list to one device.',
             ),
         ),
         new Post(

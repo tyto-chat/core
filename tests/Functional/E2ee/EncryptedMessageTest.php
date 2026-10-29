@@ -108,6 +108,36 @@ final class EncryptedMessageTest extends ApiTestCase
         self::assertSame($edited, $body['text']);
     }
 
+    public function testRevisionCountAndRevisedAtExposedForHeaderCheck(): void
+    {
+        [$a, , $conversation] = $this->encryptedPair();
+        $created = $this->send($a, $conversation, ['text' => self::envelope()]);
+        self::assertSame(1, $created['revisionCount']);
+        self::assertIsString($created['revisedAt']);
+
+        $body = $this->edit($a, $created, self::envelope(ciphertext: 'ZWRpdGVk'));
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(2, $body['revisionCount']);
+        self::assertIsString($body['revisedAt']);
+    }
+
+    public function testEditAgainstStaleRevisionConflicts(): void
+    {
+        [$a, , $conversation] = $this->encryptedPair();
+        $created = $this->send($a, $conversation, ['text' => self::envelope()]);
+
+        $this->edit($a, $created, self::envelope(ciphertext: 'b25l'), ['baseRevisionCount' => 1]);
+        self::assertResponseIsSuccessful();
+
+        $body = $this->edit($a, $created, self::envelope(ciphertext: 'dHdv'), ['baseRevisionCount' => 1]);
+
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('revision_conflict', $body['code']);
+        self::assertSame(2, $body['currentRevisionCount']);
+        self::assertSame(2, $this->reload($created)->getRevisionCount());
+    }
+
     public function testEnvelopeEditRejectedInPlainConversation(): void
     {
         [$a, $b] = $this->usersSharingCommunity(2);
@@ -297,14 +327,15 @@ final class EncryptedMessageTest extends ApiTestCase
 
     /**
      * @param array<string, mixed> $created
+     * @param array<string, mixed> $extra
      *
      * @return array<string, mixed>
      */
-    private function edit(User $as, array $created, string $text): array
+    private function edit(User $as, array $created, string $text, array $extra = []): array
     {
         return $this->jsonClient($as)->request('PATCH', $created['@id'], [
             'headers' => ['Content-Type' => 'application/merge-patch+json'],
-            'json' => ['text' => $text],
+            'json' => ['text' => $text, ...$extra],
         ])->toArray(false);
     }
 

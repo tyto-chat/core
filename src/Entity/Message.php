@@ -432,6 +432,18 @@ class Message
         return $this->revisionCount > 1;
     }
 
+    #[Groups(['message:read'])]
+    public function getRevisionCount(): int
+    {
+        return $this->revisionCount;
+    }
+
+    #[Groups(['message:read'])]
+    public function getRevisedAt(): ?\DateTimeInterface
+    {
+        return $this->currentRevision?->getCreatedAt();
+    }
+
     public function setDeleted(bool $deleted): static
     {
         $this->deleted = $deleted;

@@ -54,6 +54,8 @@ class MessageSerializationCanaryTest extends ApiTestCase
         'purgedAttachmentCount',
         'attachments',
         'edited',
+        'revisionCount',
+        'revisedAt',
         'pinned',
         'pageNumber',
         'communityIdentifier',

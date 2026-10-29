@@ -86,6 +86,7 @@ exception:
         broadcast_not_allowed: 'Nie masz uprawnień do użycia @channel ani @here w tej społeczności.'
         too_many_attachments: 'Ta wiadomość ma zbyt wiele załączników.'
         invalid_attachment: 'Co najmniej jeden załącznik jest nieprawidłowy.'
+        revision_conflict: 'Wiadomość została w międzyczasie zmieniona; odśwież ją i spróbuj ponownie.'
     community_emoji:
         shortcode_taken: 'Ten skrót lub znak jest już używany w tej społeczności.'
         missing_image: 'Niestandardowy emoji wymaga przesłanego pliku obrazu.'

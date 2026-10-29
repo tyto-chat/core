@@ -24,7 +24,8 @@ final readonly class WelcomesProvider implements ProviderInterface
     {
         $request = $context['request'] ?? null;
         $deviceId = $request instanceof Request ? $request->query->getString('deviceId') : '';
+        $after = $request instanceof Request ? $request->query->getString('after') : '';
 
-        return new ItemsDto(array_map(WelcomeDto::fromWelcome(...), $this->delivery->listWelcomes('' === $deviceId ? null : $deviceId)));
+        return new ItemsDto(array_map(WelcomeDto::fromWelcome(...), $this->delivery->listWelcomes('' === $deviceId ? null : $deviceId, '' === $after ? null : $after)));
     }
 }

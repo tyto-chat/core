@@ -86,6 +86,7 @@ exception:
         broadcast_not_allowed: 'No tienes permiso para usar @channel o @here en esta comunidad.'
         too_many_attachments: 'Este mensaje tiene demasiados archivos adjuntos.'
         invalid_attachment: 'Uno o más archivos adjuntos no son válidos.'
+        revision_conflict: 'El mensaje se editó mientras tanto; recárgalo e inténtalo de nuevo.'
     community_emoji:
         shortcode_taken: 'Este código corto o valor ya está en uso en esta comunidad.'
         missing_image: 'Los emojis personalizados requieren un archivo de imagen subido.'

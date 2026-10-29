@@ -189,6 +189,34 @@ final class GroupDeliveryTest extends ApiTestCase
         self::assertSame(51, $rest[0]['epoch']);
     }
 
+    public function testWelcomesPageAfterCursorWithoutAcknowledging(): void
+    {
+        $pair = $this->pair();
+        for ($epoch = 1; $epoch <= 51; ++$epoch) {
+            $this->commit($pair['a'], $pair['conversation'], $this->commitBody($pair['aDevice'], $epoch, welcomes: [$this->welcome($pair['bDevice'], 'w'.$epoch)]));
+            self::assertResponseStatusCodeSame(201);
+        }
+        $first = $this->welcomes($pair['b']);
+        $last = $first[49]['id'];
+
+        $rest = $this->welcomes($pair['b'], query: '?after='.$last);
+
+        self::assertCount(1, $rest);
+        self::assertSame(51, $rest[0]['epoch']);
+        self::assertCount(50, $this->welcomes($pair['b']));
+    }
+
+    public function testWelcomeCursorOfAnotherUserNotFound(): void
+    {
+        $pair = $this->pair();
+        $this->commit($pair['a'], $pair['conversation'], $this->commitBody($pair['aDevice'], 1, welcomes: [$this->welcome($pair['bDevice'])]));
+        $foreign = $this->welcomes($pair['b'])[0]['id'];
+
+        $this->plainJsonClient($pair['a'])->request('GET', '/api/v1/e2ee/welcomes?after='.$foreign);
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
     public function testRevokedDeviceGetsNoWelcome(): void
     {
         $pair = $this->pair();
@@ -579,9 +607,9 @@ final class GroupDeliveryTest extends ApiTestCase
     }
 
     /** @return list<array<string, mixed>> */
-    private function welcomes(User $as, ?string $deviceId = null): array
+    private function welcomes(User $as, ?string $deviceId = null, string $query = ''): array
     {
-        $body = $this->plainJsonClient($as)->request('GET', '/api/v1/e2ee/welcomes'.(null === $deviceId ? '' : '?deviceId='.$deviceId))->toArray();
+        $body = $this->plainJsonClient($as)->request('GET', '/api/v1/e2ee/welcomes'.(null === $deviceId ? $query : '?deviceId='.$deviceId))->toArray();
         self::assertResponseIsSuccessful();
 
         return $body['items'];

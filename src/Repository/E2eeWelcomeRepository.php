@@ -21,7 +21,7 @@ class E2eeWelcomeRepository extends ServiceEntityRepository
     }
 
     /** @return list<E2eeWelcome> oldest first */
-    public function findUndelivered(E2eeAccount $account, ?string $deviceId, int $limit): array
+    public function findUndelivered(E2eeAccount $account, ?string $deviceId, int $limit, ?E2eeWelcome $after = null): array
     {
         $qb = $this->createQueryBuilder('w')
             ->innerJoin('w.device', 'd')
@@ -35,7 +35,14 @@ class E2eeWelcomeRepository extends ServiceEntityRepository
             ->setParameter('generation', $account->getGeneration())
             ->orderBy('w.createdAt', 'ASC')
             ->addOrderBy('e.epoch', 'ASC')
+            ->addOrderBy('w.id', 'ASC')
             ->setMaxResults($limit);
+        if (null !== $after) {
+            $qb->andWhere('w.createdAt > :afterAt OR (w.createdAt = :afterAt AND (e.epoch > :afterEpoch OR (e.epoch = :afterEpoch AND w.id > :afterId)))')
+                ->setParameter('afterAt', $after->getCreatedAt())
+                ->setParameter('afterEpoch', $after->getGroupEpoch()->getEpoch())
+                ->setParameter('afterId', $after->getId());
+        }
         if (null !== $deviceId) {
             $qb->andWhere('d.id = :deviceId')->setParameter('deviceId', $deviceId);
         }

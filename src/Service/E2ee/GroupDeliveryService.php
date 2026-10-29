@@ -225,11 +225,19 @@ class GroupDeliveryService extends AbstractDoctrineService implements GroupDeliv
     }
 
     #[\Override]
-    public function listWelcomes(?string $deviceId): array
+    public function listWelcomes(?string $deviceId, ?string $after = null): array
     {
-        $account = $this->accounts->findOneByUser($this->currentHuman());
+        $me = $this->currentHuman();
+        $cursor = null;
+        if (null !== $after) {
+            $cursor = $this->welcomes->find($after);
+            if (null === $cursor || $cursor->getId() !== $after || $cursor->getDevice()->getAccount()->getUser()->getId() !== $me->getId()) {
+                throw new E2eeWelcomeNotFoundException();
+            }
+        }
+        $account = $this->accounts->findOneByUser($me);
 
-        return null === $account ? [] : $this->welcomes->findUndelivered($account, $deviceId, self::MAX_WELCOMES_PER_PAGE);
+        return null === $account ? [] : $this->welcomes->findUndelivered($account, $deviceId, self::MAX_WELCOMES_PER_PAGE, $cursor);
     }
 
     #[\Override]
