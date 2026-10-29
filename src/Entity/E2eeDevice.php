@@ -45,7 +45,7 @@ class E2eeDevice
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $revokedAt = null;
 
-    /** @var array{signerDeviceId: string, revokedAt: int, signature: string}|null */
+    /** @var array{signerDeviceId: string, revokedAt: int, signature: string, leaveRequestId?: string}|null */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $revocation = null;
 
@@ -117,13 +117,13 @@ class E2eeDevice
         return null !== $this->revokedAt;
     }
 
-    /** @return array{signerDeviceId: string, revokedAt: int, signature: string}|null */
+    /** @return array{signerDeviceId: string, revokedAt: int, signature: string, leaveRequestId?: string}|null */
     public function getRevocation(): ?array
     {
         return $this->revocation;
     }
 
-    /** @param array{signerDeviceId: string, revokedAt: int, signature: string} $revocation */
+    /** @param array{signerDeviceId: string, revokedAt: int, signature: string, leaveRequestId?: string} $revocation */
     public function revoke(array $revocation): void
     {
         $this->revocation = $revocation;

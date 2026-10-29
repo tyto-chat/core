@@ -68,6 +68,18 @@ parameters:
 			path: src/Entity/AdminAuditLog.php
 
 		-
+			message: '#^Property App\\Entity\\E2eeGroupEpoch\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/E2eeGroupEpoch.php
+
+		-
+			message: '#^Property App\\Entity\\E2eeLeaveRequest\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/E2eeLeaveRequest.php
+
+		-
 			message: '#^Property App\\Entity\\E2eeAccount\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
 			identifier: property.unusedType
 			count: 1

@@ -17,6 +17,15 @@ final class E2eeEnvelope
         return str_starts_with($text, self::PREFIX);
     }
 
+    public static function generation(string $text): int
+    {
+        self::assertValid($text);
+        $fields = json_decode((string) base64_decode(strtr(substr($text, \strlen(self::PREFIX)), '-_', '+/'), true), true);
+        \assert(\is_array($fields) && \is_int($fields['g']));
+
+        return $fields['g'];
+    }
+
     public static function assertValid(string $text): void
     {
         if (!self::isEnvelope($text) || \strlen($text) > self::MAX_BYTES) {

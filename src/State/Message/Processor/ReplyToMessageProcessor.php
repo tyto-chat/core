@@ -10,6 +10,8 @@ use App\Dto\Message\SendMessageDto;
 use App\Entity\Message;
 use App\Security\ApiKeyScopeGuard;
 use App\Service\Message\MessageServiceInterface;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * @implements ProcessorInterface<SendMessageDto, Message>
@@ -30,6 +32,12 @@ final readonly class ReplyToMessageProcessor implements ProcessorInterface
             $this->scopeGuard->requireScope('conversations:write');
         }
 
-        return $this->messageService->reply($root, $data->text, array_values($data->attachmentIris), $data->id);
+        $message = $this->messageService->reply($root, $data->text, array_values($data->attachmentIris), $data->id);
+        $request = $context['request'] ?? null;
+        if ($message->isResent() && $request instanceof Request) {
+            $request->attributes->set('_api_response_status', Response::HTTP_OK);
+        }
+
+        return $message;
     }
 }

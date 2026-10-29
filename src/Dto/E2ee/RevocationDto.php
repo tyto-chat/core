@@ -26,6 +26,8 @@ final readonly class RevocationDto
         public string $signerCredential,
         #[Groups(['e2ee:read'])]
         public string $signerServer,
+        #[Groups(['e2ee:read'])]
+        public ?string $leaveRequestId,
     ) {
     }
 
@@ -43,6 +45,7 @@ final readonly class RevocationDto
             $row['signer']->getPublicKey(),
             $row['signer']->getCredential(),
             $row['signer']->getServer(),
+            $revocation['leaveRequestId'] ?? null,
         );
     }
 }

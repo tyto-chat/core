@@ -598,6 +598,12 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
     }
 
     #[\Override]
+    public function findEncryptedForUser(User $user): array
+    {
+        return $this->conversationRepository->findEncryptedForUser($user);
+    }
+
+    #[\Override]
     public function findLatestPage(Conversation $conversation): ?MessagePage
     {
         return $this->messagePageRepository->findLatestForConversation($conversation);

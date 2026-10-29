@@ -53,6 +53,29 @@ final class E2eeKeys
     }
 
     /**
+     * @param non-empty-string $deviceKeyPair
+     *
+     * @return array{leaveRequestId: string, requestedAt: int, signature: string}
+     */
+    public static function leaveRequest(string $deviceId, string $deviceKeyPair, int $generation = 1, ?string $leaveRequestId = null, ?int $requestedAt = null): array
+    {
+        $leaveRequestId ??= Uuid::v4()->toRfc4122();
+        $requestedAt ??= time();
+        $payload = CanonicalCbor::encodeMap([
+            'deviceId' => $deviceId,
+            'generation' => $generation,
+            'requestedAt' => $requestedAt,
+            'leaveRequestId' => $leaveRequestId,
+        ]);
+
+        return [
+            'leaveRequestId' => $leaveRequestId,
+            'requestedAt' => $requestedAt,
+            'signature' => base64_encode(sodium_crypto_sign_detached($payload, sodium_crypto_sign_secretkey($deviceKeyPair))),
+        ];
+    }
+
+    /**
      * @param non-empty-string $signerKeyPair
      *
      * @return array{signerDeviceId: string, revokedAt: int, signature: string}

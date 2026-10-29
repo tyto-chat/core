@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\Conversation;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -31,6 +32,22 @@ class ConversationRepository extends ServiceEntityRepository
             ->where('c.encrypted = true')
             ->getQuery()
             ->getSingleColumnResult());
+    }
+
+    /** @return list<Conversation> */
+    public function findEncryptedForUser(User $user): array
+    {
+        /** @var list<Conversation> $conversations */
+        $conversations = $this->createQueryBuilder('c')
+            ->innerJoin('c.members', 'm')
+            ->where('c.encrypted = true')
+            ->andWhere('m.user = :user')
+            ->setParameter('user', $user)
+            ->orderBy('c.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $conversations;
     }
 
     public function findOneByParticipantsHash(string $hash): ?Conversation

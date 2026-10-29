@@ -14,13 +14,16 @@ use App\Entity\MediaObject;
 use App\Entity\Message;
 use App\Entity\MessagePage;
 use App\Entity\MessageRevision;
+use App\Entity\User;
 use App\Enum\Community\BroadcastMentionRole;
 use App\Enum\Conversation\ConversationWrite;
 use App\Enum\Message\MessageKind;
 use App\Exception\Channel\ChannelArchivedException;
 use App\Exception\Conversation\NotMemberException;
 use App\Exception\E2ee\ClientMessageIdNotAllowedException;
+use App\Exception\E2ee\DuplicateMessageIdException;
 use App\Exception\E2ee\EnvelopeNotAllowedException;
+use App\Exception\E2ee\FrozenGenerationException;
 use App\Exception\Message\BroadcastNotAllowedException;
 use App\Exception\Message\CannotReplyToReplyException;
 use App\Exception\Message\InvalidAttachmentException;
@@ -43,6 +46,7 @@ use App\Service\Channel\ChannelMembershipServiceInterface;
 use App\Service\Channel\ChannelServiceInterface;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Conversation\ConversationServiceInterface;
+use App\Service\E2ee\GroupDeliveryServiceInterface;
 use App\Service\HttpCache\CachePurgerInterface;
 use App\Service\MediaObject\MediaObjectServiceInterface;
 use App\Service\Moderation\ModerationServiceInterface;
@@ -53,6 +57,7 @@ use App\Settings\Settings;
 use App\Utils\E2eeEnvelope;
 use App\Utils\MarkdownSanitizer;
 use App\Utils\MentionExtractor;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Symfony\Component\DependencyInjection\Attribute\Lazy;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -76,6 +81,8 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
         private readonly CachePurgerInterface $cachePurger,
         private readonly MessagePageRepository $messagePages,
         private readonly SettingsServiceInterface $settings,
+        #[Lazy]
+        private readonly GroupDeliveryServiceInterface $groupDelivery,
     ) {
     }
 
@@ -163,23 +170,42 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
         }
         $this->conversationService->assertWritable($conversation, ConversationWrite::Send);
 
-        $text = $this->prepareText($conversation, $text);
         $this->assertClientIdAllowed($conversation, $clientId);
+        $resent = $this->findResent($conversation, null, $clientId, $caller);
+        if (null !== $resent) {
+            return $resent;
+        }
+        $text = $this->prepareText($conversation, $text);
 
         $attachments = $this->resolveAttachments($attachmentIris);
 
-        $page = $this->conversationService->findLatestPage($conversation);
-        if (!$page || $this->messageRepository->countRootsInPage($page) >= MessagePage::PAGE_SIZE) {
-            $page = new MessagePage();
-            $page->setConversation($conversation);
-            $this->persist($page);
+        try {
+            $message = $this->transactional(function () use ($conversation, $text, $clientId, $attachments, $caller): Message {
+                $resent = $this->lockEncryptedWrite($conversation, $text, null, $clientId, $caller);
+                if (null !== $resent) {
+                    return $resent;
+                }
+                $page = $this->conversationService->findLatestPage($conversation);
+                if (!$page || $this->messageRepository->countRootsInPage($page) >= MessagePage::PAGE_SIZE) {
+                    $page = new MessagePage();
+                    $page->setConversation($conversation);
+                    $this->persist($page);
+                }
+
+                $message = $this->buildAndSave($page, $text, clientId: $clientId);
+                $this->linkAttachments($message, $attachments, publishUpdate: false);
+
+                $conversation->setLastMessageAt(new \DateTimeImmutable());
+                $this->save($conversation);
+
+                return $message;
+            });
+        } catch (UniqueConstraintViolationException) {
+            throw new DuplicateMessageIdException();
         }
-
-        $message = $this->buildAndSave($page, $text, clientId: $clientId);
-        $this->linkAttachments($message, $attachments, publishUpdate: false);
-
-        $conversation->setLastMessageAt(new \DateTimeImmutable());
-        $this->save($conversation);
+        if ($message->isResent()) {
+            return $message;
+        }
 
         $this->publisher->publishConversationActivity($conversation);
         if ([] !== $attachments) {
@@ -231,6 +257,9 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
         }
 
         $message = $this->transactional(function () use ($message, $text, $conversation): Message {
+            if (null !== $conversation) {
+                $this->lockEncryptedWrite($conversation, $text, null, null, $this->security->currentUser());
+            }
             $this->lockForUpdate($message);
             $revision = new MessageRevision();
             $revision->setText($text);
@@ -348,8 +377,12 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
             $this->conversationService->assertWritable($conversation, ConversationWrite::Reply);
         }
 
-        $text = $this->prepareText($conversation, $text);
         $this->assertClientIdAllowed($conversation, $clientId);
+        $resent = null === $conversation ? null : $this->findResent($conversation, $root, $clientId, $user);
+        if (null !== $resent) {
+            return $resent;
+        }
+        $text = $this->prepareText($conversation, $text);
         if (null !== $channel) {
             $this->assertCanBroadcast($channel, MentionExtractor::extractBroadcasts($text));
         }
@@ -362,27 +395,38 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
         $attachments = $this->resolveAttachments($attachmentIris);
 
         // save() flushes individually — without the wrapping transaction a mid-sequence failure leaves a half-created thread.
-        $reply = $this->transactional(function () use ($text, $page, $root, $attachments, $conversation, $clientId): Message {
-            $revision = new MessageRevision();
-            $revision->setText($text);
-            $this->persist($revision);
+        try {
+            $reply = $this->transactional(function () use ($text, $page, $root, $attachments, $conversation, $clientId, $user): Message {
+                $resent = null === $conversation ? null : $this->lockEncryptedWrite($conversation, $text, $root, $clientId, $user);
+                if (null !== $resent) {
+                    return $resent;
+                }
+                $revision = new MessageRevision();
+                $revision->setText($text);
+                $this->persist($revision);
 
-            $reply = new Message(null === $clientId ? null : strtolower($clientId));
-            $reply->addRevision($revision);
-            $reply->setPage($page);
-            $reply->setParent($root);
-            $reply->setMentionedUserIds($this->mentionedUserIds($conversation, $text));
-            $reply->setText($text);
-            $reply = $this->save($reply);
+                $reply = new Message(null === $clientId ? null : strtolower($clientId));
+                $reply->addRevision($revision);
+                $reply->setPage($page);
+                $reply->setParent($root);
+                $reply->setMentionedUserIds($this->mentionedUserIds($conversation, $text));
+                $reply->setText($text);
+                $reply = $this->save($reply);
 
-            $this->linkAttachments($reply, $attachments, publishUpdate: false);
+                $this->linkAttachments($reply, $attachments, publishUpdate: false);
 
-            $root->incrementReplyCount();
-            $root->setLastReplyAt(new \DateTimeImmutable());
-            $this->save($root);
+                $root->incrementReplyCount();
+                $root->setLastReplyAt(new \DateTimeImmutable());
+                $this->save($root);
 
+                return $reply;
+            });
+        } catch (UniqueConstraintViolationException) {
+            throw new DuplicateMessageIdException();
+        }
+        if ($reply->isResent()) {
             return $reply;
-        });
+        }
 
         $this->publisher->publishMessageThreadMeta($root);
 
@@ -424,6 +468,47 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
         }
 
         return MarkdownSanitizer::sanitize($text);
+    }
+
+    private function lockEncryptedWrite(Conversation $conversation, string $text, ?Message $parent, ?string $clientId, User $caller): ?Message
+    {
+        if (!$conversation->isEncrypted()) {
+            return null;
+        }
+
+        $this->lockForUpdate($conversation);
+        $resent = $this->findResent($conversation, $parent, $clientId, $caller);
+        if (null !== $resent) {
+            return $resent;
+        }
+        if ($this->groupDelivery->isGenerationFrozen($conversation, E2eeEnvelope::generation($text))) {
+            throw new FrozenGenerationException();
+        }
+
+        return null;
+    }
+
+    private function findResent(Conversation $conversation, ?Message $parent, ?string $clientId, User $caller): ?Message
+    {
+        if (null === $clientId) {
+            return null;
+        }
+
+        $existing = $this->messageRepository->find(strtolower($clientId));
+        if (null === $existing) {
+            return null;
+        }
+        if ($existing->getConversation()?->getId() !== $conversation->getId()
+            || $existing->getCreatedBy()?->getId() !== $caller->getId()
+            || $existing->getParent()?->getId() !== $parent?->getId()
+        ) {
+            throw new DuplicateMessageIdException();
+        }
+
+        $this->hydrateText($existing);
+        $existing->markResent();
+
+        return $existing;
     }
 
     private function assertClientIdAllowed(?Conversation $conversation, ?string $clientId): void
@@ -558,14 +643,14 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
     #[\Override]
     public function countNewInConversationFor(
         Conversation $conversation,
-        \App\Entity\User $excluding,
+        User $excluding,
         ?\DateTimeImmutable $since,
     ): int {
         return $this->messageRepository->countNewInConversationFor($conversation, $excluding, $since);
     }
 
     #[\Override]
-    public function countUnreadPerConversationFor(\App\Entity\User $user): array
+    public function countUnreadPerConversationFor(User $user): array
     {
         return $this->messageRepository->countUnreadPerConversationFor($user);
     }

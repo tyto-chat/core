@@ -27,6 +27,7 @@ use App\Service\Channel\ChannelMembershipServiceInterface;
 use App\Service\Channel\ChannelServiceInterface;
 use App\Service\Community\CommunityMembershipServiceInterface;
 use App\Service\Conversation\ConversationServiceInterface;
+use App\Service\E2ee\GroupDeliveryServiceInterface;
 use App\Service\HttpCache\CachePurgerInterface;
 use App\Service\MediaObject\MediaObjectServiceInterface;
 use App\Service\Message\MessageNotificationDispatcherInterface;
@@ -114,6 +115,7 @@ class MessageServiceTest extends TestCase
             $this->cachePurger,
             $this->messagePages,
             $this->settingsStub(),
+            $this->createMock(GroupDeliveryServiceInterface::class),
         );
         $this->service->setEntityManager($this->entityManager);
         $this->service->setLogger(new NullLogger());

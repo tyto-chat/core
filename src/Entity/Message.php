@@ -39,6 +39,7 @@ use Gedmo\Mapping\Annotation as Gedmo;
 use Gedmo\SoftDeleteable\Traits\SoftDeleteableEntity;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Serializer\Attribute\SerializedName;
 use Symfony\Component\Uid\Uuid;
 
@@ -341,6 +342,9 @@ class Message
     #[Groups(['message:read'])]
     private Collection $attachments;
 
+    #[Ignore]
+    private bool $resent = false;
+
     public function __construct(?string $id = null)
     {
         $this->id = $id ?? Uuid::v4()->toString();
@@ -351,6 +355,17 @@ class Message
     public function getId(): string
     {
         return $this->id;
+    }
+
+    #[Ignore]
+    public function isResent(): bool
+    {
+        return $this->resent;
+    }
+
+    public function markResent(): void
+    {
+        $this->resent = true;
     }
 
     /** @return array<string, list<array{id: int, userId: int}>>|null */

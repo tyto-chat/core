@@ -311,6 +311,7 @@ class RegistryTest extends ApiTestCase
             'signerPublicKey' => $a['body']['publicKey'],
             'signerCredential' => $a['body']['credential'],
             'signerServer' => E2eeKeys::SERVER,
+            'leaveRequestId' => null,
         ]], $listed['items']);
     }
 

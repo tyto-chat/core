@@ -65,6 +65,9 @@ interface ConversationServiceInterface
     /** @return int[] */
     public function findEncryptedIds(): array;
 
+    /** @return list<Conversation> encrypted conversations the user takes part in */
+    public function findEncryptedForUser(User $user): array;
+
     public function findLatestPage(Conversation $conversation): ?MessagePage;
 
     public function nextPageNumber(Conversation $conversation): int;

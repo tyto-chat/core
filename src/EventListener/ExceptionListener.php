@@ -6,6 +6,7 @@ namespace App\EventListener;
 
 use App\Exception\AccessDeniedException;
 use App\Exception\DomainExceptionInterface;
+use App\Exception\ErrorDetailsInterface;
 use App\Exception\HttpHeadersAwareExceptionInterface;
 use App\Exception\TranslationParamsInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -41,7 +42,7 @@ class ExceptionListener
                 $exception->translationKey(),
                 $exception instanceof TranslationParamsInterface ? $exception->translationParams() : [],
                 'messages',
-            )],
+            )] + ($exception instanceof ErrorDetailsInterface ? $exception->errorDetails() : []),
             $exception->statusCode(),
             $exception instanceof HttpHeadersAwareExceptionInterface ? $exception->httpHeaders() : [],
         ));

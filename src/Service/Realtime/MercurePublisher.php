@@ -9,6 +9,8 @@ use App\Entity\Channel;
 use App\Entity\ChannelParticipant;
 use App\Entity\Community;
 use App\Entity\Conversation;
+use App\Entity\E2eeGroupEpoch;
+use App\Entity\E2eeWelcome;
 use App\Entity\MediaObject;
 use App\Entity\Message;
 use App\Entity\Notification;
@@ -23,7 +25,7 @@ use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
-class MercurePublisher implements RealtimePublisherInterface
+class MercurePublisher implements RealtimePublisherInterface, E2eeRealtimePublisherInterface
 {
     public function __construct(
         private readonly HubInterface $hub,
@@ -380,5 +382,40 @@ class MercurePublisher implements RealtimePublisherInterface
             ],
             UrlGeneratorInterface::ABSOLUTE_URL,
         );
+    }
+
+    public function publishMlsCommit(E2eeGroupEpoch $epoch): void
+    {
+        $conversation = $epoch->getConversation();
+        $this->publish($conversation->getTopic(), [
+            'type' => 'mls.commit',
+            'conversationIdentifier' => $conversation->getIdentifier(),
+            'epoch' => $epoch->getEpoch(),
+            'generation' => $epoch->getGeneration(),
+        ]);
+    }
+
+    public function publishMlsWelcome(E2eeWelcome $welcome): void
+    {
+        $userId = $welcome->getDevice()->getAccount()->getUser()->getId();
+        if (null === $userId) {
+            return;
+        }
+
+        $this->publish(Topics::userEvents($userId), [
+            'type' => 'mls.welcome',
+            'welcomeId' => $welcome->getId(),
+            'deviceId' => $welcome->getDevice()->getId(),
+            'conversationIdentifier' => $welcome->getGroupEpoch()->getConversation()->getIdentifier(),
+        ]);
+    }
+
+    public function publishMlsLeaveRequest(Conversation $conversation, string $leaveRequestId): void
+    {
+        $this->publish($conversation->getTopic(), [
+            'type' => 'mls.leave_request',
+            'conversationIdentifier' => $conversation->getIdentifier(),
+            'leaveRequestId' => $leaveRequestId,
+        ]);
     }
 }
