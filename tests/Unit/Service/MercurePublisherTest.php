@@ -12,6 +12,7 @@ use App\Entity\ConversationMember;
 use App\Entity\MediaObject;
 use App\Entity\Message;
 use App\Entity\MessagePage;
+use App\Entity\MessageRevision;
 use App\Entity\Notification;
 use App\Entity\User;
 use App\Enum\Presence\PresenceState;
@@ -199,6 +200,23 @@ final class MercurePublisherTest extends TestCase
 
         self::assertSame(['c/12'], $this->captured->getTopics());
         self::assertStringContainsString('"@id":"\/api\/v1\/messages\/some-uuid"', $this->captured->getData());
+    }
+
+    public function testPublishMessageUpdatedCarriesRevisionFields(): void
+    {
+        $message = $this->rootInChannel();
+        $revision = new MessageRevision();
+        $revision->setText('first');
+        $message->addRevision($revision);
+        $second = new MessageRevision();
+        $second->setText('second');
+        $message->addRevision($second);
+
+        $this->makePublisher()->publishMessageUpdated($message, 'second');
+
+        $data = json_decode($this->captured->getData(), true);
+        self::assertSame(2, $data['revisionCount']);
+        self::assertArrayHasKey('revisedAt', $data);
     }
 
     public function testPublishMessageUpdatedForReplyUsesThreadTopic(): void

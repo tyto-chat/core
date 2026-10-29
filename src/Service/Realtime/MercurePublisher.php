@@ -119,6 +119,8 @@ class MercurePublisher implements RealtimePublisherInterface, E2eeRealtimePublis
             '@id' => $this->iriConverter->getIriFromResource($message),
             'text' => $body,
             'edited' => true,
+            'revisionCount' => $message->getRevisionCount(),
+            'revisedAt' => $message->getRevisedAt()?->format(\DATE_ATOM),
         ]);
     }
 
