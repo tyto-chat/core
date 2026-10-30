@@ -129,4 +129,10 @@ class E2eeDevice
         $this->revocation = $revocation;
         $this->revokedAt = new \DateTimeImmutable();
     }
+
+    public function revokeByReset(): void
+    {
+        $this->revocation = null;
+        $this->revokedAt = new \DateTimeImmutable();
+    }
 }

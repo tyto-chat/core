@@ -83,6 +83,9 @@ GET /api/v1/conversations/{conversation}/pages
 GET /api/v1/conversations/{conversation}/pages/{pageNumber}
 GET /api/v1/conversations/{identifier}/search
 GET /api/v1/e2ee/devices
+GET /api/v1/e2ee/history-backup
+GET /api/v1/e2ee/history-backup/heads
+GET /api/v1/e2ee/identity-backup
 GET /api/v1/e2ee/leave-requests
 GET /api/v1/e2ee/users/{userId}/devices
 GET /api/v1/e2ee/users/{userId}/revocations
@@ -181,6 +184,8 @@ POST /api/v1/e2ee/account
 POST /api/v1/e2ee/devices
 POST /api/v1/e2ee/devices/{deviceId}/key-packages
 POST /api/v1/e2ee/devices/{deviceId}/leave
+POST /api/v1/e2ee/history-backup/{deviceId}/records
+POST /api/v1/e2ee/reset
 POST /api/v1/e2ee/users/{userId}/key-package
 POST /api/v1/e2ee/welcomes/{welcomeId}/ack
 POST /api/v1/invites/{token}/accept
@@ -224,4 +229,5 @@ PUT /api/v1/communities/{community}/sections/{id}
 PUT /api/v1/communities/{community}/sections/{id}/channels/order
 PUT /api/v1/communities/{identifier}/notification-preference
 PUT /api/v1/communities/{identifier}/sections/order
+PUT /api/v1/e2ee/identity-backup
 PUT /api/v1/messages/{id}

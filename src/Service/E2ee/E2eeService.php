@@ -96,20 +96,19 @@ class E2eeService extends AbstractDoctrineService implements E2eeServiceInterfac
             throw new InvalidE2eeCredentialException();
         }
 
-        $payload = CanonicalCbor::encodeMap([
-            'server' => $server,
-            'accountId' => (int) $me->getId(),
-            'deviceId' => $id,
-            'generation' => $account->getGeneration(),
-            'devicePublicKey' => new ByteString((string) base64_decode($publicKey, true)),
-        ]);
-        if (!$this->verify($credential, $payload, $account->getPublicKey())) {
-            throw new InvalidE2eeCredentialException();
-        }
-
         try {
-            $result = $this->transactional(function () use ($account, $id, $name, $publicKey, $server, $credential): E2eeDevice|\DomainException {
+            $result = $this->transactional(function () use ($me, $account, $id, $name, $publicKey, $server, $credential): E2eeDevice|\DomainException {
                 $this->lockForUpdate($account);
+                $payload = CanonicalCbor::encodeMap([
+                    'server' => $server,
+                    'accountId' => (int) $me->getId(),
+                    'deviceId' => $id,
+                    'generation' => $account->getGeneration(),
+                    'devicePublicKey' => new ByteString((string) base64_decode($publicKey, true)),
+                ]);
+                if (!$this->verify($credential, $payload, $account->getPublicKey())) {
+                    return new InvalidE2eeCredentialException();
+                }
                 if (null !== $this->devices->find($id)) {
                     return new E2eeDeviceAlreadyExistsException();
                 }

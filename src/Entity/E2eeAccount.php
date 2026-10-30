@@ -31,6 +31,12 @@ class E2eeAccount
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
 
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $identityBackup = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $identityBackupGeneration = null;
+
     public function __construct(User $user, string $publicKey)
     {
         $this->user = $user;
@@ -61,5 +67,23 @@ class E2eeAccount
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function getIdentityBackup(): ?string
+    {
+        return $this->identityBackupGeneration === $this->generation ? $this->identityBackup : null;
+    }
+
+    public function storeIdentityBackup(string $blob): void
+    {
+        $this->identityBackup = $blob;
+        $this->identityBackupGeneration = $this->generation;
+    }
+
+    public function reset(string $publicKey, string $identityBackup): void
+    {
+        ++$this->generation;
+        $this->publicKey = $publicKey;
+        $this->storeIdentityBackup($identityBackup);
     }
 }

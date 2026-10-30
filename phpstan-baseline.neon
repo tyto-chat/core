@@ -80,6 +80,12 @@ parameters:
 			path: src/Entity/E2eeLeaveRequest.php
 
 		-
+			message: '#^Property App\\Entity\\E2eeHistoryRecord\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
+			identifier: property.unusedType
+			count: 1
+			path: src/Entity/E2eeHistoryRecord.php
+
+		-
 			message: '#^Property App\\Entity\\E2eeAccount\:\:\$id \(int\|null\) is never assigned int so it can be removed from the property type\.$#'
 			identifier: property.unusedType
 			count: 1
