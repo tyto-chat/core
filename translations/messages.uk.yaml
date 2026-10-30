@@ -45,6 +45,7 @@ exception:
     media:
         not_an_attachment: 'Медіаоб''єкт не є вкладенням.'
         attachment_already_linked: 'Це вкладення вже прив''язане до іншого повідомлення.'
+        attachment_class_mismatch: 'Це вкладення не відповідає шифруванню розмови.'
         not_found: 'Файл не знайдено.'
     moderation:
         timed_out: 'Тобі тимчасово обмежено доступ у цій спільноті.'

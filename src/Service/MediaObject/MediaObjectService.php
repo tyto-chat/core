@@ -6,10 +6,12 @@ namespace App\Service\MediaObject;
 
 use App\Entity\Channel;
 use App\Entity\Community;
+use App\Entity\Conversation;
 use App\Entity\MediaObject;
 use App\Entity\Message;
 use App\Enum\Conversation\ConversationWrite;
 use App\Exception\MediaObject\AttachmentAlreadyLinkedException;
+use App\Exception\MediaObject\AttachmentClassMismatchException;
 use App\Exception\MediaObject\MediaObjectNotFoundException;
 use App\Exception\MediaObject\NotAnAttachmentException;
 use App\Repository\MediaObjectRepository;
@@ -48,6 +50,9 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
     public function prepare(MediaObject $mediaObject, string $type): void
     {
         $mediaObject->type = $type;
+        if (self::ENCRYPTED_ATTACHMENT === $type) {
+            return;
+        }
         $this->generateVariants($mediaObject);
     }
 
@@ -55,6 +60,18 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
     public function populateFileMetadata(MediaObject $mediaObject): void
     {
         if (!$mediaObject->file instanceof UploadedFile) {
+            return;
+        }
+
+        if (self::ENCRYPTED_ATTACHMENT === $mediaObject->type) {
+            $size = $mediaObject->file->getSize();
+            $mediaObject->originalName = null;
+            $mediaObject->mimeType = 'application/octet-stream';
+            $mediaObject->size = false === $size || 0 === $size ? null : $size;
+            $mediaObject->width = null;
+            $mediaObject->height = null;
+            $mediaObject->animated = null;
+
             return;
         }
 
@@ -89,11 +106,21 @@ class MediaObjectService extends AbstractDoctrineService implements MediaObjectS
     }
 
     #[\Override]
+    public function assertAttachmentClass(string $type, ?Conversation $conversation): void
+    {
+        $expected = true === $conversation?->isEncrypted() ? self::ENCRYPTED_ATTACHMENT : self::ATTACHMENT;
+        if ($expected !== $type) {
+            throw new AttachmentClassMismatchException();
+        }
+    }
+
+    #[\Override]
     public function linkAttachmentToMessage(MediaObject $attachment, Message $message): void
     {
-        if ('attachment' !== $attachment->type) {
+        if (!in_array($attachment->type, self::ATTACHMENT_TYPES, true)) {
             throw new NotAnAttachmentException('Media object is not an attachment.');
         }
+        $this->assertAttachmentClass($attachment->type, $message->getConversation());
 
         $this->security->throwAccessDeniedUnlessGranted(MediaObjectVoter::LINK, $attachment, sprintf('You do not have permission to link attachment "%s".', $attachment->getId()));
 

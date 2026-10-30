@@ -33,13 +33,14 @@ final readonly class UploadConversationAttachmentProcessor implements ProcessorI
         $conversation = $this->conversationService->getByIdentifier($identifier);
 
         $this->conversationService->assertCanUpload($conversation);
+        $this->mediaObjectService->assertAttachmentClass(MediaObjectServiceInterface::ATTACHMENT, $conversation);
 
-        $data->type = 'attachment';
+        $data->type = MediaObjectServiceInterface::ATTACHMENT;
         $this->mediaObjectService->populateFileMetadata($data);
 
         /** @var MediaObject $media */
         $media = $this->processor->process($data, $operation, $uriVariables, $context);
-        $this->mediaObjectService->prepare($media, 'attachment');
+        $this->mediaObjectService->prepare($media, MediaObjectServiceInterface::ATTACHMENT);
 
         return $media;
     }

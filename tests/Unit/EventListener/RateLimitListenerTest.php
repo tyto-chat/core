@@ -224,6 +224,21 @@ class RateLimitListenerTest extends TestCase
         self::assertSame(Response::HTTP_TOO_MANY_REQUESTS, $event->getResponse()->getStatusCode());
     }
 
+    public function testEncryptedAttachmentUploadUsesAttachmentLimiter(): void
+    {
+        $this->apiWriteLimiter->expects(self::never())->method('create');
+        $this->stubLimiter($this->attachmentUploadLimiter, accepted: false);
+
+        $listener = $this->makeListener();
+        $event = $this->makeEvent(Request::create('/api/v1/conversations/c/encrypted-attachments', 'POST'));
+        $event->getRequest()->attributes->set('_route', '_api_/conversations/{conversation}/encrypted-attachments_post');
+
+        $listener->onWriteRequest($event);
+
+        self::assertTrue($event->hasResponse());
+        self::assertSame(Response::HTTP_TOO_MANY_REQUESTS, $event->getResponse()->getStatusCode());
+    }
+
     public function testAttachmentUploadRoutePassesWhenWithinLimit(): void
     {
         $this->stubLimiter($this->attachmentUploadLimiter, accepted: true);

@@ -90,6 +90,10 @@ services:
         bind:
             $processor: "@api_platform.doctrine.orm.state.persist_processor"
 
+    App\State\MediaObject\Processor\UploadEncryptedConversationAttachmentProcessor:
+        bind:
+            $processor: "@api_platform.doctrine.orm.state.persist_processor"
+
     App\State\ServerInfo\Provider\ServerInfoProvider:
         bind:
             $serverApiUrl: '%env(string:SERVER_API_URL)%'

@@ -45,6 +45,7 @@ exception:
     media:
         not_an_attachment: 'Media object is not an attachment.'
         attachment_already_linked: 'This attachment is already linked to another message.'
+        attachment_class_mismatch: 'This attachment does not match the conversation''s encryption.'
         not_found: 'File not found.'
     moderation:
         timed_out: 'You are timed out in this community.'

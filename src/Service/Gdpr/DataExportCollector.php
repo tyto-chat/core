@@ -13,6 +13,7 @@ use App\Entity\Notification;
 use App\Entity\Reaction;
 use App\Entity\User;
 use App\Entity\UserBlock;
+use App\Service\MediaObject\MediaObjectServiceInterface;
 use App\Service\MediaObject\SignedUrlServiceInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -85,6 +86,15 @@ class DataExportCollector
             $attachments = [];
             foreach ($msg->getAttachments() as $mo) {
                 \assert($mo instanceof MediaObject);
+                if (MediaObjectServiceInterface::ENCRYPTED_ATTACHMENT === $mo->type) {
+                    $attachments[] = [
+                        'id' => $mo->getId(),
+                        'type' => $mo->type,
+                        'size' => $mo->size,
+                        'signedUrl' => $this->buildAttachmentSignedUrl($mo, $signedUrlTtlSeconds),
+                    ];
+                    continue;
+                }
                 $attachments[] = [
                     'id' => $mo->getId(),
                     'originalName' => $mo->originalName,
@@ -175,7 +185,17 @@ class DataExportCollector
 
         $out = [];
         foreach ($rows as $mo) {
-            if (null === $mo->filePath || 'attachment' !== $mo->type) {
+            if (null === $mo->filePath || !in_array($mo->type, MediaObjectServiceInterface::ATTACHMENT_TYPES, true)) {
+                continue;
+            }
+            if (MediaObjectServiceInterface::ENCRYPTED_ATTACHMENT === $mo->type) {
+                $out[] = [
+                    'id' => $mo->getId(),
+                    'type' => $mo->type,
+                    'size' => $mo->size,
+                    'createdAt' => self::formatDateTimeOrNull($mo->getCreatedAt()),
+                    'signedUrl' => $this->buildAttachmentSignedUrl($mo, $signedUrlTtlSeconds),
+                ];
                 continue;
             }
 

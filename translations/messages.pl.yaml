@@ -45,6 +45,7 @@ exception:
     media:
         not_an_attachment: 'Obiekt multimedialny nie jest załącznikiem.'
         attachment_already_linked: 'Ten załącznik jest już powiązany z inną wiadomością.'
+        attachment_class_mismatch: 'Ten załącznik nie pasuje do szyfrowania tej rozmowy.'
         not_found: 'Nie znaleziono pliku.'
     moderation:
         timed_out: 'Masz tymczasową blokadę w tej społeczności.'

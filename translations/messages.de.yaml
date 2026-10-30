@@ -45,6 +45,7 @@ exception:
     media:
         not_an_attachment: 'Das Medienobjekt ist kein Anhang.'
         attachment_already_linked: 'Dieser Anhang ist bereits mit einer anderen Nachricht verknüpft.'
+        attachment_class_mismatch: 'Dieser Anhang passt nicht zur Verschlüsselung der Unterhaltung.'
         not_found: 'Datei nicht gefunden.'
     moderation:
         timed_out: 'Du bist in dieser Community vorübergehend stummgeschaltet.'

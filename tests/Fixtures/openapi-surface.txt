@@ -171,6 +171,7 @@ POST /api/v1/communities/{identifier}/members
 POST /api/v1/communities/{identifier}/notifications/mark-all-read
 POST /api/v1/conversations
 POST /api/v1/conversations/{conversation}/attachments
+POST /api/v1/conversations/{conversation}/encrypted-attachments
 POST /api/v1/conversations/{conversation}/mark-read
 POST /api/v1/conversations/{conversation}/messages
 POST /api/v1/conversations/{conversation}/mls/commits

@@ -32,7 +32,7 @@ class MediaObjectRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('mo')
             ->join('mo.message', 'm')
             ->join('m.page', 'p')
-            ->where("mo.type = 'attachment'")
+            ->where("mo.type IN ('attachment', 'encrypted_attachment')")
             ->andWhere('mo.createdAt < :cutoff')
             ->andWhere('(m.pinnedAt IS NULL OR m.deleted = true)')
             ->orderBy('m.deleted', 'DESC')

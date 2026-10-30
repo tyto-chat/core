@@ -45,6 +45,7 @@ exception:
     media:
         not_an_attachment: 'O objeto de mídia não é um anexo.'
         attachment_already_linked: 'Este anexo já está vinculado a outra mensagem.'
+        attachment_class_mismatch: 'Este anexo não corresponde à criptografia da conversa.'
         not_found: 'Arquivo não encontrado.'
     moderation:
         timed_out: 'Você está em castigo nesta comunidade.'

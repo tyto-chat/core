@@ -17,6 +17,7 @@ use App\Entity\Notification;
 use App\Enum\Conversation\ReadOnlyReason;
 use App\Enum\Presence\PresenceState;
 use App\Service\MediaObject\AttachmentUrlGeneratorInterface;
+use App\Service\MediaObject\MediaObjectServiceInterface;
 use App\Service\MediaObject\SignedUrlServiceInterface;
 use App\Service\Voice\ChannelParticipantStoreInterface;
 use App\Utils\Topics;
@@ -266,7 +267,12 @@ class MercurePublisher implements RealtimePublisherInterface, E2eeRealtimePublis
         }
 
         $attachments = array_values(array_map(
-            fn (MediaObject $a): array => [
+            fn (MediaObject $a): array => MediaObjectServiceInterface::ENCRYPTED_ATTACHMENT === $a->type ? [
+                '@id' => $this->iriConverter->getIriFromResource($a),
+                'type' => $a->type,
+                'size' => $a->size,
+                'contentUrl' => $this->attachmentUrls->contentUrl($a),
+            ] : [
                 '@id' => $this->iriConverter->getIriFromResource($a),
                 'originalName' => $a->originalName,
                 'mimeType' => $a->mimeType,

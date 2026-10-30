@@ -17,6 +17,7 @@ class MediaUploadValidator extends ConstraintValidator
 {
     private const AVATAR_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     private const LOGO_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    private const CIPHERTEXT_OVERHEAD_BYTES = 1024;
 
     public function __construct(
         private readonly SettingsServiceInterface $settings,
@@ -55,6 +56,9 @@ class MediaUploadValidator extends ConstraintValidator
                 maxSize: $this->settings->get(Settings::maxAttachmentSizeMb()).'M',
                 mimeTypes: array_filter(array_map('trim', explode(',', $this->settings->get(Settings::attachmentAllowedMimes())))),
                 mimeTypesMessage: 'This file type is not allowed. Allowed types: {{ types }}.',
+            ),
+            'encrypted_attachment' => new FileConstraint(
+                maxSize: max(1, $this->settings->get(Settings::maxAttachmentSizeMb()) * 1024 * 1024 + self::CIPHERTEXT_OVERHEAD_BYTES),
             ),
             'community_emoji' => new Image(
                 maxSize: $this->settings->get(Settings::communityEmojiMaxSizeMb()).'M',

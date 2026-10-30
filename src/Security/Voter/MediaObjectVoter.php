@@ -63,7 +63,7 @@ class MediaObjectVoter extends Voter
             'avatar' => null !== $this->profileService->findByAvatar($subject),
             'logo' => $this->canViewLogo($subject, $user),
             'community_emoji' => $this->canViewCommunityEmoji($subject, $user),
-            'attachment' => $this->canViewAttachment($subject, $user, $token),
+            'attachment', 'encrypted_attachment' => $this->canViewAttachment($subject, $user, $token),
             default => false,
         };
     }

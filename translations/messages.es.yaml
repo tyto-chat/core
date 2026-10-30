@@ -45,6 +45,7 @@ exception:
     media:
         not_an_attachment: 'El objeto multimedia no es un archivo adjunto.'
         attachment_already_linked: 'Este archivo adjunto ya está vinculado a otro mensaje.'
+        attachment_class_mismatch: 'Este archivo adjunto no coincide con el cifrado de la conversación.'
         not_found: 'Archivo no encontrado.'
     moderation:
         timed_out: 'Estás suspendido temporalmente en esta comunidad.'

@@ -45,6 +45,7 @@ exception:
     media:
         not_an_attachment: 'Medya nesnesi bir ek değil.'
         attachment_already_linked: 'Bu ek zaten başka bir mesaja bağlı.'
+        attachment_class_mismatch: 'Bu ek, konuşmanın şifrelemesiyle uyuşmuyor.'
         not_found: 'Dosya bulunamadı.'
     moderation:
         timed_out: 'Bu toplulukta geçici olarak susturuldun.'

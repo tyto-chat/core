@@ -17,6 +17,7 @@ use App\State\MediaObject\Processor\UpdateAvatarProcessor;
 use App\State\MediaObject\Processor\UpdateLogoProcessor;
 use App\State\MediaObject\Processor\UploadAttachmentProcessor;
 use App\State\MediaObject\Processor\UploadConversationAttachmentProcessor;
+use App\State\MediaObject\Processor\UploadEncryptedConversationAttachmentProcessor;
 use App\State\MediaObject\Provider\CommunityLogoProvider;
 use App\Validator\Constraint\MediaUpload;
 use Doctrine\ORM\Mapping as ORM;
@@ -170,6 +171,37 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             processor: UploadConversationAttachmentProcessor::class,
             extraProperties: ['scopeResource' => 'conversations'],
         ),
+        new Post(
+            uriTemplate: '/conversations/{conversation}/encrypted-attachments',
+            inputFormats: ['multipart' => ['multipart/form-data']],
+            uriVariables: [],
+            openapi: new Model\Operation(
+                summary: 'Upload an encrypted attachment to a conversation',
+                description: 'Participants of an encrypted conversation only. Uploads opaque ciphertext to be linked '
+                    .'to an encrypted message on send. The server stores no file name, type or dimensions and '
+                    .'makes no thumbnails. `404` when the conversation does not exist, `422` when the '
+                    .'conversation is not encrypted or the file is larger than the attachment limit.',
+                requestBody: new Model\RequestBody(
+                    content: new \ArrayObject([
+                        'multipart/form-data' => [
+                            'schema' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'file' => [
+                                        'type' => 'string',
+                                        'format' => 'binary',
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ])
+                )
+            ),
+            security: 'is_granted("ROLE_USER")',
+            validationContext: ['groups' => ['Default', 'encrypted_attachment']],
+            processor: UploadEncryptedConversationAttachmentProcessor::class,
+            extraProperties: ['scopeResource' => 'conversations'],
+        ),
         new Delete(
             uriTemplate: '/attachments/{id}',
             security: "is_granted('ROLE_USER')",
@@ -251,6 +283,7 @@ class MediaObject
     #[MediaUpload(type: 'avatar', groups: ['avatar'])]
     #[MediaUpload(type: 'logo', groups: ['logo'])]
     #[MediaUpload(type: 'attachment', groups: ['attachment'])]
+    #[MediaUpload(type: 'encrypted_attachment', groups: ['encrypted_attachment'])]
     #[MediaUpload(type: 'community_emoji', groups: ['community_emoji'])]
     public ?File $file = null;
 

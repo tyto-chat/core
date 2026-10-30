@@ -53,9 +53,11 @@ class MediaObjectNormalizer implements NormalizerInterface
                     },
                     MediaObjectServiceInterface::FILTERS[$object->type],
                 );
-            } elseif ('attachment' === $object->type) {
+            } elseif (MediaObjectServiceInterface::ATTACHMENT === $object->type) {
                 $object->contentUrl = $this->attachmentUrls->contentUrl($object);
                 $object->thumbnailUrl = $this->attachmentUrls->thumbnailUrl($object);
+            } elseif (MediaObjectServiceInterface::ENCRYPTED_ATTACHMENT === $object->type) {
+                $object->contentUrl = $this->attachmentUrls->contentUrl($object);
             } elseif ('community_emoji' === $object->type) {
                 $relativePath = 'community_emoji/'.$object->filePath;
                 $object->contentUrl = $this->urlGenerator->generate(
@@ -76,8 +78,14 @@ class MediaObjectNormalizer implements NormalizerInterface
 
         // The jsonld item normalizer would wrap plain-JSON responses in JSON-LD envelopes.
         $inner = 'jsonld' === $format ? $this->normalizer : $this->jsonNormalizer;
+        $data = $inner->normalize($object, $format, $context);
 
-        return $inner->normalize($object, $format, $context);
+        if (MediaObjectServiceInterface::ENCRYPTED_ATTACHMENT === $object->type && is_array($data)) {
+            $data = array_intersect_key($data, array_flip(['@context', '@id', '@type', 'contentUrl', 'size']));
+            $data['type'] = $object->type;
+        }
+
+        return $data;
     }
 
     public function supportsNormalization($data, ?string $format = null, array $context = []): bool

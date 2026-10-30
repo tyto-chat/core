@@ -487,9 +487,8 @@ final class GroupDeliveryTest extends ApiTestCase
     {
         $pair = $this->pair();
         $foreign = new MediaObject();
-        $foreign->filePath = 'foreign.png';
-        $foreign->type = 'attachment';
-        $foreign->originalName = 'foreign.png';
+        $foreign->filePath = 'foreign.bin';
+        $foreign->type = 'encrypted_attachment';
         $this->em()->persist($foreign);
         $this->em()->flush();
         $iri = static::getContainer()->get(IriConverterInterface::class)->getIriFromResource($foreign);

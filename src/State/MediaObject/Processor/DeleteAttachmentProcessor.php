@@ -25,7 +25,7 @@ final readonly class DeleteAttachmentProcessor implements ProcessorInterface
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): void
     {
         /** @var MediaObject $data */
-        if ('attachment' !== $data->type) {
+        if (!in_array($data->type, MediaObjectServiceInterface::ATTACHMENT_TYPES, true)) {
             throw new BadRequestHttpException('Only attachment media objects can be deleted via this endpoint.');
         }
 

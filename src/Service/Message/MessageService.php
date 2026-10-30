@@ -112,7 +112,7 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
         }
 
         $this->assertChannelAcceptsAttachments($channel, $attachmentIris);
-        $attachments = $this->resolveAttachments($attachmentIris);
+        $attachments = $this->resolveAttachments($attachmentIris, null);
 
         $page = $this->channelService->findLatestPage($channel);
         if (!$page || $this->messageRepository->countRootsInPage($page) >= MessagePage::PAGE_SIZE) {
@@ -178,7 +178,7 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
         }
         $text = $this->prepareText($conversation, $text);
 
-        $attachments = $this->resolveAttachments($attachmentIris);
+        $attachments = $this->resolveAttachments($attachmentIris, $conversation);
 
         try {
             $message = $this->transactional(function () use ($conversation, $text, $clientId, $attachments, $caller): Message {
@@ -397,7 +397,7 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
             throw new ThreadNotAllowedException();
         }
 
-        $attachments = $this->resolveAttachments($attachmentIris);
+        $attachments = $this->resolveAttachments($attachmentIris, $conversation);
 
         // save() flushes individually — without the wrapping transaction a mid-sequence failure leaves a half-created thread.
         try {
@@ -542,7 +542,7 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
      *
      * @return list<MediaObject>
      */
-    private function resolveAttachments(array $attachmentIris): array
+    private function resolveAttachments(array $attachmentIris, ?Conversation $conversation): array
     {
         $max = $this->settings->get(Settings::maxAttachmentsPerMessage());
         if (count($attachmentIris) > $max) {
@@ -552,9 +552,10 @@ class MessageService extends AbstractDoctrineService implements MessageServiceIn
         $attachments = [];
         foreach ($attachmentIris as $iri) {
             $mediaObject = $this->iriConverter->getResourceFromIri($iri);
-            if (!$mediaObject instanceof MediaObject || 'attachment' !== $mediaObject->type) {
+            if (!$mediaObject instanceof MediaObject || !in_array($mediaObject->type, MediaObjectServiceInterface::ATTACHMENT_TYPES, true)) {
                 throw new InvalidAttachmentException(sprintf('IRI "%s" is not a valid attachment.', $iri));
             }
+            $this->mediaObjectService->assertAttachmentClass($mediaObject->type, $conversation);
             $attachments[] = $mediaObject;
         }
 

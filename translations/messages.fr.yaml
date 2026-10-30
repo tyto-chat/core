@@ -45,6 +45,7 @@ exception:
     media:
         not_an_attachment: 'L''objet média n''est pas une pièce jointe.'
         attachment_already_linked: 'Cette pièce jointe est déjà liée à un autre message.'
+        attachment_class_mismatch: 'Cette pièce jointe ne correspond pas au chiffrement de la conversation.'
         not_found: 'Fichier introuvable.'
     moderation:
         timed_out: 'Tu es temporairement exclu(e) de cette communauté.'

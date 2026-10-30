@@ -6,6 +6,7 @@ namespace App\Service\MediaObject;
 
 use App\Entity\Channel;
 use App\Entity\Community;
+use App\Entity\Conversation;
 use App\Entity\MediaObject;
 use App\Entity\Message;
 
@@ -17,6 +18,10 @@ interface MediaObjectServiceInterface
         'community_emoji' => ['community_emoji'],
         'attachment' => ['attachment_thumb'],
     ];
+
+    public const string ATTACHMENT = 'attachment';
+    public const string ENCRYPTED_ATTACHMENT = 'encrypted_attachment';
+    public const array ATTACHMENT_TYPES = [self::ATTACHMENT, self::ENCRYPTED_ATTACHMENT];
 
     public const int MAX_THUMBNAIL_SOURCE_PIXELS = 50_000_000;
 
@@ -31,6 +36,9 @@ interface MediaObjectServiceInterface
 
     /** @internal No authz — caller must gate. */
     public function delete(MediaObject $mediaObject): void;
+
+    /** Throws AttachmentClassMismatchException unless the type is the one the container stores: encrypted for encrypted conversations, plain otherwise (a null conversation is a channel). */
+    public function assertAttachmentClass(string $type, ?Conversation $conversation): void;
 
     public function linkAttachmentToMessage(MediaObject $attachment, Message $message): void;
 

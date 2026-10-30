@@ -45,6 +45,7 @@ exception:
     media:
         not_an_attachment: 'L''oggetto media non è un allegato.'
         attachment_already_linked: 'Questo allegato è già collegato a un altro messaggio.'
+        attachment_class_mismatch: 'Questo allegato non corrisponde alla crittografia della conversazione.'
         not_found: 'File non trovato.'
     moderation:
         timed_out: 'Sei temporaneamente sospeso in questa community.'

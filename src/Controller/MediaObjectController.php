@@ -14,6 +14,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -47,6 +48,11 @@ class MediaObjectController extends AbstractController
         }
 
         $response = new BinaryFileResponse($path);
+
+        if (MediaObjectServiceInterface::ENCRYPTED_ATTACHMENT === $mediaObject->type) {
+            $response->headers->set('Content-Type', 'application/octet-stream');
+            $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $filename);
+        }
 
         if ('community_emoji' === $mediaObject->type) {
             $expiry = (int) explode('.', $token, 2)[1];
@@ -92,7 +98,7 @@ class MediaObjectController extends AbstractController
 
         // Repository, not getByFilePath (voter) — the signed URL is the sole authz; the caller may be anonymous.
         $mediaObject = $mediaObjectRepository->findByFilePath($filename);
-        if (null === $mediaObject || 'attachment' !== $mediaObject->type) {
+        if (null === $mediaObject || !in_array($mediaObject->type, MediaObjectServiceInterface::ATTACHMENT_TYPES, true)) {
             throw new NotFoundHttpException();
         }
 
@@ -101,6 +107,12 @@ class MediaObjectController extends AbstractController
             throw new NotFoundHttpException();
         }
 
-        return new BinaryFileResponse($path);
+        $response = new BinaryFileResponse($path);
+        if (MediaObjectServiceInterface::ENCRYPTED_ATTACHMENT === $mediaObject->type) {
+            $response->headers->set('Content-Type', 'application/octet-stream');
+            $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $filename);
+        }
+
+        return $response;
     }
 }

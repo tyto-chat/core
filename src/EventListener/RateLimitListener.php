@@ -112,7 +112,7 @@ final readonly class RateLimitListener
 
         $ip = $request->getClientIp() ?? '0.0.0.0';
 
-        if (str_contains($routeName, '/attachments_post')) {
+        if (str_contains($routeName, '/attachments_post') || str_contains($routeName, '/encrypted-attachments_post')) {
             $this->enforce($event, $this->attachmentUploadLimiter, 'attachment-'.$this->resolveUserKey($ip));
 
             return;

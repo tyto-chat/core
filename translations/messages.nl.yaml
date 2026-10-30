@@ -45,6 +45,7 @@ exception:
     media:
         not_an_attachment: 'Het media-object is geen bijlage.'
         attachment_already_linked: 'Deze bijlage is al gekoppeld aan een ander bericht.'
+        attachment_class_mismatch: 'Deze bijlage past niet bij de versleuteling van het gesprek.'
         not_found: 'Bestand niet gevonden.'
     moderation:
         timed_out: 'Je hebt een time-out in deze community.'
