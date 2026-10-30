@@ -592,6 +592,12 @@ class ConversationService extends AbstractDoctrineService implements Conversatio
     }
 
     #[\Override]
+    public function sharesEncryptedConversation(User $a, User $b): bool
+    {
+        return $this->conversationMemberRepository->existsEncryptedConversationBetween($a, $b);
+    }
+
+    #[\Override]
     public function findEncryptedIds(): array
     {
         return $this->conversationRepository->findEncryptedIds();

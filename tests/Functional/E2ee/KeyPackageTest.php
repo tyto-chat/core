@@ -412,6 +412,18 @@ class KeyPackageTest extends ApiTestCase
         self::assertSame($replacement['data'], $this->claim($this->claimer($user), $user)[0]['keyPackage']);
     }
 
+    public function testEncryptedConversationPeerWithoutSharedCommunityCanClaim(): void
+    {
+        [$user, $device, $client] = $this->userWithDevice();
+        $this->upload($client, $device, [self::package()], self::package());
+        $peer = UserFactory::createOne();
+        $this->sharedConversation([$user, $peer], encrypted: true);
+        $peerClient = $this->plainJsonClient($peer);
+        $peerClient->request('POST', '/api/v1/e2ee/account', ['json' => ['publicKey' => (new E2eeKeys())->accountPublicKey()]]);
+
+        self::assertSame(200, $this->sendClaim($peerClient, $user)->getStatusCode());
+    }
+
     public function testStrangerCannotClaim(): void
     {
         [$user, $device, $client] = $this->userWithDevice();
@@ -559,5 +571,17 @@ class KeyPackageTest extends ApiTestCase
         \assert($service instanceof E2eeServiceInterface);
 
         return $service;
+    }
+
+    /** @param list<User> $users */
+    private function sharedConversation(array $users, bool $encrypted): void
+    {
+        $ids = array_map(static fn (User $u): int => (int) $u->getId(), $users);
+        $conversation = \App\Tests\Factory\ConversationFactory::new(['encrypted' => $encrypted])
+            ->with(['participantsHash' => \App\Entity\Conversation::hashParticipants($ids, $encrypted)])
+            ->create();
+        foreach ($users as $user) {
+            \App\Tests\Factory\ConversationMemberFactory::createForUserAndConversation($user, $conversation);
+        }
     }
 }

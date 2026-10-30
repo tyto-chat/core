@@ -6,6 +6,7 @@ namespace App\Tests\Functional\E2ee;
 
 use App\E2ee\ByteString;
 use App\E2ee\CanonicalCbor;
+use App\Entity\User;
 use App\Exception\E2ee\InvalidE2eeRevocationException;
 use App\Service\E2ee\E2eeServiceInterface;
 use App\Tests\Factory\UserFactory;
@@ -188,6 +189,29 @@ class RegistryTest extends ApiTestCase
         self::assertResponseStatusCodeSame(404);
 
         $this->plainJsonClient(UserFactory::createOne())->request('GET', '/api/v1/e2ee/users/'.$user->getId().'/revocations');
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testEncryptedConversationPeerWithoutSharedCommunitySeesDirectory(): void
+    {
+        [$user] = $this->userWithAccount();
+        $peer = UserFactory::createOne();
+        $this->sharedConversation([$user, $peer], encrypted: true);
+
+        $this->plainJsonClient($peer)->request('GET', '/api/v1/e2ee/users/'.$user->getId().'/devices');
+        self::assertResponseStatusCodeSame(200);
+
+        $this->plainJsonClient($peer)->request('GET', '/api/v1/e2ee/users/'.$user->getId().'/revocations');
+        self::assertResponseStatusCodeSame(200);
+    }
+
+    public function testPlainConversationPeerWithoutSharedCommunityStillHidden(): void
+    {
+        [$user] = $this->userWithAccount();
+        $peer = UserFactory::createOne();
+        $this->sharedConversation([$user, $peer], encrypted: false);
+
+        $this->plainJsonClient($peer)->request('GET', '/api/v1/e2ee/users/'.$user->getId().'/devices');
         self::assertResponseStatusCodeSame(404);
     }
 
@@ -402,5 +426,17 @@ class RegistryTest extends ApiTestCase
         ]]);
 
         self::assertFalse(static::getContainer()->get(E2eeServiceInterface::class)->isReachable($user));
+    }
+
+    /** @param list<User> $users */
+    private function sharedConversation(array $users, bool $encrypted): void
+    {
+        $ids = array_map(static fn (User $u): int => (int) $u->getId(), $users);
+        $conversation = \App\Tests\Factory\ConversationFactory::new(['encrypted' => $encrypted])
+            ->with(['participantsHash' => \App\Entity\Conversation::hashParticipants($ids, $encrypted)])
+            ->create();
+        foreach ($users as $user) {
+            \App\Tests\Factory\ConversationMemberFactory::createForUserAndConversation($user, $conversation);
+        }
     }
 }

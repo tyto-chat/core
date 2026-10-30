@@ -57,6 +57,21 @@ class ConversationMemberRepository extends ServiceEntityRepository
         ]);
     }
 
+    public function existsEncryptedConversationBetween(User $a, User $b): bool
+    {
+        return (int) $this->createQueryBuilder('mine')
+            ->select('COUNT(mine.id)')
+            ->join('mine.conversation', 'c')
+            ->join(ConversationMember::class, 'theirs', 'WITH', 'theirs.conversation = c')
+            ->where('mine.user = :a')
+            ->andWhere('theirs.user = :b')
+            ->andWhere('c.encrypted = true')
+            ->setParameter('a', $a)
+            ->setParameter('b', $b)
+            ->getQuery()
+            ->getSingleScalarResult() > 0;
+    }
+
     public function markAllReadForUser(User $user, \DateTimeImmutable $when): void
     {
         $this->createQueryBuilder('cm')

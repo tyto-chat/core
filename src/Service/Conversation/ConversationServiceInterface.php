@@ -62,6 +62,9 @@ interface ConversationServiceInterface
 
     public function isMember(Conversation $conversation, User $user): bool;
 
+    /** @internal No authz — caller must gate. */
+    public function sharesEncryptedConversation(User $a, User $b): bool;
+
     /** @return int[] */
     public function findEncryptedIds(): array;
 

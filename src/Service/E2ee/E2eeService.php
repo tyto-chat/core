@@ -35,9 +35,11 @@ use App\Repository\UserRepository;
 use App\Security\SecurityContext;
 use App\Service\AbstractDoctrineService;
 use App\Service\Community\CommunityMembershipServiceInterface;
+use App\Service\Conversation\ConversationServiceInterface;
 use App\Service\Settings\SettingsServiceInterface;
 use App\Settings\Settings;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Symfony\Component\DependencyInjection\Attribute\Lazy;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 class E2eeService extends AbstractDoctrineService implements E2eeServiceInterface
@@ -53,6 +55,8 @@ class E2eeService extends AbstractDoctrineService implements E2eeServiceInterfac
         private readonly CommunityMembershipServiceInterface $memberships,
         private readonly RequestStack $requestStack,
         private readonly SettingsServiceInterface $settings,
+        #[Lazy]
+        private readonly ConversationServiceInterface $conversations,
     ) {
     }
 
@@ -400,7 +404,11 @@ class E2eeService extends AbstractDoctrineService implements E2eeServiceInterfac
         if (null === $user || $user->isBot()) {
             throw new UserNotFoundException();
         }
-        if ($user->getId() !== $me->getId() && !$this->security->isAdmin() && !$this->memberships->existsSharedCommunity($me, $user)) {
+        if ($user->getId() !== $me->getId()
+            && !$this->security->isAdmin()
+            && !$this->memberships->existsSharedCommunity($me, $user)
+            && !$this->conversations->sharesEncryptedConversation($me, $user)
+        ) {
             throw new UserNotFoundException();
         }
 
