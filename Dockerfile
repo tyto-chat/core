@@ -42,7 +42,7 @@ RUN CGO_CFLAGS=$(php-config --includes) \
 ###########################################
 # Stage 2 — runtime (FrankenPHP / PHP 8.5)
 ###########################################
-FROM dunglas/frankenphp:1.13-php8.5@sha256:73053ec45f0ad33c8e6f71f60ec3a11133899eecc73d7aa577b6d3a1ff5649c2 AS runtime
+FROM dunglas/frankenphp:1.13-php8.5@sha256:7e73a27eb7712a5b4073b92f8f0dec91e9400138604b76cc791589faaa6a639c AS runtime
 
 # PHP extensions via the bundled mlocati/install-php-extensions helper —
 # it installs the required system libs and builds reliably (no -j race).
