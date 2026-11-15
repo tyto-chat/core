@@ -3,7 +3,7 @@
 ###########################################
 # Stage 1 — composer dependencies (no-dev)
 ###########################################
-FROM composer:2@sha256:b6dcd72ca98fa19d0e5b8476de179859704891fad06dd9e0b96833d4c430a5fc AS vendor
+FROM composer:2@sha256:ca11f643d7791ebdd90a34fc20caf11380d434007ae539a9ea75cd9212e13dca AS vendor
 WORKDIR /app
 COPY composer.json composer.lock symfony.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
@@ -13,7 +13,7 @@ RUN composer dump-autoload --no-dev --optimize --classmap-authoritative
 ###########################################
 # Stage 1b — FrankenPHP + Souin (xcaddy)
 ###########################################
-FROM dunglas/frankenphp:1.13-builder-php8.5@sha256:6430fbce7a883edee38ed1781497272afff5c352e3bdb3996aec9dbf147324b2 AS caddy-builder
+FROM dunglas/frankenphp:1.13-builder-php8.5@sha256:03689f65a8c0977115e2bc5aff0c82db4c9a269a73528ebbbb069a79c706767b AS caddy-builder
 
 COPY --from=caddy:builder /usr/bin/xcaddy /usr/bin/xcaddy
 
@@ -42,7 +42,7 @@ RUN CGO_CFLAGS=$(php-config --includes) \
 ###########################################
 # Stage 2 — runtime (FrankenPHP / PHP 8.5)
 ###########################################
-FROM dunglas/frankenphp:1.13-php8.5@sha256:73053ec45f0ad33c8e6f71f60ec3a11133899eecc73d7aa577b6d3a1ff5649c2 AS runtime
+FROM dunglas/frankenphp:1.13-php8.5@sha256:667c5fffd348d9c3c260803d75956f1d9aace7e4b7331d8893de6f101d7e0e57 AS runtime
 
 # PHP extensions via the bundled mlocati/install-php-extensions helper —
 # it installs the required system libs and builds reliably (no -j race).
